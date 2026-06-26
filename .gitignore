@@ -1,0 +1,32 @@
+# ===== 编译产物 =====
+target/
+build/
+*.class
+
+# ===== 日志 =====
+*.log
+logs/
+
+# ===== IDE - IntelliJ IDEA =====
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# ===== IDE - Eclipse =====
+.project
+.classpath
+.settings/
+.factorypath
+
+# ===== IDE - VS Code =====
+.vscode/
+
+# ===== 操作系统 =====
+.DS_Store
+Thumbs.db
+
+# ===== 其他临时文件 =====
+*.bak
+*.tmp
+*.swp
