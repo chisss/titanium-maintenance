@@ -14,9 +14,9 @@ public enum EffectiveTimeType {
     SPECIFIED_DATE(3, "SPECIFIED_DATE", "指定日", "保全变更于指定日期生效");
 
     private final Integer enumCode;
-    private final String code;
-    private final String name;
-    private final String desc;
+    private final String  code;
+    private final String  name;
+    private final String  desc;
 
     EffectiveTimeType(Integer enumCode, String code, String name, String desc) {
         this.enumCode = enumCode;

@@ -1,7 +1,8 @@
 package com.titanium.maintenance.exception;
 
-import com.titanium.maintenance.constant.MaintenanceConstants;
 import org.springframework.http.HttpStatus;
+
+import com.titanium.maintenance.constant.MaintenanceConstants;
 
 public class CustomerNotFoundException extends BusinessException {
     public CustomerNotFoundException() {

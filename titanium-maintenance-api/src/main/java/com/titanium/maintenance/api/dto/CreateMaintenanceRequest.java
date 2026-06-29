@@ -1,11 +1,14 @@
 package com.titanium.maintenance.api.dto;
 
+import java.time.LocalDateTime;
+
 import com.titanium.maintenance.enums.EffectiveTimeType;
 import com.titanium.maintenance.enums.MaintenanceType;
-import jakarta.validation.constraints.*;
-import lombok.Data;
 
-import java.time.LocalDateTime;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.Data;
 
 @Data
 public class CreateMaintenanceRequest {

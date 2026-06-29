@@ -1,11 +1,11 @@
 package com.titanium.maintenance.client;
 
+import java.time.LocalDateTime;
+
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
-
-import java.time.LocalDateTime;
 
 @FeignClient(name = "titanium-customer", path = "/api/v1/customers")
 public interface CustomerServiceClient {

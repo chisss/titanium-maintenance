@@ -15,9 +15,9 @@ public enum EffectiveTimeStatus {
     EXPIRED(3, "EXPIRED", "已过期", "生效时点已过期，变更未能生效");
 
     private final Integer enumCode;
-    private final String code;
-    private final String name;
-    private final String desc;
+    private final String  code;
+    private final String  name;
+    private final String  desc;
 
     EffectiveTimeStatus(Integer enumCode, String code, String name, String desc) {
         this.enumCode = enumCode;

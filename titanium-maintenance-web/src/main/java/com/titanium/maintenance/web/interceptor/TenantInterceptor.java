@@ -1,10 +1,12 @@
 package com.titanium.maintenance.web.interceptor;
 
-import com.titanium.maintenance.config.TenantContext;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
+
+import com.titanium.maintenance.config.TenantContext;
+
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 @Component
 public class TenantInterceptor implements HandlerInterceptor {
@@ -20,7 +22,7 @@ public class TenantInterceptor implements HandlerInterceptor {
     }
 
     @Override
-    public void afterCompletion(HttpServletRequest request, HttpServletResponse response, 
+    public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                               Object handler, Exception ex) {
         TenantContext.clear();
     }

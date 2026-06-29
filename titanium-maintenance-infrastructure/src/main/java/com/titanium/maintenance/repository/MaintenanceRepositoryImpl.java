@@ -1,29 +1,30 @@
 package com.titanium.maintenance.repository;
 
-import com.titanium.maintenance.aggregate.Maintenance;
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.enums.MaintenanceType;
-import com.titanium.maintenance.repository.jpa.MaintenanceCaseJpaRepository;
-import com.titanium.maintenance.repository.jpa.MaintenanceChangeRecordJpaRepository;
-import com.titanium.maintenance.valueobject.CustomerId;
-import com.titanium.maintenance.valueobject.MaintenanceId;
-import com.titanium.maintenance.valueobject.PolicyId;
-import org.springframework.stereotype.Repository;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.stereotype.Repository;
+
+import com.titanium.maintenance.aggregate.Maintenance;
+import com.titanium.maintenance.enums.MaintenanceType;
+import com.titanium.maintenance.repository.jpa.MaintenanceCaseJpaRepository;
+import com.titanium.maintenance.repository.jpa.MaintenanceChangeRecordJpaRepository;
+import com.titanium.maintenance.repository.jpa.MaintenanceExclusionJpaRepository;
+import com.titanium.maintenance.valueobject.CustomerId;
+import com.titanium.maintenance.valueobject.MaintenanceId;
+import com.titanium.maintenance.valueobject.PolicyId;
+
 @Repository
 public class MaintenanceRepositoryImpl implements MaintenanceRepository {
-    private final MaintenanceCaseJpaRepository maintenanceCaseJpaRepository;
+    private final MaintenanceCaseJpaRepository         maintenanceCaseJpaRepository;
     private final MaintenanceChangeRecordJpaRepository maintenanceChangeRecordJpaRepository;
-    private final com.titanium.maintenance.repository.jpa.MaintenanceExclusionJpaRepository maintenanceExclusionJpaRepository;
+    private final MaintenanceExclusionJpaRepository    maintenanceExclusionJpaRepository;
 
     public MaintenanceRepositoryImpl(MaintenanceCaseJpaRepository maintenanceCaseJpaRepository,
-                                   MaintenanceChangeRecordJpaRepository maintenanceChangeRecordJpaRepository,
-                                   com.titanium.maintenance.repository.jpa.MaintenanceExclusionJpaRepository maintenanceExclusionJpaRepository) {
+                                     MaintenanceChangeRecordJpaRepository maintenanceChangeRecordJpaRepository,
+                                     com.titanium.maintenance.repository.jpa.MaintenanceExclusionJpaRepository maintenanceExclusionJpaRepository) {
         this.maintenanceCaseJpaRepository = maintenanceCaseJpaRepository;
         this.maintenanceChangeRecordJpaRepository = maintenanceChangeRecordJpaRepository;
         this.maintenanceExclusionJpaRepository = maintenanceExclusionJpaRepository;
@@ -34,8 +35,7 @@ public class MaintenanceRepositoryImpl implements MaintenanceRepository {
         if (existingType == newType) {
             return false;
         }
-        return maintenanceExclusionJpaRepository.findExclusionsByMaintenanceType(existingType, tenantId)
-                .stream()
+        return maintenanceExclusionJpaRepository.findExclusionsByMaintenanceType(existingType, tenantId).stream()
                 .anyMatch(exclusion -> exclusion.getMaintenanceType1() == newType
                         || exclusion.getMaintenanceType2() == newType);
     }
@@ -49,23 +49,18 @@ public class MaintenanceRepositoryImpl implements MaintenanceRepository {
 
     @Override
     public Optional<Maintenance> findById(MaintenanceId id) {
-        return maintenanceCaseJpaRepository.findById(id.getId())
-                .map(this::convertToAggregate);
+        return maintenanceCaseJpaRepository.findById(id.getId()).map(this::convertToAggregate);
     }
 
     @Override
     public List<Maintenance> findByPolicyId(PolicyId policyId) {
-        return maintenanceCaseJpaRepository.findByPolicyId(policyId.getId())
-                .stream()
-                .map(this::convertToAggregate)
+        return maintenanceCaseJpaRepository.findByPolicyId(policyId.getId()).stream().map(this::convertToAggregate)
                 .collect(Collectors.toList());
     }
 
     @Override
     public List<Maintenance> findByCustomerId(String customerId) {
-        return maintenanceCaseJpaRepository.findByCustomerId(customerId)
-                .stream()
-                .map(this::convertToAggregate)
+        return maintenanceCaseJpaRepository.findByCustomerId(customerId).stream().map(this::convertToAggregate)
                 .collect(Collectors.toList());
     }
 
@@ -102,7 +97,8 @@ public class MaintenanceRepositoryImpl implements MaintenanceRepository {
             effectiveTimeTypeField.setAccessible(true);
             effectiveTimeTypeField.set(maintenance, entity.getEffectiveTimeType());
 
-            java.lang.reflect.Field specificEffectiveDateField = Maintenance.class.getDeclaredField("specificEffectiveDate");
+            java.lang.reflect.Field specificEffectiveDateField = Maintenance.class
+                    .getDeclaredField("specificEffectiveDate");
             specificEffectiveDateField.setAccessible(true);
             specificEffectiveDateField.set(maintenance, entity.getSpecificEffectiveDate());
 
@@ -148,22 +144,14 @@ public class MaintenanceRepositoryImpl implements MaintenanceRepository {
     }
 
     private MaintenanceCaseJpaEntity convertToEntity(Maintenance maintenance) {
-        return MaintenanceCaseJpaEntity.builder()
-                .id(maintenance.getId().getId())
-                .policyId(maintenance.getPolicyId().getId())
-                .customerId(maintenance.getCustomerId().getId())
-                .maintenanceType(maintenance.getMaintenanceType())
-                .status(maintenance.getStatus())
+        return MaintenanceCaseJpaEntity.builder().id(maintenance.getId().getId())
+                .policyId(maintenance.getPolicyId().getId()).customerId(maintenance.getCustomerId().getId())
+                .maintenanceType(maintenance.getMaintenanceType()).status(maintenance.getStatus())
                 .effectiveTimeType(maintenance.getEffectiveTimeType())
-                .specificEffectiveDate(maintenance.getSpecificEffectiveDate())
-                .totalAmount(maintenance.getTotalAmount())
-                .refundAmount(maintenance.getRefundAmount())
-                .description(maintenance.getDescription())
-                .createdAt(maintenance.getCreatedAt())
-                .createdBy(maintenance.getCreatedBy())
-                .updatedAt(maintenance.getUpdatedAt())
-                .updatedBy(maintenance.getUpdatedBy())
-                .tenantId(maintenance.getTenantId())
-                .build();
+                .specificEffectiveDate(maintenance.getSpecificEffectiveDate()).totalAmount(maintenance.getTotalAmount())
+                .refundAmount(maintenance.getRefundAmount()).description(maintenance.getDescription())
+                .createdAt(maintenance.getCreatedAt()).createdBy(maintenance.getCreatedBy())
+                .updatedAt(maintenance.getUpdatedAt()).updatedBy(maintenance.getUpdatedBy())
+                .tenantId(maintenance.getTenantId()).build();
     }
 }

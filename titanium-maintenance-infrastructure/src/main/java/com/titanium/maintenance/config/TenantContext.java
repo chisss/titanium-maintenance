@@ -1,17 +1,17 @@
 package com.titanium.maintenance.config;
 
 public class TenantContext {
-    private static final ThreadLocal<String> currentTenant = new ThreadLocal<>();
+    private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
 
     public static void setCurrentTenant(String tenantId) {
-        currentTenant.set(tenantId);
+        CURRENT_TENANT.set(tenantId);
     }
 
     public static String getCurrentTenant() {
-        return currentTenant.get();
+        return CURRENT_TENANT.get();
     }
 
     public static void clear() {
-        currentTenant.remove();
+        CURRENT_TENANT.remove();
     }
 }

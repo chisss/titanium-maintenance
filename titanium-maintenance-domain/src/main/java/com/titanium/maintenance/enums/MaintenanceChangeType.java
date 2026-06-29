@@ -14,9 +14,9 @@ public enum MaintenanceChangeType {
     DELETE(3, "DELETE", "删除", "删除字段值");
 
     private final Integer enumCode;
-    private final String code;
-    private final String name;
-    private final String desc;
+    private final String  code;
+    private final String  name;
+    private final String  desc;
 
     MaintenanceChangeType(Integer enumCode, String code, String name, String desc) {
         this.enumCode = enumCode;

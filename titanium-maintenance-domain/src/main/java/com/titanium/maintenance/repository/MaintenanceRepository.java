@@ -1,18 +1,22 @@
 package com.titanium.maintenance.repository;
 
+import java.util.List;
+import java.util.Optional;
+
 import com.titanium.maintenance.aggregate.Maintenance;
 import com.titanium.maintenance.enums.MaintenanceType;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
 
-import java.util.List;
-import java.util.Optional;
-
 public interface MaintenanceRepository {
     Optional<Maintenance> findById(MaintenanceId id);
+
     List<Maintenance> findByPolicyId(PolicyId policyId);
+
     List<Maintenance> findByCustomerId(String customerId);
+
     Maintenance save(Maintenance maintenance);
+
     void delete(Maintenance maintenance);
 
     /**

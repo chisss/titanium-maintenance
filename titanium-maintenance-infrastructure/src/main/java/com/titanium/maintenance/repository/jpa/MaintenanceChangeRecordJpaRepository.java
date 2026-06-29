@@ -1,10 +1,11 @@
 package com.titanium.maintenance.repository.jpa;
 
-import com.titanium.maintenance.enums.MaintenanceChangeType;
-import com.titanium.maintenance.repository.MaintenanceChangeRecordJpaEntity;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.titanium.maintenance.enums.MaintenanceChangeType;
+import com.titanium.maintenance.repository.MaintenanceChangeRecordJpaEntity;
 
 public interface MaintenanceChangeRecordJpaRepository extends JpaRepository<MaintenanceChangeRecordJpaEntity, String> {
 

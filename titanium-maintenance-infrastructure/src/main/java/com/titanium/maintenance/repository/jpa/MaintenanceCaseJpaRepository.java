@@ -1,12 +1,13 @@
 package com.titanium.maintenance.repository.jpa;
 
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.repository.MaintenanceCaseJpaEntity;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.util.List;
+import com.titanium.maintenance.enums.MaintenanceStatus;
+import com.titanium.maintenance.repository.MaintenanceCaseJpaEntity;
 
 public interface MaintenanceCaseJpaRepository extends JpaRepository<MaintenanceCaseJpaEntity, String> {
 

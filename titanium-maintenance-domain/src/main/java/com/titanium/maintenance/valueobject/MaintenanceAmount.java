@@ -1,12 +1,12 @@
 package com.titanium.maintenance.valueobject;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+import java.math.BigDecimal;
 
 import com.titanium.maintenance.exception.MaintenanceValidationException;
 
-import java.math.BigDecimal;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
 
 @Getter
 @EqualsAndHashCode

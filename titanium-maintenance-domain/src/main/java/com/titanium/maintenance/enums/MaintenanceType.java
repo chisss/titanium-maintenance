@@ -12,7 +12,7 @@ public enum MaintenanceType {
     POLICY_SUSPENSION(MaintenanceConstants.MAINTENANCE_TYPE_POLICY_SUSPENSION),
     POLICY_RESUMPTION(MaintenanceConstants.MAINTENANCE_TYPE_POLICY_RESUMPTION),
     POLICY_TERMINATION(MaintenanceConstants.MAINTENANCE_TYPE_POLICY_TERMINATION),
-    
+
     // 新增保全类型
     POLICY_INFO_CHANGE(MaintenanceConstants.MAINTENANCE_TYPE_POLICY_INFO_CHANGE),
     POLICY_PERIOD_CHANGE(MaintenanceConstants.MAINTENANCE_TYPE_POLICY_PERIOD_CHANGE),
@@ -43,8 +43,8 @@ public enum MaintenanceType {
     }
 
     /**
-     * 范式统一入口：按码值匹配枚举，未匹配返回 null（与 EffectiveTimeType/MaintenanceChangeType 的 fromCode 保持一致）。
-     * 注意：本枚举码值即 value 字段，为兼容既有 fromValue 调用方而保留 value 字段不变。
+     * 范式统一入口：按码值匹配枚举，未匹配返回 null（与 EffectiveTimeType/MaintenanceChangeType 的
+     * fromCode 保持一致）。 注意：本枚举码值即 value 字段，为兼容既有 fromValue 调用方而保留 value 字段不变。
      */
     public static MaintenanceType fromCode(String code) {
         for (MaintenanceType type : MaintenanceType.values()) {

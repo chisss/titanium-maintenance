@@ -1,41 +1,51 @@
 package com.titanium.maintenance.application.service;
 
-import com.titanium.maintenance.command.*;
-import com.titanium.maintenance.client.CustomerServiceClient;
-import com.titanium.maintenance.client.PolicyServiceClient;
-import com.titanium.maintenance.aggregate.Maintenance;
-import com.titanium.maintenance.repository.MaintenanceRepository;
-import com.titanium.maintenance.service.MaintenanceService;
-import com.titanium.maintenance.enums.EffectiveTimeType;
-import com.titanium.maintenance.enums.MaintenanceChangeType;
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.enums.MaintenanceType;
-import com.titanium.maintenance.exception.*;
-import com.titanium.maintenance.valueobject.MaintenanceId;
-import com.titanium.maintenance.valueobject.PolicyId;
-import org.axonframework.commandhandling.gateway.CommandGateway;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import org.axonframework.commandhandling.gateway.CommandGateway;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.titanium.maintenance.aggregate.Maintenance;
+import com.titanium.maintenance.client.CustomerServiceClient;
+import com.titanium.maintenance.client.PolicyServiceClient;
+import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
+import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
+import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
+import com.titanium.maintenance.command.CreateMaintenanceCommand;
+import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
+import com.titanium.maintenance.enums.EffectiveTimeType;
+import com.titanium.maintenance.enums.MaintenanceChangeType;
+import com.titanium.maintenance.enums.MaintenanceStatus;
+import com.titanium.maintenance.enums.MaintenanceType;
+import com.titanium.maintenance.exception.CustomerNotFoundException;
+import com.titanium.maintenance.exception.InvalidMaintenanceStatusException;
+import com.titanium.maintenance.exception.MaintenanceTypeExcludedException;
+import com.titanium.maintenance.exception.PendingMaintenanceExistsException;
+import com.titanium.maintenance.exception.PolicyNotActiveException;
+import com.titanium.maintenance.exception.PolicyNotFoundException;
+import com.titanium.maintenance.exception.PolicyNotTerminatedException;
+import com.titanium.maintenance.repository.MaintenanceRepository;
+import com.titanium.maintenance.service.MaintenanceService;
+import com.titanium.maintenance.valueobject.MaintenanceId;
+import com.titanium.maintenance.valueobject.PolicyId;
+
 @Service
 @Transactional
 public class MaintenanceApplicationService {
-    private final CommandGateway commandGateway;
-    private final MaintenanceService maintenanceService;
+    private final CommandGateway        commandGateway;
+    private final MaintenanceService    maintenanceService;
     private final MaintenanceRepository maintenanceRepository;
-    private final PolicyServiceClient policyServiceClient;
+    private final PolicyServiceClient   policyServiceClient;
     private final CustomerServiceClient customerServiceClient;
 
-    public MaintenanceApplicationService(CommandGateway commandGateway,
-                                        MaintenanceService maintenanceService,
-                                        MaintenanceRepository maintenanceRepository,
-                                        PolicyServiceClient policyServiceClient,
-                                        CustomerServiceClient customerServiceClient) {
+    public MaintenanceApplicationService(CommandGateway commandGateway, MaintenanceService maintenanceService,
+                                         MaintenanceRepository maintenanceRepository,
+                                         PolicyServiceClient policyServiceClient,
+                                         CustomerServiceClient customerServiceClient) {
         this.commandGateway = commandGateway;
         this.maintenanceService = maintenanceService;
         this.maintenanceRepository = maintenanceRepository;
@@ -45,9 +55,10 @@ public class MaintenanceApplicationService {
 
     // 创建保全案件
     public CompletableFuture<String> createMaintenanceCase(String policyId, String customerId,
-                                                         MaintenanceType maintenanceType, EffectiveTimeType effectiveTimeType,
-                                                         LocalDateTime specificEffectiveDate,
-                                                         String description, String createdBy, String tenantId) {
+                                                           MaintenanceType maintenanceType,
+                                                           EffectiveTimeType effectiveTimeType,
+                                                           LocalDateTime specificEffectiveDate, String description,
+                                                           String createdBy, String tenantId) {
         // 验证保单存在
         validatePolicyExists(policyId, tenantId);
 
@@ -64,66 +75,47 @@ public class MaintenanceApplicationService {
         checkMaintenanceExclusion(policyId, maintenanceType, tenantId);
 
         // 创建命令
-        CreateMaintenanceCommand command = CreateMaintenanceCommand.of(
-                policyId, customerId, maintenanceType, effectiveTimeType,
-                specificEffectiveDate, description, createdBy, tenantId);
+        CreateMaintenanceCommand command = CreateMaintenanceCommand.of(policyId, customerId, maintenanceType,
+                effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
 
         // 发送命令到Axon Command Gateway
-        return commandGateway.send(command)
-                .thenApply(result -> command.getId().getId());
+        return commandGateway.send(command).thenApply(result -> command.getId().getId());
     }
 
     // 添加保全变更记录
-    public CompletableFuture<String> addMaintenanceChange(String maintenanceId,
-                                                        String changeType, String fieldName,
-                                                        String oldValue, String newValue,
-                                                        String createdBy) {
+    public CompletableFuture<String> addMaintenanceChange(String maintenanceId, String changeType, String fieldName,
+                                                          String oldValue, String newValue, String createdBy) {
         // 验证保全记录存在
         maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
 
         // 创建命令（外部传入 code 字符串，在边界转换为强类型枚举）
-        AddMaintenanceChangeCommand command = AddMaintenanceChangeCommand.builder()
-                .id(MaintenanceId.of(maintenanceId))
-                .changeType(MaintenanceChangeType.fromCode(changeType))
-                .fieldName(fieldName)
-                .oldValue(oldValue)
-                .newValue(newValue)
-                .createdBy(createdBy)
-                .build();
+        AddMaintenanceChangeCommand command = AddMaintenanceChangeCommand.builder().id(MaintenanceId.of(maintenanceId))
+                .changeType(MaintenanceChangeType.fromCode(changeType)).fieldName(fieldName).oldValue(oldValue)
+                .newValue(newValue).createdBy(createdBy).build();
 
         // 发送命令到Axon Command Gateway
-        return commandGateway.send(command)
-                .thenApply(result -> maintenanceId);
+        return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
     // 计算保全保费
-    public CompletableFuture<String> calculateMaintenancePremium(String maintenanceId, 
-                                                               BigDecimal totalAmount, 
-                                                               BigDecimal refundAmount,
-                                                               String calculationDetails, 
-                                                               String updatedBy) {
+    public CompletableFuture<String> calculateMaintenancePremium(String maintenanceId, BigDecimal totalAmount,
+                                                                 BigDecimal refundAmount, String calculationDetails,
+                                                                 String updatedBy) {
         // 验证保全记录存在
         maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
 
         // 创建命令
         CalculateMaintenancePremiumCommand command = CalculateMaintenancePremiumCommand.builder()
-                .id(MaintenanceId.of(maintenanceId))
-                .totalAmount(totalAmount)
-                .refundAmount(refundAmount)
-                .calculationDetails(calculationDetails)
-                .updatedBy(updatedBy)
-                .build();
+                .id(MaintenanceId.of(maintenanceId)).totalAmount(totalAmount).refundAmount(refundAmount)
+                .calculationDetails(calculationDetails).updatedBy(updatedBy).build();
 
         // 发送命令到Axon Command Gateway
-        return commandGateway.send(command)
-                .thenApply(result -> maintenanceId);
+        return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
     // 执行保全
-    public CompletableFuture<String> executeMaintenance(String maintenanceId, 
-                                                     LocalDateTime effectiveTime,
-                                                     String executionDetails, 
-                                                     String updatedBy) {
+    public CompletableFuture<String> executeMaintenance(String maintenanceId, LocalDateTime effectiveTime,
+                                                        String executionDetails, String updatedBy) {
         // 验证保全记录存在
         Maintenance maintenance = maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
 
@@ -133,32 +125,25 @@ public class MaintenanceApplicationService {
         }
 
         // 创建命令
-        ExecuteMaintenanceCommand command = ExecuteMaintenanceCommand.builder()
-                .id(MaintenanceId.of(maintenanceId))
-                .effectiveTime(effectiveTime)
-                .executionDetails(executionDetails)
-                .updatedBy(updatedBy)
-                .build();
+        ExecuteMaintenanceCommand command = ExecuteMaintenanceCommand.builder().id(MaintenanceId.of(maintenanceId))
+                .effectiveTime(effectiveTime).executionDetails(executionDetails).updatedBy(updatedBy).build();
 
         // 发送命令到Axon Command Gateway
-        return commandGateway.send(command)
-                .thenApply(result -> maintenanceId);
+        return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
     // 变更保全记录状态
-    public CompletableFuture<String> changeMaintenanceStatus(String maintenanceId,
-                                                          MaintenanceStatus newStatus, String changeReason,
-                                                          String changedBy) {
+    public CompletableFuture<String> changeMaintenanceStatus(String maintenanceId, MaintenanceStatus newStatus,
+                                                             String changeReason, String changedBy) {
         // 验证保全记录存在
         maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
 
         // 创建命令
-        ChangeMaintenanceStatusCommand command = ChangeMaintenanceStatusCommand.of(
-                maintenanceId, newStatus, changeReason, changedBy);
+        ChangeMaintenanceStatusCommand command = ChangeMaintenanceStatusCommand.of(maintenanceId, newStatus,
+                changeReason, changedBy);
 
         // 发送命令到Axon Command Gateway
-        return commandGateway.send(command)
-                .thenApply(result -> maintenanceId);
+        return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
     // 根据ID查询保全记录
@@ -220,7 +205,8 @@ public class MaintenanceApplicationService {
 
     // 检查是否存在在途保全案件
     private void checkPendingMaintenance(String policyId, String tenantId) {
-        List<Maintenance> pendingMaintenances = maintenanceService.findPendingMaintenancesByPolicyId(PolicyId.of(policyId));
+        List<Maintenance> pendingMaintenances = maintenanceService
+                .findPendingMaintenancesByPolicyId(PolicyId.of(policyId));
         if (!pendingMaintenances.isEmpty()) {
             throw new PendingMaintenanceExistsException();
         }
@@ -228,9 +214,11 @@ public class MaintenanceApplicationService {
 
     // 检查保全项互斥性
     private void checkMaintenanceExclusion(String policyId, MaintenanceType maintenanceType, String tenantId) {
-        List<Maintenance> pendingMaintenances = maintenanceService.findPendingMaintenancesByPolicyId(PolicyId.of(policyId));
+        List<Maintenance> pendingMaintenances = maintenanceService
+                .findPendingMaintenancesByPolicyId(PolicyId.of(policyId));
         for (Maintenance maintenance : pendingMaintenances) {
-            if (maintenanceService.isMaintenanceTypeExcluded(maintenance.getMaintenanceType(), maintenanceType, tenantId)) {
+            if (maintenanceService.isMaintenanceTypeExcluded(maintenance.getMaintenanceType(), maintenanceType,
+                    tenantId)) {
                 throw new MaintenanceTypeExcludedException();
             }
         }

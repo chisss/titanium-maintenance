@@ -1,13 +1,14 @@
 package com.titanium.maintenance.api.dto;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import com.titanium.maintenance.enums.EffectiveTimeType;
 import com.titanium.maintenance.enums.MaintenanceStatus;
 import com.titanium.maintenance.enums.MaintenanceType;
+
 import lombok.Builder;
 import lombok.Data;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @Data
 @Builder

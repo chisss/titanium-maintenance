@@ -1,14 +1,12 @@
 package com.titanium.maintenance.client;
 
-import com.titanium.maintenance.exception.PolicyNotFoundException;
-import com.titanium.maintenance.exception.PolicyNotActiveException;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
-
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
 
 @FeignClient(name = "titanium-policy", path = "/api/v1/policies")
 public interface PolicyServiceClient {

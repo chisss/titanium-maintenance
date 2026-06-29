@@ -1,10 +1,11 @@
 package com.titanium.maintenance.repository.jpa;
 
-import com.titanium.maintenance.enums.EffectiveTimeStatus;
-import com.titanium.maintenance.repository.MaintenanceEffectiveTimeJpaEntity;
+import java.util.List;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import java.util.List;
+import com.titanium.maintenance.enums.EffectiveTimeStatus;
+import com.titanium.maintenance.repository.MaintenanceEffectiveTimeJpaEntity;
 
 public interface MaintenanceEffectiveTimeJpaRepository extends JpaRepository<MaintenanceEffectiveTimeJpaEntity, String> {
 

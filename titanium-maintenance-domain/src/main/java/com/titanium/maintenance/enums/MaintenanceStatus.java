@@ -30,8 +30,8 @@ public enum MaintenanceStatus {
     }
 
     /**
-     * 范式统一入口：按码值匹配枚举，未匹配返回 null（与 EffectiveTimeType/MaintenanceChangeType 的 fromCode 保持一致）。
-     * 注意：本枚举码值即 value 字段，为兼容既有 fromValue 调用方而保留 value 字段不变。
+     * 范式统一入口：按码值匹配枚举，未匹配返回 null（与 EffectiveTimeType/MaintenanceChangeType 的
+     * fromCode 保持一致）。 注意：本枚举码值即 value 字段，为兼容既有 fromValue 调用方而保留 value 字段不变。
      */
     public static MaintenanceStatus fromCode(String code) {
         for (MaintenanceStatus status : MaintenanceStatus.values()) {

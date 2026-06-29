@@ -1,28 +1,35 @@
 package com.titanium.maintenance.web.controller;
 
-import com.titanium.maintenance.api.dto.CreateMaintenanceRequest;
-import com.titanium.maintenance.api.dto.ChangeMaintenanceStatusRequest;
-import com.titanium.maintenance.api.dto.MaintenanceResponse;
-import com.titanium.maintenance.application.service.MaintenanceApplicationService;
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.enums.MaintenanceType;
-import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.titanium.maintenance.api.dto.ChangeMaintenanceStatusRequest;
+import com.titanium.maintenance.api.dto.CreateMaintenanceRequest;
+import com.titanium.maintenance.api.dto.MaintenanceResponse;
+import com.titanium.maintenance.application.service.MaintenanceApplicationService;
+
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/api/v1/maintenances")
@@ -61,7 +68,7 @@ public class MaintenanceController {
 
     // 变更保全记录状态
     @PutMapping("/{id}/status")
-    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable("id") 
+    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable("id")
                                                          @NotBlank @Size(max = 36) String id,
                                                          @Valid @RequestBody ChangeMaintenanceStatusRequest request,
                                                          @RequestHeader("X-Tenant-ID") String tenantId) {
@@ -83,7 +90,7 @@ public class MaintenanceController {
 
     // 根据ID查询保全记录
     @GetMapping("/{id}")
-    public ResponseEntity<MaintenanceResponse> getMaintenanceById(@PathVariable("id") 
+    public ResponseEntity<MaintenanceResponse> getMaintenanceById(@PathVariable("id")
                                                                  @NotBlank @Size(max = 36) String id,
                                                                  @RequestHeader("X-Tenant-ID") String tenantId) {
         var maintenance = maintenanceApplicationService.findMaintenanceById(id);

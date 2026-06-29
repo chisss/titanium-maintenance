@@ -1,10 +1,10 @@
 package com.titanium.maintenance.valueobject;
 
+import java.util.UUID;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
-
-import java.util.UUID;
 
 @Getter
 @EqualsAndHashCode
