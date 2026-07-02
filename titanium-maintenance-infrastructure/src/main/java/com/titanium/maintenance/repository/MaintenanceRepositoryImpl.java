@@ -70,77 +70,25 @@ public class MaintenanceRepositoryImpl implements MaintenanceRepository {
     }
 
     private Maintenance convertToAggregate(MaintenanceCaseJpaEntity entity) {
-        Maintenance maintenance = new Maintenance();
-        // 使用反射或Accessor来设置私有字段
-        try {
-            java.lang.reflect.Field idField = Maintenance.class.getDeclaredField("id");
-            idField.setAccessible(true);
-            idField.set(maintenance, MaintenanceId.of(entity.getId()));
-
-            java.lang.reflect.Field policyIdField = Maintenance.class.getDeclaredField("policyId");
-            policyIdField.setAccessible(true);
-            policyIdField.set(maintenance, PolicyId.of(entity.getPolicyId()));
-
-            java.lang.reflect.Field customerIdField = Maintenance.class.getDeclaredField("customerId");
-            customerIdField.setAccessible(true);
-            customerIdField.set(maintenance, CustomerId.of(entity.getCustomerId()));
-
-            java.lang.reflect.Field maintenanceTypeField = Maintenance.class.getDeclaredField("maintenanceType");
-            maintenanceTypeField.setAccessible(true);
-            maintenanceTypeField.set(maintenance, entity.getMaintenanceType());
-
-            java.lang.reflect.Field statusField = Maintenance.class.getDeclaredField("status");
-            statusField.setAccessible(true);
-            statusField.set(maintenance, entity.getStatus());
-
-            java.lang.reflect.Field effectiveTimeTypeField = Maintenance.class.getDeclaredField("effectiveTimeType");
-            effectiveTimeTypeField.setAccessible(true);
-            effectiveTimeTypeField.set(maintenance, entity.getEffectiveTimeType());
-
-            java.lang.reflect.Field specificEffectiveDateField = Maintenance.class
-                    .getDeclaredField("specificEffectiveDate");
-            specificEffectiveDateField.setAccessible(true);
-            specificEffectiveDateField.set(maintenance, entity.getSpecificEffectiveDate());
-
-            java.lang.reflect.Field totalAmountField = Maintenance.class.getDeclaredField("totalAmount");
-            totalAmountField.setAccessible(true);
-            totalAmountField.set(maintenance, entity.getTotalAmount());
-
-            java.lang.reflect.Field refundAmountField = Maintenance.class.getDeclaredField("refundAmount");
-            refundAmountField.setAccessible(true);
-            refundAmountField.set(maintenance, entity.getRefundAmount());
-
-            java.lang.reflect.Field descriptionField = Maintenance.class.getDeclaredField("description");
-            descriptionField.setAccessible(true);
-            descriptionField.set(maintenance, entity.getDescription());
-
-            java.lang.reflect.Field changesField = Maintenance.class.getDeclaredField("changes");
-            changesField.setAccessible(true);
-            changesField.set(maintenance, new ArrayList<>());
-
-            java.lang.reflect.Field createdAtField = Maintenance.class.getDeclaredField("createdAt");
-            createdAtField.setAccessible(true);
-            createdAtField.set(maintenance, entity.getCreatedAt());
-
-            java.lang.reflect.Field createdByField = Maintenance.class.getDeclaredField("createdBy");
-            createdByField.setAccessible(true);
-            createdByField.set(maintenance, entity.getCreatedBy());
-
-            java.lang.reflect.Field updatedAtField = Maintenance.class.getDeclaredField("updatedAt");
-            updatedAtField.setAccessible(true);
-            updatedAtField.set(maintenance, entity.getUpdatedAt());
-
-            java.lang.reflect.Field updatedByField = Maintenance.class.getDeclaredField("updatedBy");
-            updatedByField.setAccessible(true);
-            updatedByField.set(maintenance, entity.getUpdatedBy());
-
-            java.lang.reflect.Field tenantIdField = Maintenance.class.getDeclaredField("tenantId");
-            tenantIdField.setAccessible(true);
-            tenantIdField.set(maintenance, entity.getTenantId());
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to convert JPA entity to aggregate", e);
-        }
-        return maintenance;
+        // 经 SuperBuilder 构建聚合，统一填充自身字段与基类审计字段(tenantId/createTime/updateTime)
+        return Maintenance.builder()
+                .id(MaintenanceId.of(entity.getId()))
+                .policyId(PolicyId.of(entity.getPolicyId()))
+                .customerId(CustomerId.of(entity.getCustomerId()))
+                .maintenanceType(entity.getMaintenanceType())
+                .status(entity.getStatus())
+                .effectiveTimeType(entity.getEffectiveTimeType())
+                .specificEffectiveDate(entity.getSpecificEffectiveDate())
+                .totalAmount(entity.getTotalAmount())
+                .refundAmount(entity.getRefundAmount())
+                .description(entity.getDescription())
+                .changes(new ArrayList<>())
+                .createdBy(entity.getCreatedBy())
+                .updatedBy(entity.getUpdatedBy())
+                .tenantId(entity.getTenantId())
+                .createTime(entity.getCreatedAt())
+                .updateTime(entity.getUpdatedAt())
+                .build();
     }
 
     private MaintenanceCaseJpaEntity convertToEntity(Maintenance maintenance) {
@@ -150,8 +98,8 @@ public class MaintenanceRepositoryImpl implements MaintenanceRepository {
                 .effectiveTimeType(maintenance.getEffectiveTimeType())
                 .specificEffectiveDate(maintenance.getSpecificEffectiveDate()).totalAmount(maintenance.getTotalAmount())
                 .refundAmount(maintenance.getRefundAmount()).description(maintenance.getDescription())
-                .createdAt(maintenance.getCreatedAt()).createdBy(maintenance.getCreatedBy())
-                .updatedAt(maintenance.getUpdatedAt()).updatedBy(maintenance.getUpdatedBy())
+                .createdAt(maintenance.getCreateTime()).createdBy(maintenance.getCreatedBy())
+                .updatedAt(maintenance.getUpdateTime()).updatedBy(maintenance.getUpdatedBy())
                 .tenantId(maintenance.getTenantId()).build();
     }
 }

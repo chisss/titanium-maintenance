@@ -11,6 +11,7 @@ import org.axonframework.modelling.command.AggregateIdentifier;
 import org.axonframework.modelling.command.AggregateLifecycle;
 import org.axonframework.spring.stereotype.Aggregate;
 
+import com.titanium.common.domain.BaseAggregate;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
@@ -31,10 +32,12 @@ import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
 
 import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
 
 @Aggregate
 @NoArgsConstructor
-public class Maintenance {
+@SuperBuilder(toBuilder = true)
+public class Maintenance extends BaseAggregate {
     @AggregateIdentifier
     private MaintenanceId           id;
     private PolicyId                policyId;
@@ -47,11 +50,8 @@ public class Maintenance {
     private BigDecimal              refundAmount;
     private String                  description;
     private List<MaintenanceChange> changes;
-    private LocalDateTime           createdAt;
     private String                  createdBy;
-    private LocalDateTime           updatedAt;
     private String                  updatedBy;
-    private String                  tenantId;
 
     // 创建保全记录命令处理器
     @CommandHandler
@@ -76,9 +76,9 @@ public class Maintenance {
         this.refundAmount = BigDecimal.ZERO;
         this.description = event.description();
         this.changes = new ArrayList<>();
-        this.createdAt = event.createdAt();
+        this.createTime = event.createdAt();
         this.createdBy = event.createdBy();
-        this.updatedAt = event.createdAt();
+        this.updateTime = event.createdAt();
         this.updatedBy = event.createdBy();
         this.tenantId = event.tenantId();
     }
@@ -128,7 +128,7 @@ public class Maintenance {
     @EventSourcingHandler
     public void on(MaintenanceStatusChangedEvent event) {
         this.status = event.newStatus();
-        this.updatedAt = event.changedAt();
+        this.updateTime = event.changedAt();
         this.updatedBy = event.changedBy();
     }
 
@@ -137,7 +137,7 @@ public class Maintenance {
     public void on(MaintenanceChangeAddedEvent event) {
         this.changes.add(new MaintenanceChange(event.changeType(), event.fieldName(), event.oldValue(),
                 event.newValue(), event.createdAt()));
-        this.updatedAt = event.createdAt();
+        this.updateTime = event.createdAt();
         this.updatedBy = event.createdBy();
     }
 
@@ -146,7 +146,7 @@ public class Maintenance {
     public void on(MaintenancePremiumCalculatedEvent event) {
         this.totalAmount = event.totalAmount();
         this.refundAmount = event.refundAmount();
-        this.updatedAt = event.updatedAt();
+        this.updateTime = event.updatedAt();
         this.updatedBy = event.updatedBy();
     }
 
@@ -154,7 +154,7 @@ public class Maintenance {
     @EventSourcingHandler
     public void on(MaintenanceExecutedEvent event) {
         this.status = MaintenanceStatus.COMPLETED;
-        this.updatedAt = event.updatedAt();
+        this.updateTime = event.updatedAt();
         this.updatedBy = event.updatedBy();
     }
 
@@ -203,23 +203,11 @@ public class Maintenance {
         return changes;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
     public String getCreatedBy() {
         return createdBy;
     }
 
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
     public String getUpdatedBy() {
         return updatedBy;
-    }
-
-    public String getTenantId() {
-        return tenantId;
     }
 }

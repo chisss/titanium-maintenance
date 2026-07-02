@@ -180,9 +180,9 @@ public class MaintenanceController {
                 .specificEffectiveDate(maintenance.getSpecificEffectiveDate())
                 .description(maintenance.getDescription())
                 .status(maintenance.getStatus())
-                .createdAt(maintenance.getCreatedAt())
+                .createdAt(maintenance.getCreateTime())
                 .createdBy(maintenance.getCreatedBy())
-                .updatedAt(maintenance.getUpdatedAt())
+                .updatedAt(maintenance.getUpdateTime())
                 .updatedBy(maintenance.getUpdatedBy())
                 .tenantId(maintenance.getTenantId())
                 .build();
