@@ -1,16 +1,20 @@
 package com.titanium.maintenance.api.dto;
 
-import com.titanium.maintenance.enums.MaintenanceStatus;
-
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * 保全状态变更请求 DTO（对外契约）
+ * <p>
+ * api 契约自包含：目标状态 {@code newStatus} 以 String 码值承载，避免耦合领域枚举
+ * {@code MaintenanceStatus}；由 web/provider 的 {@code MaintenanceWebMapper} 在边界转换为强类型。
+ * </p>
+ */
 @Data
 public class ChangeMaintenanceStatusRequest {
-    @NotNull(message = "New status is required")
-    private MaintenanceStatus newStatus;
+    @NotBlank(message = "New status is required")
+    private String newStatus;
 
     @Size(max = 500, message = "Change reason must be less than or equal to 500 characters")
     private String changeReason;

@@ -2,8 +2,8 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
-import com.titanium.maintenance.enums.MaintenanceType;
 import com.titanium.maintenance.valueobject.MaintenanceId;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 /**
  * 保全执行完成事件

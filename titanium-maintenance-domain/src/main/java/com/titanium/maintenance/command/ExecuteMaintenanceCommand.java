@@ -2,19 +2,13 @@ package com.titanium.maintenance.command;
 
 import java.time.LocalDateTime;
 
-import com.titanium.maintenance.valueobject.MaintenanceId;
+import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
-import lombok.Builder;
-import lombok.Getter;
+import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /**
  * 执行保全命令（领域层）
  */
-@Getter
-@Builder
-public class ExecuteMaintenanceCommand {
-    private final MaintenanceId id;
-    private final LocalDateTime effectiveTime;
-    private final String        executionDetails;
-    private final String        updatedBy;
+public record ExecuteMaintenanceCommand(@TargetAggregateIdentifier MaintenanceId id, LocalDateTime effectiveTime,
+        String executionDetails, String updatedBy) {
 }

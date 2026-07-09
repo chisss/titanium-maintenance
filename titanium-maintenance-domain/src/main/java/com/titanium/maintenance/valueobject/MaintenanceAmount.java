@@ -2,7 +2,7 @@ package com.titanium.maintenance.valueobject;
 
 import java.math.BigDecimal;
 
-import com.titanium.maintenance.exception.MaintenanceValidationException;
+import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

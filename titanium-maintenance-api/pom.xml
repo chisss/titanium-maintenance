@@ -14,9 +14,10 @@
     <description>保全服务API模块</description>
 
     <dependencies>
+        <!-- Common Module（对外 DTO 引用本域枚举 common.enums，api 仅依赖 common，不耦合领域内核） -->
         <dependency>
             <groupId>com.titanium</groupId>
-            <artifactId>titanium-maintenance-domain</artifactId>
+            <artifactId>titanium-maintenance-common</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
         <dependency>

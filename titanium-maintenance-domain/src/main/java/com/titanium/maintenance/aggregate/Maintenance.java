@@ -17,9 +17,8 @@ import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
 import com.titanium.maintenance.command.CreateMaintenanceCommand;
 import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
-import com.titanium.maintenance.enums.EffectiveTimeType;
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.enums.MaintenanceType;
+import com.titanium.maintenance.common.enums.EffectiveTimeType;
+import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.event.MaintenanceChangeAddedEvent;
 import com.titanium.maintenance.event.MaintenanceCreatedEvent;
 import com.titanium.maintenance.event.MaintenanceExecutedEvent;
@@ -30,6 +29,7 @@ import com.titanium.maintenance.valueobject.CustomerId;
 import com.titanium.maintenance.valueobject.MaintenanceChange;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;
@@ -56,10 +56,10 @@ public class Maintenance extends BaseAggregate {
     // 创建保全记录命令处理器
     @CommandHandler
     public Maintenance(CreateMaintenanceCommand command) {
-        AggregateLifecycle.apply(new MaintenanceCreatedEvent(command.getId(), command.getPolicyId(),
-                command.getCustomerId(), command.getMaintenanceType(), command.getEffectiveTimeType(),
-                command.getSpecificEffectiveDate(), command.getDescription(), LocalDateTime.now(),
-                command.getCreatedBy(), command.getTenantId()));
+        AggregateLifecycle.apply(new MaintenanceCreatedEvent(command.id(), command.policyId(),
+                command.customerId(), command.maintenanceType(), command.effectiveTimeType(),
+                command.specificEffectiveDate(), command.description(), LocalDateTime.now(),
+                command.createdBy(), command.tenantId()));
     }
 
     // 处理创建事件
@@ -87,31 +87,31 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(ChangeMaintenanceStatusCommand command) {
         if (this.status == MaintenanceStatus.COMPLETED || this.status == MaintenanceStatus.REJECTED) {
-            throw new MaintenanceStatusException(this.id.getId(), this.status.name(), command.getNewStatus().name(),
+            throw new MaintenanceStatusException(this.id.getId(), this.status.name(), command.newStatus().name(),
                     "已完成或已拒绝的保全不允许变更状态");
         }
-        if (this.status == command.getNewStatus()) {
-            throw new MaintenanceStatusException(this.id.getId(), this.status.name(), command.getNewStatus().name(),
+        if (this.status == command.newStatus()) {
+            throw new MaintenanceStatusException(this.id.getId(), this.status.name(), command.newStatus().name(),
                     "保全已处于该状态");
         }
 
-        AggregateLifecycle.apply(new MaintenanceStatusChangedEvent(command.getId(), this.status, command.getNewStatus(),
-                command.getChangeReason(), LocalDateTime.now(), command.getChangedBy(), this.tenantId));
+        AggregateLifecycle.apply(new MaintenanceStatusChangedEvent(command.id(), this.status, command.newStatus(),
+                command.changeReason(), LocalDateTime.now(), command.changedBy(), this.tenantId));
     }
 
     // 处理添加变更记录命令
     @CommandHandler
     public void handle(AddMaintenanceChangeCommand command) {
-        AggregateLifecycle.apply(new MaintenanceChangeAddedEvent(command.getId(), command.getChangeType(),
-                command.getFieldName(), command.getOldValue(), command.getNewValue(), LocalDateTime.now(),
-                command.getCreatedBy(), this.tenantId));
+        AggregateLifecycle.apply(new MaintenanceChangeAddedEvent(command.id(), command.changeType(),
+                command.fieldName(), command.oldValue(), command.newValue(), LocalDateTime.now(),
+                command.createdBy(), this.tenantId));
     }
 
     // 处理计算保费命令
     @CommandHandler
     public void handle(CalculateMaintenancePremiumCommand command) {
-        AggregateLifecycle.apply(new MaintenancePremiumCalculatedEvent(command.getId(), command.getTotalAmount(),
-                command.getRefundAmount(), command.getCalculationDetails(), LocalDateTime.now(), command.getUpdatedBy(),
+        AggregateLifecycle.apply(new MaintenancePremiumCalculatedEvent(command.id(), command.totalAmount(),
+                command.refundAmount(), command.calculationDetails(), LocalDateTime.now(), command.updatedBy(),
                 this.tenantId));
     }
 
@@ -119,9 +119,9 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(ExecuteMaintenanceCommand command) {
         // enrich policyId 与 maintenanceType 作为跨域上下文，供 policy 域监听回写保单状态
-        AggregateLifecycle.apply(new MaintenanceExecutedEvent(command.getId(), this.policyId.getId(),
-                this.maintenanceType, command.getEffectiveTime(), command.getExecutionDetails(), LocalDateTime.now(),
-                command.getUpdatedBy(), this.tenantId));
+        AggregateLifecycle.apply(new MaintenanceExecutedEvent(command.id(), this.policyId.getId(),
+                this.maintenanceType, command.effectiveTime(), command.executionDetails(), LocalDateTime.now(),
+                command.updatedBy(), this.tenantId));
     }
 
     // 处理状态变更事件

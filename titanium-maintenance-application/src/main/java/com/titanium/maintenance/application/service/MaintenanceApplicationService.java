@@ -10,47 +10,44 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.aggregate.Maintenance;
-import com.titanium.maintenance.client.CustomerServiceClient;
-import com.titanium.maintenance.client.PolicyServiceClient;
+import com.titanium.maintenance.application.dto.MaintenanceResponseDTO;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
 import com.titanium.maintenance.command.CreateMaintenanceCommand;
 import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
-import com.titanium.maintenance.enums.EffectiveTimeType;
-import com.titanium.maintenance.enums.MaintenanceChangeType;
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.enums.MaintenanceType;
-import com.titanium.maintenance.exception.CustomerNotFoundException;
-import com.titanium.maintenance.exception.InvalidMaintenanceStatusException;
-import com.titanium.maintenance.exception.MaintenanceTypeExcludedException;
-import com.titanium.maintenance.exception.PendingMaintenanceExistsException;
-import com.titanium.maintenance.exception.PolicyNotActiveException;
-import com.titanium.maintenance.exception.PolicyNotFoundException;
-import com.titanium.maintenance.exception.PolicyNotTerminatedException;
-import com.titanium.maintenance.repository.MaintenanceRepository;
+import com.titanium.maintenance.common.enums.EffectiveTimeType;
+import com.titanium.maintenance.common.enums.MaintenanceChangeType;
+import com.titanium.maintenance.common.enums.MaintenanceStatus;
+import com.titanium.maintenance.common.exception.CustomerNotFoundException;
+import com.titanium.maintenance.common.exception.InvalidMaintenanceStatusException;
+import com.titanium.maintenance.common.exception.MaintenanceTypeExcludedException;
+import com.titanium.maintenance.common.exception.PendingMaintenanceExistsException;
+import com.titanium.maintenance.common.exception.PolicyNotActiveException;
+import com.titanium.maintenance.common.exception.PolicyNotFoundException;
+import com.titanium.maintenance.common.exception.PolicyNotTerminatedException;
+import com.titanium.maintenance.port.CustomerServicePort;
+import com.titanium.maintenance.port.PolicyServicePort;
 import com.titanium.maintenance.service.MaintenanceService;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 @Service
 @Transactional
 public class MaintenanceApplicationService {
-    private final CommandGateway        commandGateway;
-    private final MaintenanceService    maintenanceService;
-    private final MaintenanceRepository maintenanceRepository;
-    private final PolicyServiceClient   policyServiceClient;
-    private final CustomerServiceClient customerServiceClient;
+    private final CommandGateway      commandGateway;
+    private final MaintenanceService  maintenanceService;
+    private final PolicyServicePort   policyServicePort;
+    private final CustomerServicePort customerServicePort;
 
     public MaintenanceApplicationService(CommandGateway commandGateway, MaintenanceService maintenanceService,
-                                         MaintenanceRepository maintenanceRepository,
-                                         PolicyServiceClient policyServiceClient,
-                                         CustomerServiceClient customerServiceClient) {
+                                         PolicyServicePort policyServicePort,
+                                         CustomerServicePort customerServicePort) {
         this.commandGateway = commandGateway;
         this.maintenanceService = maintenanceService;
-        this.maintenanceRepository = maintenanceRepository;
-        this.policyServiceClient = policyServiceClient;
-        this.customerServiceClient = customerServiceClient;
+        this.policyServicePort = policyServicePort;
+        this.customerServicePort = customerServicePort;
     }
 
     // 创建保全案件
@@ -79,7 +76,7 @@ public class MaintenanceApplicationService {
                 effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
 
         // 发送命令到Axon Command Gateway
-        return commandGateway.send(command).thenApply(result -> command.getId().getId());
+        return commandGateway.send(command).thenApply(result -> command.id().getId());
     }
 
     // 添加保全变更记录
@@ -89,9 +86,8 @@ public class MaintenanceApplicationService {
         maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
 
         // 创建命令（外部传入 code 字符串，在边界转换为强类型枚举）
-        AddMaintenanceChangeCommand command = AddMaintenanceChangeCommand.builder().id(MaintenanceId.of(maintenanceId))
-                .changeType(MaintenanceChangeType.fromCode(changeType)).fieldName(fieldName).oldValue(oldValue)
-                .newValue(newValue).createdBy(createdBy).build();
+        AddMaintenanceChangeCommand command = new AddMaintenanceChangeCommand(MaintenanceId.of(maintenanceId),
+                MaintenanceChangeType.fromCode(changeType), fieldName, oldValue, newValue, createdBy);
 
         // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
@@ -105,9 +101,8 @@ public class MaintenanceApplicationService {
         maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
 
         // 创建命令
-        CalculateMaintenancePremiumCommand command = CalculateMaintenancePremiumCommand.builder()
-                .id(MaintenanceId.of(maintenanceId)).totalAmount(totalAmount).refundAmount(refundAmount)
-                .calculationDetails(calculationDetails).updatedBy(updatedBy).build();
+        CalculateMaintenancePremiumCommand command = new CalculateMaintenancePremiumCommand(
+                MaintenanceId.of(maintenanceId), totalAmount, refundAmount, calculationDetails, updatedBy);
 
         // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
@@ -125,8 +120,8 @@ public class MaintenanceApplicationService {
         }
 
         // 创建命令
-        ExecuteMaintenanceCommand command = ExecuteMaintenanceCommand.builder().id(MaintenanceId.of(maintenanceId))
-                .effectiveTime(effectiveTime).executionDetails(executionDetails).updatedBy(updatedBy).build();
+        ExecuteMaintenanceCommand command = new ExecuteMaintenanceCommand(MaintenanceId.of(maintenanceId),
+                effectiveTime, executionDetails, updatedBy);
 
         // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
@@ -146,60 +141,80 @@ public class MaintenanceApplicationService {
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
-    // 根据ID查询保全记录
+    // 根据ID查询保全记录（返回应用层 DTO，聚合根不越出应用层）
     @Transactional(readOnly = true)
-    public Maintenance findMaintenanceById(String id) {
-        return maintenanceService.findMaintenanceById(MaintenanceId.of(id));
+    public MaintenanceResponseDTO findMaintenanceById(String id) {
+        return toResponse(maintenanceService.findMaintenanceById(MaintenanceId.of(id)));
     }
 
-    // 根据保单ID查询保全记录
+    // 根据保单ID查询保全记录（返回应用层 DTO，聚合根不越出应用层）
     @Transactional(readOnly = true)
-    public List<Maintenance> findMaintenancesByPolicyId(String policyId) {
-        return maintenanceService.findMaintenancesByPolicyId(PolicyId.of(policyId));
+    public List<MaintenanceResponseDTO> findMaintenancesByPolicyId(String policyId) {
+        return maintenanceService.findMaintenancesByPolicyId(PolicyId.of(policyId)).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    // 领域聚合根 → 应用层响应 DTO（读用例展示组装，枚举以 name() 承载，避免领域模型泄漏到 HTTP 边界）
+    private MaintenanceResponseDTO toResponse(Maintenance maintenance) {
+        return MaintenanceResponseDTO.builder()
+                .id(maintenance.getId().getId())
+                .policyId(maintenance.getPolicyId().getId())
+                .customerId(maintenance.getCustomerId().getId())
+                .maintenanceType(maintenance.getMaintenanceType() != null ? maintenance.getMaintenanceType().getValue() : null)
+                .totalAmount(maintenance.getTotalAmount())
+                .refundAmount(maintenance.getRefundAmount())
+                .effectiveTimeType(maintenance.getEffectiveTimeType() != null ? maintenance.getEffectiveTimeType().getCode() : null)
+                .specificEffectiveDate(maintenance.getSpecificEffectiveDate())
+                .description(maintenance.getDescription())
+                .status(maintenance.getStatus() != null ? maintenance.getStatus().getValue() : null)
+                .createdAt(maintenance.getCreateTime())
+                .createdBy(maintenance.getCreatedBy())
+                .updatedAt(maintenance.getUpdateTime())
+                .updatedBy(maintenance.getUpdatedBy())
+                .tenantId(maintenance.getTenantId())
+                .build();
     }
 
     // 检查保单是否存在
     private void validatePolicyExists(String policyId, String tenantId) {
-        try {
-            policyServiceClient.getPolicyById(policyId, tenantId);
-        } catch (Exception e) {
+        if (!policyServicePort.policyExists(policyId, tenantId)) {
             throw new PolicyNotFoundException();
         }
     }
 
     // 验证保单状态是否符合保全类型要求
     private void validatePolicyStatusForMaintenance(String policyId, MaintenanceType maintenanceType, String tenantId) {
+        PolicyServicePort.PolicyStatusSnapshot policyStatus;
         try {
-            var policyStatus = policyServiceClient.getPolicyStatus(policyId, tenantId);
-
-            switch (maintenanceType) {
-                case POLICY_REINSTATEMENT:
-                    // 只有失效状态的保单才可以做复效
-                    if (!policyStatus.isTerminated()) {
-                        throw new PolicyNotTerminatedException();
-                    }
-                    break;
-                case SUBJECT_CHANGE:
-                case POLICY_INFO_CHANGE:
-                case POLICY_PERIOD_CHANGE:
-                case COVERAGE_AMOUNT_CHANGE:
-                case INSURED_INFO_CHANGE:
-                case SMOKING_STATUS_CHANGE:
-                case COVERAGE_CHANGE:
-                    // 只有生效的保单才可以做这些保全
-                    if (!policyStatus.isActive()) {
-                        throw new PolicyNotActiveException();
-                    }
-                    break;
-                default:
-                    // 其他保全类型的验证
-                    break;
-            }
+            policyStatus = policyServicePort.getPolicyStatus(policyId, tenantId);
         } catch (Exception e) {
-            if (e instanceof PolicyNotTerminatedException || e instanceof PolicyNotActiveException) {
-                throw e;
-            }
             throw new PolicyNotFoundException();
+        }
+
+        switch (maintenanceType) {
+            case POLICY_REINSTATEMENT:
+                // 仅失效(LAPSED)保单可复效：与保单域状态机 LAPSED→EFFECTIVE 对齐，
+                // 终态 TERMINATED/EXPIRED 不可复效
+                if (!policyStatus.reinstatable()) {
+                    throw new PolicyNotTerminatedException();
+                }
+                break;
+            case SUBJECT_CHANGE:
+            case POLICY_INFO_CHANGE:
+            case POLICY_PERIOD_CHANGE:
+            case COVERAGE_AMOUNT_CHANGE:
+            case INSURED_INFO_CHANGE:
+            case SMOKING_STATUS_CHANGE:
+            case COVERAGE_CHANGE:
+                // 只有生效的保单才可以做这些保全
+                if (!policyStatus.active()) {
+                    throw new PolicyNotActiveException();
+                }
+                break;
+            default:
+                // 其他保全类型无需额外的保单状态校验
+                break;
         }
     }
 
@@ -226,9 +241,7 @@ public class MaintenanceApplicationService {
 
     // 检查客户是否存在
     private void validateCustomer(String customerId, String tenantId) {
-        try {
-            customerServiceClient.getCustomerById(customerId, tenantId);
-        } catch (Exception e) {
+        if (!customerServicePort.customerExists(customerId, tenantId)) {
             throw new CustomerNotFoundException();
         }
     }

@@ -3,7 +3,7 @@ package com.titanium.maintenance.web.interceptor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.titanium.maintenance.config.TenantContext;
+import com.titanium.maintenance.common.context.TenantContext;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

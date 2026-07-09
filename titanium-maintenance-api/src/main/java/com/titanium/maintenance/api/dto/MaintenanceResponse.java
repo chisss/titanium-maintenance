@@ -3,26 +3,30 @@ package com.titanium.maintenance.api.dto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import com.titanium.maintenance.enums.EffectiveTimeType;
-import com.titanium.maintenance.enums.MaintenanceStatus;
-import com.titanium.maintenance.enums.MaintenanceType;
-
 import lombok.Builder;
 import lombok.Data;
 
+/**
+ * 保全案件响应 DTO（对外契约）
+ * <p>
+ * api 契约自包含：保全类型 {@code maintenanceType}、生效时间类型 {@code effectiveTimeType}、状态
+ * {@code status} 均以 String 码值承载，避免下游消费方被迫传递依赖领域枚举。由 web/provider 的
+ * {@code MaintenanceWebMapper} 从应用层结果组装。
+ * </p>
+ */
 @Data
 @Builder
 public class MaintenanceResponse {
     private String id;
     private String policyId;
     private String customerId;
-    private MaintenanceType maintenanceType;
+    private String maintenanceType;
     private BigDecimal totalAmount;
     private BigDecimal refundAmount;
-    private EffectiveTimeType effectiveTimeType;
+    private String effectiveTimeType;
     private LocalDateTime specificEffectiveDate;
     private String description;
-    private MaintenanceStatus status;
+    private String status;
     private LocalDateTime createdAt;
     private String createdBy;
     private LocalDateTime updatedAt;

@@ -2,7 +2,7 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
-import com.titanium.maintenance.enums.MaintenanceChangeType;
+import com.titanium.maintenance.common.enums.MaintenanceChangeType;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
 public record MaintenanceChangeAddedEvent(MaintenanceId maintenanceId, MaintenanceChangeType changeType,

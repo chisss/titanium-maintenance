@@ -2,7 +2,7 @@ package com.titanium.maintenance.valueobject;
 
 import java.time.LocalDateTime;
 
-import com.titanium.maintenance.enums.MaintenanceChangeType;
+import com.titanium.maintenance.common.enums.MaintenanceChangeType;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

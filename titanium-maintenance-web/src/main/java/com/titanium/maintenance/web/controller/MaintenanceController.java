@@ -5,7 +5,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
@@ -21,46 +20,58 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.titanium.maintenance.api.dto.ChangeMaintenanceStatusRequest;
-import com.titanium.maintenance.api.dto.CreateMaintenanceRequest;
-import com.titanium.maintenance.api.dto.MaintenanceResponse;
 import com.titanium.maintenance.application.service.MaintenanceApplicationService;
+import com.titanium.maintenance.common.enums.EffectiveTimeType;
+import com.titanium.maintenance.common.enums.MaintenanceStatus;
+import com.titanium.maintenance.web.mapper.MaintenanceWebMapper;
+import com.titanium.maintenance.web.request.ChangeMaintenanceStatusRequestVO;
+import com.titanium.maintenance.web.request.CreateMaintenanceRequestVO;
+import com.titanium.maintenance.web.response.MaintenanceVO;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 保全控制器（后台/端上 HTTP 入口）
+ * <p>
+ * 面向管理后台/端上，路径 {@code /web/v1/maintenances}，入参为 web 层 {@code XxxRequestVO}、出参
+ * {@code MaintenanceVO}，<b>不再 implements MaintenanceApi</b>（远程契约由 {@code MaintenanceApiProvider}
+ * 承接）。请求体的枚举码值在边界转为领域枚举后交 {@link MaintenanceApplicationService} 编排；读侧查询结果
+ * 经 {@link MaintenanceWebMapper} 转 VO 返回。与 {@code MaintenanceApiProvider} 平行收敛到同一应用层门面。
+ * </p>
+ */
 @RestController
-@RequestMapping("/api/v1/maintenances")
+@RequestMapping("/web/v1/maintenances")
 @Validated
+@RequiredArgsConstructor
 @Slf4j
 public class MaintenanceController {
-    private final MaintenanceApplicationService maintenanceApplicationService;
 
-    public MaintenanceController(MaintenanceApplicationService maintenanceApplicationService) {
-        this.maintenanceApplicationService = maintenanceApplicationService;
-    }
+    private final MaintenanceApplicationService maintenanceApplicationService;
+    private final MaintenanceWebMapper          maintenanceWebMapper;
 
     // 创建保全记录
     @PostMapping
-    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceRequest request,
-                                                  @RequestHeader("X-Tenant-ID") String tenantId) {
+    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceRequestVO request,
+                                                    @RequestHeader("X-Tenant-Id") String tenantId) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.createMaintenanceCase(
                     request.getPolicyId(),
                     request.getCustomerId(),
-                    request.getMaintenanceType(),
-                    request.getEffectiveTimeType(),
+                    MaintenanceType.fromValue(request.getMaintenanceType()),
+                    EffectiveTimeType.fromCode(request.getEffectiveTimeType()),
                     request.getSpecificEffectiveDate(),
                     request.getDescription(),
                     request.getCreatedBy(),
-                    tenantId
-            );
+                    tenantId);
             String maintenanceId = future.get();
             return ResponseEntity.status(HttpStatus.CREATED).body(maintenanceId);
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to create maintenance: {}", e.getMessage(), e);
+            log.error("创建保全案件失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -68,21 +79,19 @@ public class MaintenanceController {
 
     // 变更保全记录状态
     @PutMapping("/{id}/status")
-    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable("id")
-                                                         @NotBlank @Size(max = 36) String id,
-                                                         @Valid @RequestBody ChangeMaintenanceStatusRequest request,
-                                                         @RequestHeader("X-Tenant-ID") String tenantId) {
+    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable("id") @NotBlank @Size(max = 36) String id,
+                                                          @Valid @RequestBody ChangeMaintenanceStatusRequestVO request,
+                                                          @RequestHeader("X-Tenant-Id") String tenantId) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.changeMaintenanceStatus(
                     id,
-                    request.getNewStatus(),
+                    MaintenanceStatus.fromValue(request.getNewStatus()),
                     request.getChangeReason(),
-                    request.getChangedBy()
-            );
+                    request.getChangedBy());
             future.get();
             return ResponseEntity.ok(id);
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to change maintenance status: {}", e.getMessage(), e);
+            log.error("变更保全状态失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -90,41 +99,38 @@ public class MaintenanceController {
 
     // 根据ID查询保全记录
     @GetMapping("/{id}")
-    public ResponseEntity<MaintenanceResponse> getMaintenanceById(@PathVariable("id")
-                                                                 @NotBlank @Size(max = 36) String id,
-                                                                 @RequestHeader("X-Tenant-ID") String tenantId) {
-        var maintenance = maintenanceApplicationService.findMaintenanceById(id);
-        var response = convertToResponse(maintenance);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<MaintenanceVO> getMaintenanceById(@PathVariable("id") @NotBlank @Size(max = 36) String id,
+                                                            @RequestHeader("X-Tenant-Id") String tenantId) {
+        MaintenanceVO vo = maintenanceWebMapper.toVO(maintenanceApplicationService.findMaintenanceById(id));
+        return ResponseEntity.ok(vo);
     }
 
     // 根据保单ID查询保全记录
     @GetMapping("/policy/{policyId}")
-    public ResponseEntity<List<MaintenanceResponse>> getMaintenancesByPolicyId(
+    public ResponseEntity<List<MaintenanceVO>> getMaintenancesByPolicyId(
             @PathVariable("policyId") @NotBlank @Size(max = 36) String policyId,
-            @RequestHeader("X-Tenant-ID") String tenantId) {
-        var maintenances = maintenanceApplicationService.findMaintenancesByPolicyId(policyId);
-        var responses = maintenances.stream()
-                .map(this::convertToResponse)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(responses);
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+        List<MaintenanceVO> vos = maintenanceApplicationService.findMaintenancesByPolicyId(policyId).stream()
+                .map(maintenanceWebMapper::toVO)
+                .toList();
+        return ResponseEntity.ok(vos);
     }
 
     // 添加保全变更记录
     @PostMapping("/{id}/changes")
     public ResponseEntity<String> addMaintenanceChange(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                     @RequestParam("changeType") @NotBlank String changeType,
-                                                     @RequestParam("fieldName") @NotBlank String fieldName,
-                                                     @RequestParam("oldValue") String oldValue,
-                                                     @RequestParam("newValue") String newValue,
-                                                     @RequestParam("createdBy") @NotBlank String createdBy) {
+                                                       @RequestParam("changeType") @NotBlank String changeType,
+                                                       @RequestParam("fieldName") @NotBlank String fieldName,
+                                                       @RequestParam("oldValue") String oldValue,
+                                                       @RequestParam("newValue") String newValue,
+                                                       @RequestParam("createdBy") @NotBlank String createdBy) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.addMaintenanceChange(
                     id, changeType, fieldName, oldValue, newValue, createdBy);
             future.get();
             return ResponseEntity.ok(id);
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to add maintenance change: {}", e.getMessage(), e);
+            log.error("添加保全变更记录失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -133,17 +139,17 @@ public class MaintenanceController {
     // 计算保全保费
     @PostMapping("/{id}/calculate-premium")
     public ResponseEntity<String> calculateMaintenancePremium(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                           @RequestParam("totalAmount") BigDecimal totalAmount,
-                                                           @RequestParam("refundAmount") BigDecimal refundAmount,
-                                                           @RequestParam("calculationDetails") String calculationDetails,
-                                                           @RequestParam("updatedBy") @NotBlank String updatedBy) {
+                                                              @RequestParam("totalAmount") BigDecimal totalAmount,
+                                                              @RequestParam("refundAmount") BigDecimal refundAmount,
+                                                              @RequestParam("calculationDetails") String calculationDetails,
+                                                              @RequestParam("updatedBy") @NotBlank String updatedBy) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.calculateMaintenancePremium(
                     id, totalAmount, refundAmount, calculationDetails, updatedBy);
             future.get();
             return ResponseEntity.ok(id);
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to calculate maintenance premium: {}", e.getMessage(), e);
+            log.error("计算保全保费失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
@@ -152,39 +158,18 @@ public class MaintenanceController {
     // 执行保全
     @PostMapping("/{id}/execute")
     public ResponseEntity<String> executeMaintenance(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                  @RequestParam("effectiveTime") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveTime,
-                                                  @RequestParam("executionDetails") String executionDetails,
-                                                  @RequestParam("updatedBy") @NotBlank String updatedBy) {
+                                                     @RequestParam("effectiveTime") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveTime,
+                                                     @RequestParam("executionDetails") String executionDetails,
+                                                     @RequestParam("updatedBy") @NotBlank String updatedBy) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.executeMaintenance(
                     id, effectiveTime, executionDetails, updatedBy);
             future.get();
             return ResponseEntity.ok(id);
         } catch (InterruptedException | ExecutionException e) {
-            log.error("Failed to execute maintenance: {}", e.getMessage(), e);
+            log.error("执行保全失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-    }
-
-    // 将领域模型转换为API响应DTO
-    private MaintenanceResponse convertToResponse(com.titanium.maintenance.aggregate.Maintenance maintenance) {
-        return MaintenanceResponse.builder()
-                .id(maintenance.getId().getId())
-                .policyId(maintenance.getPolicyId().getId())
-                .customerId(maintenance.getCustomerId().getId())
-                .maintenanceType(maintenance.getMaintenanceType())
-                .totalAmount(maintenance.getTotalAmount())
-                .refundAmount(maintenance.getRefundAmount())
-                .effectiveTimeType(maintenance.getEffectiveTimeType())
-                .specificEffectiveDate(maintenance.getSpecificEffectiveDate())
-                .description(maintenance.getDescription())
-                .status(maintenance.getStatus())
-                .createdAt(maintenance.getCreateTime())
-                .createdBy(maintenance.getCreatedBy())
-                .updatedAt(maintenance.getUpdateTime())
-                .updatedBy(maintenance.getUpdatedBy())
-                .tenantId(maintenance.getTenantId())
-                .build();
     }
 }

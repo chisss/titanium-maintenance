@@ -15,6 +15,13 @@
     <packaging>jar</packaging>
 
     <dependencies>
+        <!-- Metadata Module（统一领域异常体系：MaintenanceValidationException 继承 CommandValidationException） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-metadata</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

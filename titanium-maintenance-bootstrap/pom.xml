@@ -24,6 +24,12 @@
             <artifactId>titanium-maintenance-infrastructure</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        <!-- Query Module（CQRS 读侧：读模型投影 + 查询处理 + DLQ） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-maintenance-query</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>

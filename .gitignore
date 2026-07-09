@@ -1,11 +1,13 @@
-# ===== 编译产物 =====
+# ===== Maven / 构建产物（关键：target 绝不入库）=====
 target/
 build/
 *.class
+jacoco.exec
 
 # ===== 日志 =====
-*.log
 logs/
+*.log
+*.log.*
 
 # ===== IDE - IntelliJ IDEA =====
 .idea/
@@ -25,8 +27,16 @@ logs/
 # ===== 操作系统 =====
 .DS_Store
 Thumbs.db
+._*
 
-# ===== 其他临时文件 =====
+# ===== 临时文件 =====
 *.bak
 *.tmp
 *.swp
+*.swo
+*~
+
+# ===== 环境变量（敏感，不入库）=====
+.env
+.env.local
+.env.*.local

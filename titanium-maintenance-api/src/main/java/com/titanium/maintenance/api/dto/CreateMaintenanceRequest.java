@@ -2,14 +2,17 @@ package com.titanium.maintenance.api.dto;
 
 import java.time.LocalDateTime;
 
-import com.titanium.maintenance.enums.EffectiveTimeType;
-import com.titanium.maintenance.enums.MaintenanceType;
-
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+/**
+ * 创建保全请求 DTO（对外契约）
+ * <p>
+ * api 契约自包含：保全类型 {@code maintenanceType}、生效时间类型 {@code effectiveTimeType} 以 String 码值
+ * 承载，避免耦合领域枚举；由 web/provider 的 {@code MaintenanceWebMapper} 在边界转换为强类型。
+ * </p>
+ */
 @Data
 public class CreateMaintenanceRequest {
     @NotBlank(message = "Policy ID is required")
@@ -20,11 +23,11 @@ public class CreateMaintenanceRequest {
     @Size(max = 36, message = "Customer ID must be less than or equal to 36 characters")
     private String customerId;
 
-    @NotNull(message = "Maintenance type is required")
-    private MaintenanceType maintenanceType;
+    @NotBlank(message = "Maintenance type is required")
+    private String maintenanceType;
 
-    @NotNull(message = "Effective time type is required")
-    private EffectiveTimeType effectiveTimeType;
+    @NotBlank(message = "Effective time type is required")
+    private String effectiveTimeType;
 
     private LocalDateTime specificEffectiveDate;
 

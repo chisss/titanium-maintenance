@@ -3,9 +3,9 @@ package com.titanium.maintenance.service;
 import java.util.List;
 
 import com.titanium.maintenance.aggregate.Maintenance;
-import com.titanium.maintenance.enums.MaintenanceType;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 public interface MaintenanceService {
     Maintenance findMaintenanceById(MaintenanceId id);

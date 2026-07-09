@@ -2,20 +2,13 @@ package com.titanium.maintenance.command;
 
 import java.math.BigDecimal;
 
-import com.titanium.maintenance.valueobject.MaintenanceId;
+import org.axonframework.modelling.command.TargetAggregateIdentifier;
 
-import lombok.Builder;
-import lombok.Getter;
+import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /**
  * 计算保全保费命令（领域层）
  */
-@Getter
-@Builder
-public class CalculateMaintenancePremiumCommand {
-    private final MaintenanceId id;
-    private final BigDecimal    totalAmount;
-    private final BigDecimal    refundAmount;
-    private final String        calculationDetails;
-    private final String        updatedBy;
+public record CalculateMaintenancePremiumCommand(@TargetAggregateIdentifier MaintenanceId id, BigDecimal totalAmount,
+        BigDecimal refundAmount, String calculationDetails, String updatedBy) {
 }

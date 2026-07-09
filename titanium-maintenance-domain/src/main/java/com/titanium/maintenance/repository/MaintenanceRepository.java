@@ -4,9 +4,9 @@ import java.util.List;
 import java.util.Optional;
 
 import com.titanium.maintenance.aggregate.Maintenance;
-import com.titanium.maintenance.enums.MaintenanceType;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 public interface MaintenanceRepository {
     Optional<Maintenance> findById(MaintenanceId id);

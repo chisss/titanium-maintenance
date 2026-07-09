@@ -15,17 +15,10 @@
     <packaging>jar</packaging>
 
     <dependencies>
-        <!-- Domain Module -->
+        <!-- Domain Module（聚合根 + 出口 Port 抽象 + 领域服务） -->
         <dependency>
             <groupId>com.titanium</groupId>
             <artifactId>titanium-maintenance-domain</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-
-        <!-- Infrastructure Module (Feign 客户端 PolicyServiceClient/CustomerServiceClient) -->
-        <dependency>
-            <groupId>com.titanium</groupId>
-            <artifactId>titanium-maintenance-infrastructure</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
@@ -33,6 +26,13 @@
         <dependency>
             <groupId>com.titanium</groupId>
             <artifactId>titanium-maintenance-common</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- API Module（对外 DTO：读用例返回 MaintenanceResponse，避免聚合根泄漏到 web 边界） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-maintenance-api</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 

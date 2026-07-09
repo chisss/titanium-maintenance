@@ -23,6 +23,7 @@
         <module>titanium-maintenance-application</module>
         <module>titanium-maintenance-domain</module>
         <module>titanium-maintenance-infrastructure</module>
+        <module>titanium-maintenance-query</module>
         <module>titanium-maintenance-common</module>
         <module>titanium-maintenance-web</module>
         <module>titanium-maintenance-bootstrap</module>
