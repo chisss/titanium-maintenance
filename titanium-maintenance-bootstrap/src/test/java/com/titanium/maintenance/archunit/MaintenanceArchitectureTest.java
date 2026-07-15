@@ -1,5 +1,6 @@
 package com.titanium.maintenance.archunit;
 
+
 import org.junit.jupiter.api.Test;
 
 import com.titanium.buildtools.archunit.AbstractArchitectureGuardTest;
@@ -79,4 +80,5 @@ class MaintenanceArchitectureTest extends AbstractArchitectureGuardTest {
     protected void apiInterfacesMustBeNamedByAggregate() {
         super.apiInterfacesMustBeNamedByAggregate();
     }
+
 }

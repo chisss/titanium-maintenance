@@ -76,4 +76,12 @@ public class MaintenanceView extends BaseView {
     /** 保全描述 */
     @Column(name = "description", length = 500)
     private String            description;
+
+    /** 创建人（保全创建事件投影写入） */
+    @Column(name = "created_by", length = 64)
+    private String            createdBy;
+
+    /** 更新人（保费计算/状态变更/执行等事件投影写入最近操作人） */
+    @Column(name = "updated_by", length = 64)
+    private String            updatedBy;
 }

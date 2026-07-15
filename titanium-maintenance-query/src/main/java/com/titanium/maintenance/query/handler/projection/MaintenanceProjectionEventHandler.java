@@ -53,6 +53,8 @@ public class MaintenanceProjectionEventHandler {
         view.setEffectiveTimeType(event.effectiveTimeType());
         view.setSpecificEffectiveDate(event.specificEffectiveDate());
         view.setDescription(event.description());
+        view.setCreatedBy(event.createdBy());
+        view.setUpdatedBy(event.createdBy());
         if (view.getCreateTime() == null) {
             view.setCreateTime(event.createdAt());
         }
@@ -73,6 +75,7 @@ public class MaintenanceProjectionEventHandler {
 
         maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId()).ifPresentOrElse(view -> {
             view.setStatus(event.newStatus());
+            view.setUpdatedBy(event.changedBy());
             view.setUpdateTime(event.changedAt());
             maintenanceViewRepository.save(view);
         }, () -> log.warn("[读模型投影] 保全状态变更失败：未找到读模型记录 maintenanceId={}",
@@ -90,6 +93,7 @@ public class MaintenanceProjectionEventHandler {
         maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId()).ifPresentOrElse(view -> {
             view.setTotalAmount(event.totalAmount());
             view.setRefundAmount(event.refundAmount());
+            view.setUpdatedBy(event.updatedBy());
             view.setUpdateTime(event.updatedAt());
             maintenanceViewRepository.save(view);
         }, () -> log.warn("[读模型投影] 保全保费计算失败：未找到读模型记录 maintenanceId={}",
@@ -106,6 +110,7 @@ public class MaintenanceProjectionEventHandler {
 
         maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId()).ifPresentOrElse(view -> {
             view.setStatus(MaintenanceStatus.COMPLETED);
+            view.setUpdatedBy(event.updatedBy());
             view.setUpdateTime(event.updatedAt());
             maintenanceViewRepository.save(view);
         }, () -> log.warn("[读模型投影] 保全执行失败：未找到读模型记录 maintenanceId={}",

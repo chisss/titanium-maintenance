@@ -29,6 +29,13 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
+        <!-- Query Module（CQRS 读侧读模型：写侧收敛为纯事件溯源后，存在性/在途校验统一走 t_maintenance_view） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-maintenance-query</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- API Module（对外 DTO：读用例返回 MaintenanceResponse，避免聚合根泄漏到 web 边界） -->
         <dependency>
             <groupId>com.titanium</groupId>

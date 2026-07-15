@@ -58,18 +58,14 @@ titanium-maintenance/
 │   ├── enums/                               # MaintenanceStatus / MaintenanceType
 │   ├── valueobject/                         # CustomerId/PolicyId/MaintenanceId/
 │   │                                        #   MaintenanceAmount/MaintenanceChange
-│   ├── repository/MaintenanceRepository.java# 仓储接口
-│   └── service/                             # MaintenanceService + impl/
+│   ├── repository/MaintenanceExclusionRepository.java  # 互斥配置端口（参考数据；写侧 MaintenanceRepository 已删）
+│   └── service/SurrenderRefundDomainService  # 退保退费领域服务（纯计算，无仓储）
 ├── titanium-maintenance-infrastructure/     # 基础设施层
 │   ├── client/                              # ★Feign：PolicyServiceClient/CustomerServiceClient
 │   ├── config/                              # AxonConfig / KafkaConfig
-│   ├── context/TenantContext               # 租户上下文
-│   ├── messaging/MaintenanceEventHandler    # Axon EventHandler → Kafka 发布
-│   ├── entity/                              # MaintenanceCase/MaintenanceChangeRecord/
-│   │                                        #   MaintenanceEffectiveTime/MaintenanceExclusion/
-│   │                                        #   MaintenanceJpaEntity
-│   ├── repository/                          # JpaRepository + MaintenanceRepositoryImpl
-│   └── projection/                          # 投影（view 包）
+│   ├── event/MaintenanceKafkaEventPublisher # Axon EventHandler → Kafka 发布
+│   ├── entity/MaintenanceExclusionDO         # 仅保留互斥配置 DO（参考数据，JPA CRUD）
+│   └── repository/                          # MaintenanceExclusionRepositoryImpl + jpa/（仅互斥配置）
 ├── titanium-maintenance-application/        # 应用层（薄）
 │   └── application/service/MaintenanceApplicationService.java  # 唯一服务类
 ├── titanium-maintenance-web/                # Web层
@@ -91,6 +87,12 @@ titanium-maintenance/
 
 聚合持有字段：`policyId / customerId / maintenanceType / status / effectiveTimeType / specificEffectiveDate / totalAmount / refundAmount / description / changes(List<MaintenanceChange>) / 审计字段 / tenantId`。
 
+> 🔴 **写侧持久化选型（2026-07-09 收敛，见根 §4.1 与《持久化选型规范》）**：`Maintenance` 为**纯事件溯源**聚合（保全变更需历史 + 驱动 billing/payment 跨域），写模型状态只在 Axon 事件流（`AxonConfig` 装配 `EventSourcingRepository`）。
+> - 已删除残留写侧 JPA：`MaintenanceCaseEntity`/`MaintenanceChangeRecordEntity`/`MaintenanceEffectiveTimeEntity`、对应 `*JpaRepository`、`MaintenanceRepositoryImpl`、领域写端口 `MaintenanceRepository`、只读转发的领域服务 `MaintenanceService(Impl)`。原写表 `t_maintenance_case` 从未被写入（`save` 为死代码），旧读路径实为读空表，本次一并修复。
+> - **存在性/在途/DTO 读取统一改走 CQRS 读模型** `MaintenanceViewRepository`（表 `t_maintenance_view`，最终一致），由 `MaintenanceApplicationService` 直接注入；聚合状态不再回退 JPA。
+> - **保全类型互斥**为参考/配置数据（非聚合写状态）：保留为 `MaintenanceExclusionDO`（`*DO`，禁用 `Entity` 后缀）+ JPA CRUD，经领域端口 `MaintenanceExclusionRepository` 访问。
+> - 读模型投影保留 `MaintenanceView`；Kafka 发布器为 `MaintenanceKafkaEventPublisher`。
+
 ### 4.2 命令处理与业务规则（真实代码）
 
 | 命令 | 处理器行为 | 业务规则 |
@@ -105,7 +107,7 @@ titanium-maintenance/
 
 ### 4.3 事件（5个）
 
-`MaintenanceCreatedEvent`、`MaintenanceStatusChangedEvent`、`MaintenanceChangeAddedEvent`、`MaintenancePremiumCalculatedEvent`、`MaintenanceExecutedEvent`。全部经 `MaintenanceEventHandler` 转发到对应 Kafka Topic（`MaintenanceConstants.KafkaTopic.*`），消息 Key 为保全 ID。
+`MaintenanceCreatedEvent`、`MaintenanceStatusChangedEvent`、`MaintenanceChangeAddedEvent`、`MaintenancePremiumCalculatedEvent`、`MaintenanceExecutedEvent`。全部经 `MaintenanceKafkaEventPublisher` 转发到对应 Kafka Topic（`MaintenanceConstants.KafkaTopic.*`），消息 Key 为保全 ID；读模型投影另由 query 侧 `MaintenanceProjectionEventHandler` 维护。
 
 ### 4.4 枚举
 
@@ -123,7 +125,7 @@ titanium-maintenance/
 完全继承根规约第四章。本域特别强调：
 
 - **多租户**：所有命令/事件携带 `tenantId`；Web 层经 `TenantInterceptor` 解析 `X-Tenant-Id`（注意 Feign 调用下游用的请求头为 `X-Tenant-ID`，大小写需统一）。
-- **日志**：SLF4J `{}` 占位符（`MaintenanceEventHandler` 已遵循）。
+- **日志**：SLF4J `{}` 占位符（`MaintenanceKafkaEventPublisher` 已遵循）。
 - **依赖注入**：构造器注入（现有服务类均已构造注入，符合规约）。
 - **跨域调用**：仅允许在 `application` 层通过 Feign client 调用，`domain` 层禁止直接依赖外部域。
 - **整改方向**：新增命令/查询时应使用 record，并逐步将查询拆入独立 query 子模块。
@@ -154,7 +156,7 @@ mvn spring-boot:run
 
 1. **🔴 Feign 客户端扫描包路径错误（致命）**：`Bootstrap.java` 声明 `@EnableFeignClients(basePackages = "com.titanium.maintenance.infrastructure.feign")`，但实际 Feign 接口位于 `com.titanium.maintenance.client`。该包下无任何 client，启动时 `PolicyServiceClient`/`CustomerServiceClient` 不会被注册为 Bean，`MaintenanceApplicationService` 构造注入将失败。修复：改为 `basePackages = "com.titanium.maintenance.client"`。
 2. **🔴 编译错误（疑似）**：`MaintenanceApplicationService.validatePolicyStatusForMaintenance` 调用 `policyStatus.isTerminated()`，但 `PolicyServiceClient.PolicyStatusResponse` 仅定义了 `isActive()`，缺少 `isTerminated()`。需在 `PolicyStatusResponse` 补充 `isTerminated()` 方法。
-3. **🟠 缺独立 query 子模块**：未实现 CQRS 读写分离，查询直接走 `MaintenanceRepository` 重建聚合（性能/职责均不理想），应补建 `titanium-maintenance-query`（QueryHandler + QueryResult + Projection 视图）。
+3. ~~**🟠 缺独立 query 子模块**~~ ✅ **已解决**：`titanium-maintenance-query` 已建（QueryHandler + QueryResult + `MaintenanceProjectionEventHandler` + `MaintenanceView`）。2026-07-09 写侧收敛后，应用层存在性/在途校验与读取统一走读模型 `MaintenanceViewRepository`，不再重建聚合。
 4. **🟠 端口/库端口需复核**：服务端口 `8083`；数据库连到 `localhost:8066`（疑似 MyCat/中间件端口而非 MySQL 默认 3306），与其它域端口规划需统一，避免与已有域冲突。
 5. **🟠 包结构不符规约**：领域层包名缺 `.domain` 段；命令未用 record；启动类名为 `Bootstrap`。需评估重构成本与向后兼容。
 6. **🟡 跨域同步耦合**：创建保全强依赖保单域/客户域 Feign 同步调用，且未配置熔断（`feign.hystrix.enabled: false`），下游不可用时保全创建直接失败，无降级。

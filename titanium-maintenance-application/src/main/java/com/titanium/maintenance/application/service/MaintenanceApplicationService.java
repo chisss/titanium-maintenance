@@ -9,7 +9,6 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.titanium.maintenance.aggregate.Maintenance;
 import com.titanium.maintenance.application.dto.MaintenanceResponseDTO;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
@@ -21,6 +20,7 @@ import com.titanium.maintenance.common.enums.MaintenanceChangeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.common.exception.CustomerNotFoundException;
 import com.titanium.maintenance.common.exception.InvalidMaintenanceStatusException;
+import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceTypeExcludedException;
 import com.titanium.maintenance.common.exception.PendingMaintenanceExistsException;
 import com.titanium.maintenance.common.exception.PolicyNotActiveException;
@@ -28,24 +28,39 @@ import com.titanium.maintenance.common.exception.PolicyNotFoundException;
 import com.titanium.maintenance.common.exception.PolicyNotTerminatedException;
 import com.titanium.maintenance.port.CustomerServicePort;
 import com.titanium.maintenance.port.PolicyServicePort;
-import com.titanium.maintenance.service.MaintenanceService;
+import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
+import com.titanium.maintenance.query.view.MaintenanceView;
+import com.titanium.maintenance.repository.MaintenanceExclusionRepository;
 import com.titanium.maintenance.valueobject.MaintenanceId;
-import com.titanium.maintenance.valueobject.PolicyId;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
+/**
+ * 保全应用服务（读写用例入口门面）
+ * <p>
+ * 写入口：跨域校验（保单/客户存在性、保单状态、在途/互斥）后经 {@link CommandGateway} 发命令，业务规则内聚在
+ * {@code Maintenance} 聚合根。写侧收敛为纯事件溯源后，存在性/在途校验统一走 CQRS 读模型
+ * {@link MaintenanceViewRepository}（表 {@code t_maintenance_view}，最终一致），不再读写侧状态表。
+ * 互斥规则查配置端口 {@link MaintenanceExclusionRepository}（参考数据）。
+ * </p>
+ */
 @Service
 @Transactional
 public class MaintenanceApplicationService {
-    private final CommandGateway      commandGateway;
-    private final MaintenanceService  maintenanceService;
-    private final PolicyServicePort   policyServicePort;
-    private final CustomerServicePort customerServicePort;
 
-    public MaintenanceApplicationService(CommandGateway commandGateway, MaintenanceService maintenanceService,
+    private final CommandGateway                 commandGateway;
+    private final MaintenanceViewRepository       maintenanceViewRepository;
+    private final MaintenanceExclusionRepository  maintenanceExclusionRepository;
+    private final PolicyServicePort               policyServicePort;
+    private final CustomerServicePort             customerServicePort;
+
+    public MaintenanceApplicationService(CommandGateway commandGateway,
+                                         MaintenanceViewRepository maintenanceViewRepository,
+                                         MaintenanceExclusionRepository maintenanceExclusionRepository,
                                          PolicyServicePort policyServicePort,
                                          CustomerServicePort customerServicePort) {
         this.commandGateway = commandGateway;
-        this.maintenanceService = maintenanceService;
+        this.maintenanceViewRepository = maintenanceViewRepository;
+        this.maintenanceExclusionRepository = maintenanceExclusionRepository;
         this.policyServicePort = policyServicePort;
         this.customerServicePort = customerServicePort;
     }
@@ -58,38 +73,26 @@ public class MaintenanceApplicationService {
                                                            String createdBy, String tenantId) {
         // 验证保单存在
         validatePolicyExists(policyId, tenantId);
-
         // 验证客户存在
         validateCustomer(customerId, tenantId);
-
         // 验证保单状态是否符合保全类型要求
         validatePolicyStatusForMaintenance(policyId, maintenanceType, tenantId);
-
         // 检查是否存在在途保全案件
         checkPendingMaintenance(policyId, tenantId);
-
         // 检查保全项互斥性
         checkMaintenanceExclusion(policyId, maintenanceType, tenantId);
 
-        // 创建命令
         CreateMaintenanceCommand command = CreateMaintenanceCommand.of(policyId, customerId, maintenanceType,
                 effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
-
-        // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> command.id().getId());
     }
 
     // 添加保全变更记录
     public CompletableFuture<String> addMaintenanceChange(String maintenanceId, String changeType, String fieldName,
                                                           String oldValue, String newValue, String createdBy) {
-        // 验证保全记录存在
-        maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
-
-        // 创建命令（外部传入 code 字符串，在边界转换为强类型枚举）
+        requireMaintenanceExists(maintenanceId);
         AddMaintenanceChangeCommand command = new AddMaintenanceChangeCommand(MaintenanceId.of(maintenanceId),
                 MaintenanceChangeType.fromCode(changeType), fieldName, oldValue, newValue, createdBy);
-
-        // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
@@ -97,82 +100,74 @@ public class MaintenanceApplicationService {
     public CompletableFuture<String> calculateMaintenancePremium(String maintenanceId, BigDecimal totalAmount,
                                                                  BigDecimal refundAmount, String calculationDetails,
                                                                  String updatedBy) {
-        // 验证保全记录存在
-        maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
-
-        // 创建命令
+        requireMaintenanceExists(maintenanceId);
         CalculateMaintenancePremiumCommand command = new CalculateMaintenancePremiumCommand(
                 MaintenanceId.of(maintenanceId), totalAmount, refundAmount, calculationDetails, updatedBy);
-
-        // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
     // 执行保全
     public CompletableFuture<String> executeMaintenance(String maintenanceId, LocalDateTime effectiveTime,
                                                         String executionDetails, String updatedBy) {
-        // 验证保全记录存在
-        Maintenance maintenance = maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
-
-        // 验证保全状态
-        if (maintenance.getStatus() != MaintenanceStatus.APPROVED) {
+        MaintenanceView view = requireMaintenanceExists(maintenanceId);
+        // 验证保全状态（读模型最终一致）
+        if (view.getStatus() != MaintenanceStatus.APPROVED) {
             throw new InvalidMaintenanceStatusException();
         }
-
-        // 创建命令
         ExecuteMaintenanceCommand command = new ExecuteMaintenanceCommand(MaintenanceId.of(maintenanceId),
                 effectiveTime, executionDetails, updatedBy);
-
-        // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
     // 变更保全记录状态
     public CompletableFuture<String> changeMaintenanceStatus(String maintenanceId, MaintenanceStatus newStatus,
                                                              String changeReason, String changedBy) {
-        // 验证保全记录存在
-        maintenanceService.findMaintenanceById(MaintenanceId.of(maintenanceId));
-
-        // 创建命令
+        requireMaintenanceExists(maintenanceId);
         ChangeMaintenanceStatusCommand command = ChangeMaintenanceStatusCommand.of(maintenanceId, newStatus,
                 changeReason, changedBy);
-
-        // 发送命令到Axon Command Gateway
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
-    // 根据ID查询保全记录（返回应用层 DTO，聚合根不越出应用层）
+    // 根据ID查询保全记录（读模型 → 应用层 DTO）
     @Transactional(readOnly = true)
     public MaintenanceResponseDTO findMaintenanceById(String id) {
-        return toResponse(maintenanceService.findMaintenanceById(MaintenanceId.of(id)));
+        return toResponse(requireMaintenanceExists(id));
     }
 
-    // 根据保单ID查询保全记录（返回应用层 DTO，聚合根不越出应用层）
+    // 根据保单ID查询保全记录（读模型 → 应用层 DTO）
     @Transactional(readOnly = true)
     public List<MaintenanceResponseDTO> findMaintenancesByPolicyId(String policyId) {
-        return maintenanceService.findMaintenancesByPolicyId(PolicyId.of(policyId)).stream()
+        return maintenanceViewRepository.findByPolicyId(policyId).stream()
                 .map(this::toResponse)
                 .toList();
     }
 
-    // 领域聚合根 → 应用层响应 DTO（读用例展示组装，枚举以 name() 承载，避免领域模型泄漏到 HTTP 边界）
-    private MaintenanceResponseDTO toResponse(Maintenance maintenance) {
+    // ==================== 私有辅助 ====================
+
+    /** 校验保全读模型存在并返回；不存在抛 {@link MaintenanceNotFoundException} */
+    private MaintenanceView requireMaintenanceExists(String maintenanceId) {
+        return maintenanceViewRepository.findByMaintenanceId(maintenanceId)
+                .orElseThrow(MaintenanceNotFoundException::new);
+    }
+
+    // 读模型 → 应用层响应 DTO（操作人由事件投影写入读模型 created_by/updated_by 列）
+    private MaintenanceResponseDTO toResponse(MaintenanceView view) {
         return MaintenanceResponseDTO.builder()
-                .id(maintenance.getId().getId())
-                .policyId(maintenance.getPolicyId().getId())
-                .customerId(maintenance.getCustomerId().getId())
-                .maintenanceType(maintenance.getMaintenanceType() != null ? maintenance.getMaintenanceType().getValue() : null)
-                .totalAmount(maintenance.getTotalAmount())
-                .refundAmount(maintenance.getRefundAmount())
-                .effectiveTimeType(maintenance.getEffectiveTimeType() != null ? maintenance.getEffectiveTimeType().getCode() : null)
-                .specificEffectiveDate(maintenance.getSpecificEffectiveDate())
-                .description(maintenance.getDescription())
-                .status(maintenance.getStatus() != null ? maintenance.getStatus().getValue() : null)
-                .createdAt(maintenance.getCreateTime())
-                .createdBy(maintenance.getCreatedBy())
-                .updatedAt(maintenance.getUpdateTime())
-                .updatedBy(maintenance.getUpdatedBy())
-                .tenantId(maintenance.getTenantId())
+                .id(view.getMaintenanceId())
+                .policyId(view.getPolicyId())
+                .customerId(view.getCustomerId())
+                .maintenanceType(view.getMaintenanceType() != null ? view.getMaintenanceType().getValue() : null)
+                .totalAmount(view.getTotalAmount())
+                .refundAmount(view.getRefundAmount())
+                .effectiveTimeType(view.getEffectiveTimeType() != null ? view.getEffectiveTimeType().getCode() : null)
+                .specificEffectiveDate(view.getSpecificEffectiveDate())
+                .description(view.getDescription())
+                .status(view.getStatus() != null ? view.getStatus().getValue() : null)
+                .createdAt(view.getCreateTime())
+                .createdBy(view.getCreatedBy())
+                .updatedAt(view.getUpdateTime())
+                .updatedBy(view.getUpdatedBy())
+                .tenantId(view.getTenantId())
                 .build();
     }
 
@@ -194,8 +189,7 @@ public class MaintenanceApplicationService {
 
         switch (maintenanceType) {
             case POLICY_REINSTATEMENT:
-                // 仅失效(LAPSED)保单可复效：与保单域状态机 LAPSED→EFFECTIVE 对齐，
-                // 终态 TERMINATED/EXPIRED 不可复效
+                // 仅失效(LAPSED)保单可复效：与保单域状态机 LAPSED→EFFECTIVE 对齐，终态不可复效
                 if (!policyStatus.reinstatable()) {
                     throw new PolicyNotTerminatedException();
                 }
@@ -218,25 +212,27 @@ public class MaintenanceApplicationService {
         }
     }
 
-    // 检查是否存在在途保全案件
+    // 检查是否存在在途保全案件（读模型：PENDING/PROCESSING/APPROVED 视为在途）
     private void checkPendingMaintenance(String policyId, String tenantId) {
-        List<Maintenance> pendingMaintenances = maintenanceService
-                .findPendingMaintenancesByPolicyId(PolicyId.of(policyId));
-        if (!pendingMaintenances.isEmpty()) {
+        if (!findInFlightMaintenances(policyId).isEmpty()) {
             throw new PendingMaintenanceExistsException();
         }
     }
 
     // 检查保全项互斥性
     private void checkMaintenanceExclusion(String policyId, MaintenanceType maintenanceType, String tenantId) {
-        List<Maintenance> pendingMaintenances = maintenanceService
-                .findPendingMaintenancesByPolicyId(PolicyId.of(policyId));
-        for (Maintenance maintenance : pendingMaintenances) {
-            if (maintenanceService.isMaintenanceTypeExcluded(maintenance.getMaintenanceType(), maintenanceType,
+        for (MaintenanceView view : findInFlightMaintenances(policyId)) {
+            if (maintenanceExclusionRepository.isMaintenanceTypeExcluded(view.getMaintenanceType(), maintenanceType,
                     tenantId)) {
                 throw new MaintenanceTypeExcludedException();
             }
         }
+    }
+
+    // 查询保单在途保全（读模型最终一致）
+    private List<MaintenanceView> findInFlightMaintenances(String policyId) {
+        return maintenanceViewRepository.findByPolicyIdAndStatusIn(policyId,
+                List.of(MaintenanceStatus.PENDING, MaintenanceStatus.PROCESSING, MaintenanceStatus.APPROVED));
     }
 
     // 检查客户是否存在

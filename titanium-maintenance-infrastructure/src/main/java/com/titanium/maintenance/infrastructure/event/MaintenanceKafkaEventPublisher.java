@@ -13,12 +13,19 @@ import com.titanium.maintenance.event.MaintenanceStatusChangedEvent;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 保全域领域事件 Kafka 发布器
+ * <p>
+ * 订阅 Axon 领域事件并转发至 Kafka，供跨域（billing/payment 等）异步消费。仅承担消息发布，
+ * 不维护读模型（读模型投影由 query 侧 {@code MaintenanceProjectionEventHandler} 负责）。
+ * </p>
+ */
 @Component
 @Slf4j
-public class MaintenanceEventPublisher {
+public class MaintenanceKafkaEventPublisher {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
-    public MaintenanceEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
+    public MaintenanceKafkaEventPublisher(KafkaTemplate<String, Object> kafkaTemplate) {
         this.kafkaTemplate = kafkaTemplate;
     }
 

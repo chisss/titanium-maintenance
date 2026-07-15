@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.10.xsd">
+    <include file="classpath:liquibase/ddl/axon_event_store_202607091700_weisun_ddl.sql"/>
+    <include file="classpath:liquibase/ddl/maintenance_exclusion_do_202607101700_weisun_ddl.sql"/>
+    <include file="classpath:liquibase/ddl/maintenance_init_202607091700_weisun_ddl.sql"/>
+    <include file="classpath:liquibase/ddl/maintenance_view_202607091700_weisun_ddl.sql"/>
+</databaseChangeLog>
