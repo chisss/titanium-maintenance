@@ -2,14 +2,14 @@ package com.titanium.maintenance.web.mapper;
 
 import org.mapstruct.Mapper;
 
-import com.titanium.maintenance.api.dto.MaintenanceResponse;
-import com.titanium.maintenance.application.dto.MaintenanceResponseDTO;
+import com.titanium.maintenance.api.response.MaintenanceResponse;
+import com.titanium.maintenance.application.model.MaintenanceReadModel;
 import com.titanium.maintenance.web.response.MaintenanceVO;
 
 /**
  * 保全 Web 层对象映射器（MapStruct）
  * <p>
- * 边界协议转换枢纽：应用层响应 DTO {@link MaintenanceResponseDTO} 分别组装为面向后台/端上的展示
+ * 边界协议转换枢纽：应用层读模型 {@link MaintenanceReadModel} 分别组装为面向后台/端上的展示
  * {@link MaintenanceVO}（Controller 用）与面向其它微服务的对外 {@link MaintenanceResponse}（Provider 用）。
  * </p>
  * <p>
@@ -23,18 +23,18 @@ import com.titanium.maintenance.web.response.MaintenanceVO;
 public interface MaintenanceWebMapper {
 
     /**
-     * 应用层响应 DTO → 展示 VO（Controller 用）
+     * 应用层读模型 → 展示 VO（Controller 用）
      *
-     * @param responseDTO 应用层响应 DTO
+     * @param readModel 应用层读模型
      * @return 保全展示 VO
      */
-    MaintenanceVO toVO(MaintenanceResponseDTO responseDTO);
+    MaintenanceVO toVO(MaintenanceReadModel readModel);
 
     /**
-     * 应用层响应 DTO → 对外响应 DTO（Provider 用）
+     * 应用层读模型 → 对外响应 DTO（Provider 用）
      *
-     * @param responseDTO 应用层响应 DTO
+     * @param readModel 应用层读模型
      * @return 对外保全响应 DTO
      */
-    MaintenanceResponse toApiResponse(MaintenanceResponseDTO responseDTO);
+    MaintenanceResponse toApiResponse(MaintenanceReadModel readModel);
 }

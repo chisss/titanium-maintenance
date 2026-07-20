@@ -60,6 +60,13 @@
             <artifactId>spring-cloud-starter-openfeign</artifactId>
         </dependency>
 
+        <!-- customer-api：复用 CustomerResponseDTO 作为 CustomerServiceClient 响应类型，防止契约漂移 -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-customer-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- Database -->
         <dependency>
             <groupId>com.mysql</groupId>

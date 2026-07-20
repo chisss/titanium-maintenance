@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 
-import com.titanium.maintenance.api.dto.ChangeMaintenanceStatusRequest;
-import com.titanium.maintenance.api.dto.CreateMaintenanceRequest;
-import com.titanium.maintenance.api.dto.MaintenanceResponse;
+import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
+import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
+import com.titanium.maintenance.api.response.MaintenanceResponse;
 
 import jakarta.validation.Valid;
 

@@ -10,6 +10,7 @@ import com.titanium.maintenance.event.MaintenanceCreatedEvent;
 import com.titanium.maintenance.event.MaintenanceExecutedEvent;
 import com.titanium.maintenance.event.MaintenancePremiumCalculatedEvent;
 import com.titanium.maintenance.event.MaintenanceStatusChangedEvent;
+import com.titanium.maintenance.query.mapper.MaintenanceViewMapper;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 
@@ -33,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MaintenanceProjectionEventHandler {
 
     private final MaintenanceViewRepository maintenanceViewRepository;
+    private final MaintenanceViewMapper     maintenanceViewMapper;
 
     /**
      * 投影保全创建事件：新建读模型记录
@@ -45,21 +47,13 @@ public class MaintenanceProjectionEventHandler {
         MaintenanceView view = maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId())
                 .orElseGet(MaintenanceView::new);
 
-        view.setMaintenanceId(event.maintenanceId().getId());
-        view.setPolicyId(event.policyId().getId());
-        view.setCustomerId(event.customerId().getId());
-        view.setMaintenanceType(event.maintenanceType());
-        view.setStatus(MaintenanceStatus.PENDING);
-        view.setEffectiveTimeType(event.effectiveTimeType());
-        view.setSpecificEffectiveDate(event.specificEffectiveDate());
-        view.setDescription(event.description());
-        view.setCreatedBy(event.createdBy());
-        view.setUpdatedBy(event.createdBy());
+        // 事件字段 → 读模型的结构映射收敛到 MapStruct（值对象拆解、状态置 PENDING），消除逐字段 set
+        maintenanceViewMapper.applyCreated(view, event);
+        // 审计时间戳含"仅首次"语义，取事件发生时间，留投影处理器控制
         if (view.getCreateTime() == null) {
             view.setCreateTime(event.createdAt());
         }
         view.setUpdateTime(event.createdAt());
-        view.setTenantId(event.tenantId());
 
         maintenanceViewRepository.save(view);
     }

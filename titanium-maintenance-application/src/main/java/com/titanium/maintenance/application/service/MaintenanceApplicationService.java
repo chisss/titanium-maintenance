@@ -1,6 +1,7 @@
 package com.titanium.maintenance.application.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -9,7 +10,8 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.titanium.maintenance.application.dto.MaintenanceResponseDTO;
+import com.titanium.maintenance.application.model.MaintenanceReadModel;
+import com.titanium.maintenance.application.model.MaintenanceStatisticsResult;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
@@ -128,18 +130,93 @@ public class MaintenanceApplicationService {
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
-    // 根据ID查询保全记录（读模型 → 应用层 DTO）
+    // 根据ID查询保全记录（读模型 → 应用层读模型）
     @Transactional(readOnly = true)
-    public MaintenanceResponseDTO findMaintenanceById(String id) {
-        return toResponse(requireMaintenanceExists(id));
+    public MaintenanceReadModel findMaintenanceById(String id) {
+        return toReadModel(requireMaintenanceExists(id));
     }
 
-    // 根据保单ID查询保全记录（读模型 → 应用层 DTO）
+    // 根据保单ID查询保全记录（读模型 → 应用层读模型）
     @Transactional(readOnly = true)
-    public List<MaintenanceResponseDTO> findMaintenancesByPolicyId(String policyId) {
+    public List<MaintenanceReadModel> findMaintenancesByPolicyId(String policyId) {
         return maintenanceViewRepository.findByPolicyId(policyId).stream()
-                .map(this::toResponse)
+                .map(this::toReadModel)
                 .toList();
+    }
+
+    /**
+     * 多条件搜索保全案件（内存过滤 + 手工分页）
+     * <p>
+     * 路由优先级：policyId → customerId → status 单条件全量 → 返回空。
+     * 在候选集基础上再按 maintenanceType、status 做内存过滤后分页返回。
+     * </p>
+     *
+     * @param policyId        保单ID（可选）
+     * @param customerId      客户ID（可选）
+     * @param maintenanceType 保全类型码值（可选）
+     * @param status          保全状态码值（可选）
+     * @param page            页码（从0起）
+     * @param size            每页条数
+     * @return 分页后的保全读模型列表
+     */
+    @Transactional(readOnly = true)
+    public List<MaintenanceReadModel> searchMaintenances(String policyId, String customerId,
+                                                          String maintenanceType, String status,
+                                                          int page, int size) {
+        List<MaintenanceView> candidates;
+        if (policyId != null && !policyId.isBlank()) {
+            candidates = maintenanceViewRepository.findByPolicyId(policyId);
+        } else if (customerId != null && !customerId.isBlank()) {
+            candidates = maintenanceViewRepository.findByCustomerId(customerId);
+        } else if (status != null && !status.isBlank()) {
+            MaintenanceStatus statusEnum = MaintenanceStatus.fromCode(status);
+            candidates = statusEnum != null ? maintenanceViewRepository.findByStatus(statusEnum) : List.of();
+        } else {
+            candidates = List.of();
+        }
+
+        return candidates.stream()
+                .filter(v -> maintenanceType == null || maintenanceType.isBlank()
+                        || (v.getMaintenanceType() != null
+                                && maintenanceType.equals(v.getMaintenanceType().getValue())))
+                .filter(v -> status == null || status.isBlank()
+                        || (v.getStatus() != null && status.equals(v.getStatus().getCode())))
+                .skip((long) page * size)
+                .limit(size)
+                .map(this::toReadModel)
+                .toList();
+    }
+
+    /**
+     * 查询待处理保全案件列表（状态为 PENDING）
+     *
+     * @return PENDING 状态的保全读模型列表
+     */
+    @Transactional(readOnly = true)
+    public List<MaintenanceReadModel> findPendingMaintenances() {
+        return maintenanceViewRepository.findByStatus(MaintenanceStatus.PENDING).stream()
+                .map(this::toReadModel)
+                .toList();
+    }
+
+    /**
+     * 查询保全统计信息（管理后台看板聚合）
+     * <p>
+     * 汇总处理中工单数（PENDING/PROCESSING）、今日新增保全数及保全总数，按租户隔离。
+     * </p>
+     *
+     * @param tenantId 租户ID
+     * @return 保全统计结果
+     */
+    @Transactional(readOnly = true)
+    public MaintenanceStatisticsResult getStatistics(String tenantId) {
+        long processingCount = maintenanceViewRepository.countByTenantIdAndStatusIn(tenantId,
+                List.of(MaintenanceStatus.PENDING, MaintenanceStatus.PROCESSING));
+        LocalDate today = LocalDate.now();
+        long todayCount = maintenanceViewRepository.countByTenantIdAndCreateTimeRange(tenantId,
+                today.atStartOfDay(), today.plusDays(1).atStartOfDay());
+        long totalCount = maintenanceViewRepository.countByTenantId(tenantId);
+        return new MaintenanceStatisticsResult(processingCount, todayCount, totalCount);
     }
 
     // ==================== 私有辅助 ====================
@@ -150,9 +227,9 @@ public class MaintenanceApplicationService {
                 .orElseThrow(MaintenanceNotFoundException::new);
     }
 
-    // 读模型 → 应用层响应 DTO（操作人由事件投影写入读模型 created_by/updated_by 列）
-    private MaintenanceResponseDTO toResponse(MaintenanceView view) {
-        return MaintenanceResponseDTO.builder()
+    // 读模型 → 应用层读模型（操作人由事件投影写入读模型 created_by/updated_by 列）
+    private MaintenanceReadModel toReadModel(MaintenanceView view) {
+        return MaintenanceReadModel.builder()
                 .id(view.getMaintenanceId())
                 .policyId(view.getPolicyId())
                 .customerId(view.getCustomerId())

@@ -6,9 +6,9 @@ import java.util.concurrent.ExecutionException;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.titanium.maintenance.api.MaintenanceApi;
-import com.titanium.maintenance.api.dto.ChangeMaintenanceStatusRequest;
-import com.titanium.maintenance.api.dto.CreateMaintenanceRequest;
-import com.titanium.maintenance.api.dto.MaintenanceResponse;
+import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
+import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
+import com.titanium.maintenance.api.response.MaintenanceResponse;
 import com.titanium.maintenance.application.service.MaintenanceApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;

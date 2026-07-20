@@ -20,12 +20,14 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.titanium.maintenance.api.response.MaintenanceStatisticsResponse;
 import com.titanium.maintenance.application.service.MaintenanceApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
+import com.titanium.maintenance.web.dto.ChangeMaintenanceStatusDTO;
+import com.titanium.maintenance.web.dto.CreateMaintenanceDTO;
+import com.titanium.maintenance.web.mapper.MaintenanceStatisticsWebMapper;
 import com.titanium.maintenance.web.mapper.MaintenanceWebMapper;
-import com.titanium.maintenance.web.request.ChangeMaintenanceStatusRequestVO;
-import com.titanium.maintenance.web.request.CreateMaintenanceRequestVO;
 import com.titanium.maintenance.web.response.MaintenanceVO;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
@@ -38,7 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * 保全控制器（后台/端上 HTTP 入口）
  * <p>
- * 面向管理后台/端上，路径 {@code /web/v1/maintenances}，入参为 web 层 {@code XxxRequestVO}、出参
+ * 面向管理后台/端上，路径 {@code /web/v1/maintenances}，入参为 web 层 {@code XxxDTO}（web/dto）、出参
  * {@code MaintenanceVO}，<b>不再 implements MaintenanceApi</b>（远程契约由 {@code MaintenanceApiProvider}
  * 承接）。请求体的枚举码值在边界转为领域枚举后交 {@link MaintenanceApplicationService} 编排；读侧查询结果
  * 经 {@link MaintenanceWebMapper} 转 VO 返回。与 {@code MaintenanceApiProvider} 平行收敛到同一应用层门面。
@@ -53,10 +55,11 @@ public class MaintenanceController {
 
     private final MaintenanceApplicationService maintenanceApplicationService;
     private final MaintenanceWebMapper          maintenanceWebMapper;
+    private final MaintenanceStatisticsWebMapper maintenanceStatisticsWebMapper;
 
     // 创建保全记录
     @PostMapping
-    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceRequestVO request,
+    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceDTO request,
                                                     @RequestHeader("X-Tenant-Id") String tenantId) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.createMaintenanceCase(
@@ -80,7 +83,7 @@ public class MaintenanceController {
     // 变更保全记录状态
     @PutMapping("/{id}/status")
     public ResponseEntity<String> changeMaintenanceStatus(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                          @Valid @RequestBody ChangeMaintenanceStatusRequestVO request,
+                                                          @Valid @RequestBody ChangeMaintenanceStatusDTO request,
                                                           @RequestHeader("X-Tenant-Id") String tenantId) {
         try {
             CompletableFuture<String> future = maintenanceApplicationService.changeMaintenanceStatus(
@@ -111,6 +114,58 @@ public class MaintenanceController {
             @PathVariable("policyId") @NotBlank @Size(max = 36) String policyId,
             @RequestHeader("X-Tenant-Id") String tenantId) {
         List<MaintenanceVO> vos = maintenanceApplicationService.findMaintenancesByPolicyId(policyId).stream()
+                .map(maintenanceWebMapper::toVO)
+                .toList();
+        return ResponseEntity.ok(vos);
+    }
+
+    /**
+     * 多条件搜索保全案件
+     * <p>
+     * 路由优先级：policyId → customerId → status 全量 → 返回空。
+     * 在候选集基础上按 maintenanceType、status 做内存过滤后分页返回。
+     * </p>
+     */
+    @GetMapping("/search")
+    public ResponseEntity<List<MaintenanceVO>> searchMaintenances(
+            @RequestParam(required = false) String policyId,
+            @RequestParam(required = false) String customerId,
+            @RequestParam(required = false) String maintenanceType,
+            @RequestParam(required = false) String status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+        List<MaintenanceVO> vos = maintenanceApplicationService
+                .searchMaintenances(policyId, customerId, maintenanceType, status, page, size)
+                .stream()
+                .map(maintenanceWebMapper::toVO)
+                .toList();
+        return ResponseEntity.ok(vos);
+    }
+
+    /**
+     * 保全统计（管理后台看板聚合）
+     * <p>
+     * 返回处理中保全工单数（PENDING/PROCESSING）、今日新增保全数、保全总数，按租户隔离。
+     * </p>
+     *
+     * @param tenantId 租户ID（请求头 X-Tenant-Id）
+     * @return 保全统计结果
+     */
+    @GetMapping("/statistics")
+    public ResponseEntity<MaintenanceStatisticsResponse> getStatistics(
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+        return ResponseEntity.ok(
+                maintenanceStatisticsWebMapper.toResponse(maintenanceApplicationService.getStatistics(tenantId)));
+    }
+
+    /**
+     * 查询待处理保全案件列表（状态为 PENDING）
+     */
+    @GetMapping("/pending")
+    public ResponseEntity<List<MaintenanceVO>> getPendingMaintenances(
+            @RequestHeader("X-Tenant-Id") String tenantId) {
+        List<MaintenanceVO> vos = maintenanceApplicationService.findPendingMaintenances().stream()
                 .map(maintenanceWebMapper::toVO)
                 .toList();
         return ResponseEntity.ok(vos);

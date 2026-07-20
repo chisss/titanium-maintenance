@@ -1,4 +1,4 @@
-package com.titanium.maintenance.application.dto;
+package com.titanium.maintenance.api.response;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -7,16 +7,16 @@ import lombok.Builder;
 import lombok.Data;
 
 /**
- * 保全案件应用层响应 DTO
+ * 保全案件响应（对外契约，Feign 出参）
  * <p>
- * 读用例出参：由应用层从领域聚合根组装，避免领域模型泄漏到 HTTP 边界，也令应用层门面不依赖 api 契约
- * （api 的 DTO→Command/Response 翻译在 web 层完成）。枚举字段以枚举名 {@code name()} 的 String 承载，
- * web 层再分别组装为展示 VO 与对外 DTO。
+ * api 契约自包含：保全类型 {@code maintenanceType}、生效时间类型 {@code effectiveTimeType}、状态
+ * {@code status} 均以 String 码值承载，避免下游消费方被迫传递依赖领域枚举。由 web/provider 的
+ * {@code MaintenanceWebMapper} 从应用层结果组装。
  * </p>
  */
 @Data
 @Builder
-public class MaintenanceResponseDTO {
+public class MaintenanceResponse {
     private String id;
     private String policyId;
     private String customerId;

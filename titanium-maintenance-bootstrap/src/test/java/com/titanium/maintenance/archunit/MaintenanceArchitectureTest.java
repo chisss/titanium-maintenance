@@ -17,7 +17,7 @@ import com.titanium.buildtools.archunit.AbstractArchitectureGuardTest;
  * 保全域 api/web 两层已按《API层与Web层职责边界及协作规范》整改：契约由 {@code MaintenanceApiClient}
  * 重命名为 {@code MaintenanceApi}（命名主键=聚合根 Maintenance）；契约实现下沉 web/provider 的
  * {@code MaintenanceApiProvider}；{@code MaintenanceController} 改路径 {@code /web/v1/maintenances}
- * 且不再 implements 契约；application 门面不再依赖 api DTO（读出参改用应用层 {@code MaintenanceResponseDTO}）。
+ * 且不再 implements 契约；application 门面不再依赖 api DTO（读出参改用应用层读模型 {@code MaintenanceReadModel}）。
  * 故覆盖启用以下 4 条基类默认 {@code @Disabled} 的 api/web 边界断言。
  * </p>
  * <p>
@@ -35,7 +35,7 @@ class MaintenanceArchitectureTest extends AbstractArchitectureGuardTest {
     /**
      * 启用「application 层不得依赖 api 的 DTO」。
      * <p>
-     * 保全域读门面出参已由 api 的 {@code MaintenanceResponse} 改为应用层 {@code MaintenanceResponseDTO}，
+     * 保全域读门面出参已由 api 的 {@code MaintenanceResponse} 改为应用层读模型 {@code MaintenanceReadModel}，
      * DTO→Command/Response 的翻译在 web 层完成，application 门面不再依赖 api 契约。
      * </p>
      */
@@ -43,6 +43,32 @@ class MaintenanceArchitectureTest extends AbstractArchitectureGuardTest {
     @Override
     protected void applicationMustNotDependOnApiDto() {
         super.applicationMustNotDependOnApiDto();
+    }
+
+    /**
+     * 启用「api 层使用 Request/Response 而非 DTO」（2026-07-19 命名新规）。
+     * <p>
+     * 保全域 api 层入参 {@code CreateMaintenanceRequest}/{@code ChangeMaintenanceStatusRequest} 落 {@code api.request}，
+     * 出参 {@code MaintenanceResponse}/{@code MaintenanceStatisticsResponse} 落 {@code api.response}，api 层无 DTO 后缀类型。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void apiLayerUsesRequestResponseNotDto() {
+        super.apiLayerUsesRequestResponseNotDto();
+    }
+
+    /**
+     * 启用「web 层使用 DTO/VO 而非 Request/Response」（2026-07-19 命名新规）。
+     * <p>
+     * 保全域 web 层前端入参已改名 {@code CreateMaintenanceDTO}/{@code ChangeMaintenanceStatusDTO} 落 {@code web.dto}，
+     * 出参 {@code MaintenanceVO} 用 VO，web 层无 Request/Response 后缀类型。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void webLayerUsesDtoVoNotRequest() {
+        super.webLayerUsesDtoVoNotRequest();
     }
 
     /**

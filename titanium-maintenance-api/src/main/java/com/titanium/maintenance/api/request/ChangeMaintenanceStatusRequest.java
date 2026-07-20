@@ -1,14 +1,14 @@
-package com.titanium.maintenance.api.dto;
+package com.titanium.maintenance.api.request;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 /**
- * 保全状态变更请求 DTO（对外契约）
+ * 保全状态变更请求（对外契约，Feign 入参）
  * <p>
  * api 契约自包含：目标状态 {@code newStatus} 以 String 码值承载，避免耦合领域枚举
- * {@code MaintenanceStatus}；由 web/provider 的 {@code MaintenanceWebMapper} 在边界转换为强类型。
+ * {@code MaintenanceStatus}；由 web/provider 的 {@code MaintenanceApiProvider} 在边界转换为强类型。
  * </p>
  */
 @Data
