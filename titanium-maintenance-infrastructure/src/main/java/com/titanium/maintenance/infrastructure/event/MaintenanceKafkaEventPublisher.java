@@ -32,30 +32,30 @@ public class MaintenanceKafkaEventPublisher {
     @EventHandler
     public void handle(MaintenanceCreatedEvent event) {
         log.info("Handling MaintenanceCreatedEvent: {}", event);
-        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_CREATED, event.maintenanceId().getId(), event);
+        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_CREATED, event.maintenanceId().id(), event);
     }
 
     @EventHandler
     public void handle(MaintenanceStatusChangedEvent event) {
         log.info("Handling MaintenanceStatusChangedEvent: {}", event);
-        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_STATUS_CHANGED, event.maintenanceId().getId(), event);
+        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_STATUS_CHANGED, event.maintenanceId().id(), event);
     }
 
     @EventHandler
     public void handle(MaintenanceChangeAddedEvent event) {
         log.info("Handling MaintenanceChangeAddedEvent: {}", event);
-        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_CHANGE_ADDED, event.maintenanceId().getId(), event);
+        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_CHANGE_ADDED, event.maintenanceId().id(), event);
     }
 
     @EventHandler
     public void handle(MaintenancePremiumCalculatedEvent event) {
         log.info("Handling MaintenancePremiumCalculatedEvent: {}", event);
-        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_PREMIUM_CALCULATED, event.maintenanceId().getId(), event);
+        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_PREMIUM_CALCULATED, event.maintenanceId().id(), event);
     }
 
     @EventHandler
     public void handle(MaintenanceExecutedEvent event) {
         log.info("Handling MaintenanceExecutedEvent: {}", event);
-        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_EXECUTED, event.maintenanceId().getId(), event);
+        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_EXECUTED, event.maintenanceId().id(), event);
     }
 }

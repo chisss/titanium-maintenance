@@ -4,21 +4,17 @@ import java.math.BigDecimal;
 
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
+/**
+ * 保全金额值对象。
+ *
+ * @param amount 保全金额（不可为空或负数）
+ */
+public record MaintenanceAmount(BigDecimal amount) {
 
-@Getter
-@EqualsAndHashCode
-@ToString
-public class MaintenanceAmount {
-    private final BigDecimal amount;
-
-    private MaintenanceAmount(BigDecimal amount) {
+    public MaintenanceAmount {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) < 0) {
             throw new MaintenanceValidationException("MaintenanceAmount", "amount", "保全金额不能为空或负数");
         }
-        this.amount = amount;
     }
 
     public static MaintenanceAmount of(BigDecimal amount) {

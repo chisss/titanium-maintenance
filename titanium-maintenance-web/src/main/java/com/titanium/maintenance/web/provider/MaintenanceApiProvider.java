@@ -3,6 +3,7 @@ package com.titanium.maintenance.web.provider;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.titanium.maintenance.api.MaintenanceApi;
@@ -29,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
  * </p>
  */
 @RestController
+@RequestMapping("/api/v1/maintenances")
 @RequiredArgsConstructor
 @Slf4j
 public class MaintenanceApiProvider implements MaintenanceApi {

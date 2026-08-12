@@ -2,19 +2,12 @@ package com.titanium.maintenance.valueobject;
 
 import java.util.UUID;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
-
-@Getter
-@EqualsAndHashCode
-@ToString
-public class PolicyId {
-    private final String id;
-
-    private PolicyId(String id) {
-        this.id = id;
-    }
+/**
+ * 保单标识值对象。
+ *
+ * @param id 保单唯一标识
+ */
+public record PolicyId(String id) {
 
     public static PolicyId generate() {
         return new PolicyId(UUID.randomUUID().toString());

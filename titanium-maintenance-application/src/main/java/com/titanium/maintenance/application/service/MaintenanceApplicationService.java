@@ -86,7 +86,7 @@ public class MaintenanceApplicationService {
 
         CreateMaintenanceCommand command = CreateMaintenanceCommand.of(policyId, customerId, maintenanceType,
                 effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
-        return commandGateway.send(command).thenApply(result -> command.id().getId());
+        return commandGateway.send(command).thenApply(result -> command.id().id());
     }
 
     // 添加保全变更记录

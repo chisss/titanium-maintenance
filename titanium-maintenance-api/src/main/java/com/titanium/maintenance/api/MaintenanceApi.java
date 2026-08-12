@@ -9,7 +9,6 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.RequestMapping;
 
 import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
@@ -31,8 +30,7 @@ import jakarta.validation.Valid;
  * （api/client）为 Client 后缀的老式命名，已重命名为本接口（命名主键=聚合根 Maintenance）。
  * </p>
  */
-@FeignClient(name = "titanium-maintenance", contextId = "maintenanceApi")
-@RequestMapping("/api/v1/maintenances")
+@FeignClient(name = "titanium-maintenance", contextId = "maintenanceApi", path = "/api/v1/maintenances")
 public interface MaintenanceApi {
 
     /**

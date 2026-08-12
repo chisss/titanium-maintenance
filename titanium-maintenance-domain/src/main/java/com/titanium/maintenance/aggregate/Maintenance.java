@@ -87,11 +87,11 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(ChangeMaintenanceStatusCommand command) {
         if (this.status == MaintenanceStatus.COMPLETED || this.status == MaintenanceStatus.REJECTED) {
-            throw new MaintenanceStatusException(this.id.getId(), this.status.name(), command.newStatus().name(),
+            throw new MaintenanceStatusException(this.id.id(), this.status.name(), command.newStatus().name(),
                     "已完成或已拒绝的保全不允许变更状态");
         }
         if (this.status == command.newStatus()) {
-            throw new MaintenanceStatusException(this.id.getId(), this.status.name(), command.newStatus().name(),
+            throw new MaintenanceStatusException(this.id.id(), this.status.name(), command.newStatus().name(),
                     "保全已处于该状态");
         }
 
@@ -119,7 +119,7 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(ExecuteMaintenanceCommand command) {
         // enrich policyId 与 maintenanceType 作为跨域上下文，供 policy 域监听回写保单状态
-        AggregateLifecycle.apply(new MaintenanceExecutedEvent(command.id(), this.policyId.getId(),
+        AggregateLifecycle.apply(new MaintenanceExecutedEvent(command.id(), this.policyId.id(),
                 this.maintenanceType, command.effectiveTime(), command.executionDetails(), LocalDateTime.now(),
                 command.updatedBy(), this.tenantId));
     }

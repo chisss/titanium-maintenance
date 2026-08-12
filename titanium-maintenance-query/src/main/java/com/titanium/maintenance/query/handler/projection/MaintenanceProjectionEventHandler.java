@@ -42,9 +42,9 @@ public class MaintenanceProjectionEventHandler {
     @EventHandler
     @Transactional
     public void on(MaintenanceCreatedEvent event) {
-        log.info("[读模型投影] 保全创建: maintenanceId={}", event.maintenanceId().getId());
+        log.info("[读模型投影] 保全创建: maintenanceId={}", event.maintenanceId().id());
 
-        MaintenanceView view = maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId())
+        MaintenanceView view = maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().id())
                 .orElseGet(MaintenanceView::new);
 
         // 事件字段 → 读模型的结构映射收敛到 MapStruct（值对象拆解、状态置 PENDING），消除逐字段 set
@@ -64,16 +64,16 @@ public class MaintenanceProjectionEventHandler {
     @EventHandler
     @Transactional
     public void on(MaintenanceStatusChangedEvent event) {
-        log.info("[读模型投影] 保全状态变更: maintenanceId={}, {} -> {}", event.maintenanceId().getId(),
+        log.info("[读模型投影] 保全状态变更: maintenanceId={}, {} -> {}", event.maintenanceId().id(),
                 event.oldStatus(), event.newStatus());
 
-        maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId()).ifPresentOrElse(view -> {
+        maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().id()).ifPresentOrElse(view -> {
             view.setStatus(event.newStatus());
             view.setUpdatedBy(event.changedBy());
             view.setUpdateTime(event.changedAt());
             maintenanceViewRepository.save(view);
         }, () -> log.warn("[读模型投影] 保全状态变更失败：未找到读模型记录 maintenanceId={}",
-                event.maintenanceId().getId()));
+                event.maintenanceId().id()));
     }
 
     /**
@@ -82,16 +82,16 @@ public class MaintenanceProjectionEventHandler {
     @EventHandler
     @Transactional
     public void on(MaintenancePremiumCalculatedEvent event) {
-        log.info("[读模型投影] 保全保费计算: maintenanceId={}", event.maintenanceId().getId());
+        log.info("[读模型投影] 保全保费计算: maintenanceId={}", event.maintenanceId().id());
 
-        maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId()).ifPresentOrElse(view -> {
+        maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().id()).ifPresentOrElse(view -> {
             view.setTotalAmount(event.totalAmount());
             view.setRefundAmount(event.refundAmount());
             view.setUpdatedBy(event.updatedBy());
             view.setUpdateTime(event.updatedAt());
             maintenanceViewRepository.save(view);
         }, () -> log.warn("[读模型投影] 保全保费计算失败：未找到读模型记录 maintenanceId={}",
-                event.maintenanceId().getId()));
+                event.maintenanceId().id()));
     }
 
     /**
@@ -100,14 +100,14 @@ public class MaintenanceProjectionEventHandler {
     @EventHandler
     @Transactional
     public void on(MaintenanceExecutedEvent event) {
-        log.info("[读模型投影] 保全执行完成: maintenanceId={}", event.maintenanceId().getId());
+        log.info("[读模型投影] 保全执行完成: maintenanceId={}", event.maintenanceId().id());
 
-        maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().getId()).ifPresentOrElse(view -> {
+        maintenanceViewRepository.findByMaintenanceId(event.maintenanceId().id()).ifPresentOrElse(view -> {
             view.setStatus(MaintenanceStatus.COMPLETED);
             view.setUpdatedBy(event.updatedBy());
             view.setUpdateTime(event.updatedAt());
             maintenanceViewRepository.save(view);
         }, () -> log.warn("[读模型投影] 保全执行失败：未找到读模型记录 maintenanceId={}",
-                event.maintenanceId().getId()));
+                event.maintenanceId().id()));
     }
 }

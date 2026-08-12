@@ -2,19 +2,12 @@ package com.titanium.maintenance.valueobject;
 
 import java.util.UUID;
 
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.ToString;
-
-@Getter
-@EqualsAndHashCode
-@ToString
-public class CustomerId {
-    private final String id;
-
-    private CustomerId(String id) {
-        this.id = id;
-    }
+/**
+ * 客户标识值对象。
+ *
+ * @param id 客户唯一标识
+ */
+public record CustomerId(String id) {
 
     public static CustomerId generate() {
         return new CustomerId(UUID.randomUUID().toString());
