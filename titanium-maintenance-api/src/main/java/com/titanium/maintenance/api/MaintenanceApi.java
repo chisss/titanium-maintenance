@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
+import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
+import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
+import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
 
 import jakarta.validation.Valid;
@@ -56,6 +59,20 @@ public interface MaintenanceApi {
     String changeMaintenanceStatus(@PathVariable("id") String id,
                                    @RequestBody @Valid ChangeMaintenanceStatusRequest request,
                                    @RequestHeader("X-Tenant-Id") String tenantId);
+
+    /** 由 Maintenance 编排 Product 替代计算、差额确认与 Billing 余额登记。 */
+    @PostMapping("/{id}/premium-settlements")
+    MaintenancePremiumSettlementResponse settlePremium(
+            @PathVariable("id") String id,
+            @RequestBody @Valid SettleMaintenancePremiumRequest request,
+            @RequestHeader("X-Tenant-Id") String tenantId);
+
+    /** 将既有 Product 生命周期差额生成反向事实并登记 Billing。 */
+    @PostMapping("/{id}/reversal-settlements")
+    MaintenancePremiumSettlementResponse settleReversal(
+            @PathVariable("id") String id,
+            @RequestBody @Valid SettleMaintenanceReversalRequest request,
+            @RequestHeader("X-Tenant-Id") String tenantId);
 
     /**
      * 根据ID查询保全案件（跨域集成用）

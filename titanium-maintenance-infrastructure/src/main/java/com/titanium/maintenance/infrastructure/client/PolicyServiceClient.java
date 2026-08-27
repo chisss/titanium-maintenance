@@ -1,54 +1,47 @@
 package com.titanium.maintenance.infrastructure.client;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
-@FeignClient(name = "titanium-policy", path = "/api/v1/policies")
+import com.titanium.metadata.response.ApiResponse;
+import com.titanium.policy.api.request.maintenance.ApplyPolicyMaintenanceRequest;
+import com.titanium.policy.api.response.PolicyEndorsementResponse;
+import com.titanium.policy.api.response.PolicyMaintenanceSnapshotResponse;
+import com.titanium.policy.api.response.PolicyResponse;
+import com.titanium.policy.api.response.PolicyStatusResponse;
+import com.titanium.policy.api.response.maintenance.PolicyMaintenanceApplicationResponse;
+
+/** Policy 正式 API 的保全域 Feign 客户端，响应类型与 PolicyApi 保持一致。 */
+@FeignClient(name = "titanium-policy", contextId = "maintenancePolicyClient", path = "/api/v1/policies")
 public interface PolicyServiceClient {
+    @PostMapping("/{id}/maintenance-applications")
+    ApiResponse<PolicyMaintenanceApplicationResponse> applyMaintenance(
+            @PathVariable("id") String id,
+            @RequestBody ApplyPolicyMaintenanceRequest request,
+            @RequestHeader("X-Operator-Id") String operatorId,
+            @RequestHeader("X-Tenant-Id") String tenantId);
+
     @GetMapping("/{id}")
-    PolicyResponse getPolicyById(@PathVariable("id") String id,
-                                @RequestHeader("X-Tenant-ID") String tenantId);
+    ApiResponse<PolicyResponse> getPolicyById(@PathVariable("id") String id,
+                                              @RequestHeader("X-Tenant-Id") String tenantId);
 
     @GetMapping("/{id}/status")
-    PolicyStatusResponse getPolicyStatus(@PathVariable("id") String id,
-                                        @RequestHeader("X-Tenant-ID") String tenantId);
+    ApiResponse<PolicyStatusResponse> getPolicyStatus(@PathVariable("id") String id,
+                                                      @RequestHeader("X-Tenant-Id") String tenantId);
 
-    // 内部类用于响应
-    record PolicyResponse(
-            String id,
-            String policyNumber,
-            String customerId,
-            String productId,
-            LocalDateTime startDate,
-            LocalDateTime endDate,
-            BigDecimal sumInsured,
-            String status,
-            LocalDateTime createdAt,
-            String createdBy
-    ) {}
+    @GetMapping("/{id}/maintenance-snapshot")
+    ApiResponse<PolicyMaintenanceSnapshotResponse> getMaintenanceSnapshot(
+            @PathVariable("id") String id,
+            @RequestHeader("X-Tenant-Id") String tenantId);
 
-    record PolicyStatusResponse(
-            String id,
-            String status
-    ) {
-        /**
-         * 是否生效：对齐保单域原生状态码 EFFECTIVE（此前误判 ACTIVE，保单域无此值）
-         */
-        public boolean isActive() {
-            return "EFFECTIVE".equals(status);
-        }
-
-        /**
-         * 是否为可复效的前置状态：仅失效(LAPSED)保单可复效。
-         * 保单域复效状态机仅允许 LAPSED→EFFECTIVE；TERMINATED/EXPIRED 为终态不可复效，故不纳入。
-         */
-        public boolean isReinstatable() {
-            return "LAPSED".equals(status);
-        }
-    }
+    @GetMapping("/{id}/endorsements")
+    ApiResponse<List<PolicyEndorsementResponse>> getEndorsements(
+            @PathVariable("id") String id,
+            @RequestHeader("X-Tenant-Id") String tenantId);
 }

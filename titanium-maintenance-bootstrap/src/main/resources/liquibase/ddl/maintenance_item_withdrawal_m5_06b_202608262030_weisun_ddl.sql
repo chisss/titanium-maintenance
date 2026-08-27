@@ -1,0 +1,56 @@
+--liquibase formatted sql
+--changeset weisun:maintenance-item-withdrawal-m5-06b-202608262030
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_status VARCHAR(32) COMMENT '项目撤销状态';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_operation_id VARCHAR(128) COMMENT '项目撤销操作ID';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_request_hash VARCHAR(64) COMMENT '项目撤销请求摘要';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_reason VARCHAR(500) COMMENT '项目撤销原因';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_source_posting_id VARCHAR(64) COMMENT '原Billing入账ID';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_source_result_hash VARCHAR(64) COMMENT '原Billing结果摘要';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_source_direction VARCHAR(16) COMMENT '原Billing入账方向';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_source_fund_status VARCHAR(20) COMMENT '原Payment资金最终状态';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_reversal_id VARCHAR(64) COMMENT 'Billing冲正ID';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_reversal_result_hash VARCHAR(64) COMMENT 'Billing冲正结果摘要';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_reversal_direction VARCHAR(16) COMMENT 'Billing冲正方向';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_amount DECIMAL(20,8) COMMENT '撤销补偿金额';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_currency VARCHAR(3) COMMENT '撤销补偿币种';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_fund_action VARCHAR(20) COMMENT 'Payment逆向资金动作';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_fund_status VARCHAR(20) COMMENT 'Payment逆向资金状态';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_fund_request_id VARCHAR(64) COMMENT 'Payment逆向资金请求ID';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_fund_order_id VARCHAR(64) COMMENT 'Payment逆向资金单号';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_fund_external_status VARCHAR(32) COMMENT 'Payment外部状态';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_failure_code VARCHAR(64) COMMENT '项目撤销失败码';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_failure_message VARCHAR(500) COMMENT '项目撤销失败原因';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_retry_count INT COMMENT '项目撤销失败重试次数';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_requested_at DATETIME COMMENT '项目撤销申请时间';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_completed_at DATETIME COMMENT '项目撤销完成时间';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_requested_by VARCHAR(64) COMMENT '项目撤销申请人';
+ALTER TABLE t_maintenance_case_item_view ADD COLUMN withdrawal_updated_by VARCHAR(64) COMMENT '项目撤销最近操作人';
+CREATE INDEX idx_maintenance_item_withdrawal ON t_maintenance_case_item_view
+    (tenant_id, maintenance_id, withdrawal_status);
+
+--rollback DROP INDEX idx_maintenance_item_withdrawal ON t_maintenance_case_item_view;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_updated_by;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_requested_by;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_completed_at;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_requested_at;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_retry_count;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_failure_message;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_failure_code;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_fund_external_status;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_fund_order_id;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_fund_request_id;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_fund_status;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_fund_action;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_currency;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_amount;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_reversal_direction;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_reversal_result_hash;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_reversal_id;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_source_fund_status;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_source_direction;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_source_result_hash;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_source_posting_id;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_reason;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_request_hash;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_operation_id;
+--rollback ALTER TABLE t_maintenance_case_item_view DROP COLUMN withdrawal_status;

@@ -1,0 +1,43 @@
+--liquibase formatted sql
+--changeset weisun:maintenance-workflow-settlement-m4-06-202608252140
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_posting_id VARCHAR(64) COMMENT 'Billing入账ID';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_adjustment_id VARCHAR(64) COMMENT 'Product差额事实ID';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_result_hash VARCHAR(64) COMMENT 'Billing引用的差额结果SHA-256';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_posting_direction VARCHAR(16) COMMENT 'Billing入账方向';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_posting_amount DECIMAL(20,8) COMMENT 'Billing入账金额';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_posting_currency VARCHAR(3) COMMENT 'Billing入账币种';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_posting_status VARCHAR(16) COMMENT 'Billing入账状态';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_commission_adjustment_count INT COMMENT '佣金调整事实数量';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN billing_posted_at DATETIME COMMENT 'Billing入账检查时间';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_settlement_type VARCHAR(16) COMMENT '资金处理类型';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_settlement_status VARCHAR(16) COMMENT '归一化资金状态';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_source_posting_id VARCHAR(64) COMMENT '资金结果关联入账ID';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_instruction_id VARCHAR(64) COMMENT 'Billing退款指令ID';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_order_id VARCHAR(64) COMMENT 'Payment收款或退款单ID';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_external_status VARCHAR(32) COMMENT 'Payment原始状态';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_amount DECIMAL(20,8) COMMENT '资金处理金额';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_currency VARCHAR(3) COMMENT '资金处理币种';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_failure_code VARCHAR(64) COMMENT '资金失败码';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_failure_message VARCHAR(500) COMMENT '资金失败原因';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN fund_recorded_at DATETIME COMMENT '资金检查时间';
+
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_recorded_at;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_failure_message;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_failure_code;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_currency;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_amount;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_external_status;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_order_id;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_instruction_id;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_source_posting_id;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_settlement_status;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN fund_settlement_type;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_posted_at;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_commission_adjustment_count;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_posting_status;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_posting_currency;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_posting_amount;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_posting_direction;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_result_hash;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_adjustment_id;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN billing_posting_id;

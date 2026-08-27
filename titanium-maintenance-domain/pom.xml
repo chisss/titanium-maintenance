@@ -60,6 +60,12 @@
             <artifactId>spring-boot-starter</artifactId>
         </dependency>
 
+        <!-- 规范化配置 JSON，用于生成稳定内容哈希 -->
+        <dependency>
+            <groupId>com.alibaba.fastjson2</groupId>
+            <artifactId>fastjson2</artifactId>
+        </dependency>
+
         <!-- Java 8+ Time API -->
         <dependency>
             <groupId>javax.xml.bind</groupId>
@@ -70,6 +76,16 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.axonframework</groupId>
+            <artifactId>axon-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.hamcrest</groupId>
+            <artifactId>hamcrest</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

@@ -1,0 +1,43 @@
+--liquibase formatted sql
+--changeset weisun:maintenance-workflow-transition-m4-02-202608251130
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN assigned_to VARCHAR(64) COMMENT '当前领取人';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN claimed_at DATETIME COMMENT '领取时间';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN retry_count INT NOT NULL DEFAULT 0 COMMENT '累计重试次数';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN failure_code VARCHAR(64) COMMENT '最后失败编码';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN failure_reason VARCHAR(500) COMMENT '最后失败原因';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN condition_rule_version VARCHAR(64) COMMENT '条件规则版本';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN condition_input_hash VARCHAR(64) COMMENT '条件输入SHA-256';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN condition_decision VARCHAR(16) COMMENT '条件执行结论';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN condition_reason VARCHAR(500) COMMENT '条件结论原因';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN condition_decided_at DATETIME COMMENT '条件判定时间';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN condition_decided_by VARCHAR(64) COMMENT '条件判定主体';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_operation_id VARCHAR(128) COMMENT '最后操作幂等号';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_operation_action VARCHAR(32) COMMENT '最后操作类型';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_operation_hash VARCHAR(64) COMMENT '最后操作载荷SHA-256';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_evidence_version VARCHAR(64) COMMENT '最后证据版本';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_evidence_hash VARCHAR(64) COMMENT '最后证据SHA-256';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_result_code VARCHAR(64) COMMENT '最后处理结果编码';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_operation_reason VARCHAR(500) COMMENT '最后操作原因';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_operated_at DATETIME COMMENT '最后操作时间';
+ALTER TABLE t_maintenance_workflow_task_view ADD COLUMN last_operated_by VARCHAR(64) COMMENT '最后操作主体';
+
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_operated_by;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_operated_at;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_operation_reason;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_result_code;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_evidence_hash;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_evidence_version;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_operation_hash;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_operation_action;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN last_operation_id;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN condition_decided_by;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN condition_decided_at;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN condition_reason;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN condition_decision;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN condition_input_hash;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN condition_rule_version;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN failure_reason;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN failure_code;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN retry_count;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN claimed_at;
+--rollback ALTER TABLE t_maintenance_workflow_task_view DROP COLUMN assigned_to;

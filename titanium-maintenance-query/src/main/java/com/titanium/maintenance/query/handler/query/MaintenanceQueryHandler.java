@@ -29,16 +29,16 @@ public class MaintenanceQueryHandler {
 
     @QueryHandler
     public MaintenanceQueryResult handle(FindMaintenanceByIdQuery query) {
-        return maintenanceQueryService.getMaintenanceSummary(query.maintenanceId()).orElse(null);
+        return maintenanceQueryService.getMaintenanceSummary(query.maintenanceId(), query.tenantId()).orElse(null);
     }
 
     @QueryHandler
     public List<MaintenanceQueryResult> handle(FindMaintenancesByPolicyIdQuery query) {
-        return maintenanceQueryService.getMaintenanceSummariesByPolicyId(query.policyId());
+        return maintenanceQueryService.getMaintenanceSummariesByPolicyId(query.policyId(), query.tenantId());
     }
 
     @QueryHandler
     public List<MaintenanceQueryResult> handle(FindMaintenancesByCustomerIdQuery query) {
-        return maintenanceQueryService.getMaintenanceSummariesByCustomerId(query.customerId());
+        return maintenanceQueryService.getMaintenanceSummariesByCustomerId(query.customerId(), query.tenantId());
     }
 }

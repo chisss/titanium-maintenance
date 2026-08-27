@@ -1,9 +1,21 @@
 package com.titanium.maintenance.web.mapper;
 
+import java.util.List;
+
 import org.mapstruct.Mapper;
 
+import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
+import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
+import com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest;
+import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
+import com.titanium.maintenance.api.response.MaintenanceSurrenderSettlementResponse;
+import com.titanium.maintenance.application.model.MaintenancePremiumSettlementInput;
+import com.titanium.maintenance.application.model.MaintenancePremiumSettlementResult;
 import com.titanium.maintenance.application.model.MaintenanceReadModel;
+import com.titanium.maintenance.application.model.MaintenanceReversalSettlementInput;
+import com.titanium.maintenance.application.model.MaintenanceSurrenderSettlementInput;
+import com.titanium.maintenance.application.model.MaintenanceSurrenderSettlementResult;
 import com.titanium.maintenance.web.response.MaintenanceVO;
 
 /**
@@ -37,4 +49,51 @@ public interface MaintenanceWebMapper {
      * @return 对外保全响应 DTO
      */
     MaintenanceResponse toApiResponse(MaintenanceReadModel readModel);
+
+    default MaintenancePremiumSettlementInput toSettlementInput(SettleMaintenancePremiumRequest request) {
+        return new MaintenancePremiumSettlementInput(
+                request.originalCalculationId(), request.productId(), request.productVersion(),
+                request.businessTime(), request.currency(), request.sumInsured(), request.age(), request.gender(),
+                request.paymentTermYears(), request.coverageTermYears(), request.paymentPeriods(),
+                request.requestSnapshot(), request.underwritingAdjustments() == null
+                        ? List.of()
+                        : request.underwritingAdjustments().stream()
+                                .map(item -> new MaintenancePremiumSettlementInput.UnderwritingAdjustmentInput(
+                                        item.adjustmentCode(), item.type(), item.value(), item.reason(),
+                                        item.ruleVersion()))
+                                .toList(),
+                request.channelId(), request.policyYear() == null ? 1 : request.policyYear(),
+                request.reason(), request.updatedBy());
+    }
+
+    default MaintenancePremiumSettlementResponse toSettlementResponse(MaintenancePremiumSettlementResult result) {
+        return new MaintenancePremiumSettlementResponse(
+                result.maintenanceId(), result.premiumSettlementStatus(), result.originalCalculationId(),
+                result.replacementCalculationId(), result.adjustmentId(), result.adjustmentResultHash(),
+                result.billingPostingId(), result.billingPostingStatus(), result.direction(), result.amount(),
+                result.currency(), result.refundInstructionId(), result.refundOrderId(), result.refundStatus(),
+                result.commissionAdjustmentCount());
+    }
+
+    default MaintenanceSurrenderSettlementInput toSurrenderSettlementInput(
+            SettleMaintenanceSurrenderRequest request) {
+        return new MaintenanceSurrenderSettlementInput(
+                request.originalCalculationId(), request.surrenderDate(), request.policyYear(),
+                request.businessTime(), request.reason(), request.updatedBy());
+    }
+
+    default MaintenanceReversalSettlementInput toReversalSettlementInput(
+            SettleMaintenanceReversalRequest request) {
+        return new MaintenanceReversalSettlementInput(request.sourceAdjustmentId(), request.businessTime(),
+                request.reason(), request.updatedBy());
+    }
+
+    default MaintenanceSurrenderSettlementResponse toSurrenderSettlementResponse(
+            MaintenanceSurrenderSettlementResult result) {
+        return new MaintenanceSurrenderSettlementResponse(
+                toSettlementResponse(result.settlement()), result.policyCode(), result.policyVersion(),
+                result.policyContentHash(), result.policyYear(), result.coolingOffDays(), result.refundType(),
+                result.withinCoolingOff(), result.cashValueRate(), result.retainedCustomerAmount(),
+                result.internalCostRetentionRate());
+    }
 }

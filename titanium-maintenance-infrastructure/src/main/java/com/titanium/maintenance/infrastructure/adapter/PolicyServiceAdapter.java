@@ -1,10 +1,18 @@
 package com.titanium.maintenance.infrastructure.adapter;
 
+import java.util.Objects;
+
 import org.springframework.stereotype.Component;
 
+import com.titanium.maintenance.infrastructure.client.InsuranceServiceClient;
 import com.titanium.maintenance.infrastructure.client.PolicyServiceClient;
 import com.titanium.maintenance.port.PolicyServicePort;
+import com.titanium.metadata.response.ApiResponse;
+import com.titanium.policy.api.response.InsuranceResponse;
+import com.titanium.policy.api.response.PolicyResponse;
+import com.titanium.policy.api.response.PolicyStatusResponse;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -16,19 +24,17 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class PolicyServiceAdapter implements PolicyServicePort {
 
     private final PolicyServiceClient policyServiceClient;
-
-    public PolicyServiceAdapter(PolicyServiceClient policyServiceClient) {
-        this.policyServiceClient = policyServiceClient;
-    }
+    private final InsuranceServiceClient insuranceServiceClient;
 
     @Override
     public boolean policyExists(String policyId, String tenantId) {
         try {
-            policyServiceClient.getPolicyById(policyId, tenantId);
-            return true;
+            ApiResponse<PolicyResponse> response = policyServiceClient.getPolicyById(policyId, tenantId);
+            return validPolicy(response, tenantId);
         } catch (Exception e) {
             log.warn("校验保单存在失败, policyId={}, 原因={}", policyId, e.getMessage());
             return false;
@@ -36,8 +42,67 @@ public class PolicyServiceAdapter implements PolicyServicePort {
     }
 
     @Override
+    public String getPolicyProductId(String policyId, String tenantId) {
+        try {
+            ApiResponse<PolicyResponse> response = policyServiceClient.getPolicyById(policyId, tenantId);
+            return validPolicy(response, tenantId) ? response.getData().getProductId() : null;
+        } catch (Exception e) {
+            log.warn("获取保单产品失败, policyId={}, 原因={}", policyId, e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
+    public PolicyFinancialSnapshot getPolicyFinancialSnapshot(String policyId, String tenantId) {
+        try {
+            ApiResponse<PolicyResponse> response = policyServiceClient.getPolicyById(policyId, tenantId);
+            if (!validPolicy(response, tenantId)) {
+                return null;
+            }
+            PolicyResponse policy = response.getData();
+            ApiResponse<InsuranceResponse> insuranceResponse = insuranceServiceClient.getInsurance(
+                    policy.getApplicationId(), tenantId);
+            if (!validInsurance(insuranceResponse, policy, tenantId)
+                    || policy.getEffectiveDate() == null || policy.getPremium() == null
+                    || policy.getPremium().getValue() == null || policy.getPremium().getCurrency() == null) {
+                return null;
+            }
+            return new PolicyFinancialSnapshot(
+                    policy.getProductId(), insuranceResponse.getData().getBizNo(),
+                    policy.getEffectiveDate().toLocalDate(),
+                    policy.getPremium().getValue(), policy.getPremium().getCurrency());
+        } catch (Exception exception) {
+            log.warn("获取保单财务日期快照失败, policyId={}, 原因={}", policyId, exception.getMessage());
+            return null;
+        }
+    }
+
+    @Override
     public PolicyStatusSnapshot getPolicyStatus(String policyId, String tenantId) {
-        PolicyServiceClient.PolicyStatusResponse response = policyServiceClient.getPolicyStatus(policyId, tenantId);
-        return new PolicyStatusSnapshot(response.isActive(), response.isReinstatable());
+        ApiResponse<PolicyStatusResponse> response = policyServiceClient.getPolicyStatus(policyId, tenantId);
+        if (response == null || !response.isSuccess() || response.getData() == null) {
+            return new PolicyStatusSnapshot(false, false);
+        }
+        String status = response.getData().getStatus();
+        return new PolicyStatusSnapshot("EFFECTIVE".equals(status), "LAPSED".equals(status));
+    }
+
+    private boolean validPolicy(ApiResponse<PolicyResponse> response, String tenantId) {
+        return response != null
+                && response.isSuccess()
+                && response.getData() != null
+                && Objects.equals(tenantId, response.getData().getTenantId());
+    }
+
+    private boolean validInsurance(
+            ApiResponse<InsuranceResponse> response,
+            PolicyResponse policy,
+            String tenantId) {
+        return response != null && response.isSuccess() && response.getData() != null
+                && policy.getApplicationId() != null && !policy.getApplicationId().isBlank()
+                && Objects.equals(policy.getApplicationId(), response.getData().getInsuranceId())
+                && Objects.equals(policy.getProductId(), response.getData().getProductId())
+                && Objects.equals(tenantId, response.getData().getTenantId())
+                && response.getData().getBizNo() != null && !response.getData().getBizNo().isBlank();
     }
 }

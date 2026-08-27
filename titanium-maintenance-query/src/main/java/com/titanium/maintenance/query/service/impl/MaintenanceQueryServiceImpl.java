@@ -2,7 +2,6 @@ package com.titanium.maintenance.query.service.impl;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,22 +30,28 @@ public class MaintenanceQueryServiceImpl implements MaintenanceQueryService {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<MaintenanceQueryResult> getMaintenanceSummary(String maintenanceId) {
-        return maintenanceViewRepository.findByMaintenanceId(maintenanceId).map(this::toResult);
+    public Optional<MaintenanceQueryResult> getMaintenanceSummary(String maintenanceId, String tenantId) {
+        return maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
+                .filter(MaintenanceView::isOperatorVisible)
+                .map(this::toResult);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<MaintenanceQueryResult> getMaintenanceSummariesByPolicyId(String policyId) {
-        return maintenanceViewRepository.findByPolicyId(policyId).stream().map(this::toResult)
-                .collect(Collectors.toList());
+    public List<MaintenanceQueryResult> getMaintenanceSummariesByPolicyId(String policyId, String tenantId) {
+        return maintenanceViewRepository.findByPolicyIdAndTenantId(policyId, tenantId).stream()
+                .filter(MaintenanceView::isOperatorVisible)
+                .map(this::toResult)
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<MaintenanceQueryResult> getMaintenanceSummariesByCustomerId(String customerId) {
-        return maintenanceViewRepository.findByCustomerId(customerId).stream().map(this::toResult)
-                .collect(Collectors.toList());
+    public List<MaintenanceQueryResult> getMaintenanceSummariesByCustomerId(String customerId, String tenantId) {
+        return maintenanceViewRepository.findByCustomerIdAndTenantId(customerId, tenantId).stream()
+                .filter(MaintenanceView::isOperatorVisible)
+                .map(this::toResult)
+                .toList();
     }
 
     // ==================== 转换方法：读模型 → DTO ====================

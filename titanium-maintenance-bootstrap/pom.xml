@@ -53,6 +53,11 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- ============ 架构守护测试（仅 test 作用域，不进运行时） ============ -->
         <!-- 共享 ArchUnit 基类制品：提供 AbstractArchitectureGuardTest -->
         <dependency>

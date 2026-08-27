@@ -16,15 +16,15 @@ public interface MaintenanceQueryService {
     /**
      * 根据保全案件ID查询摘要
      */
-    Optional<MaintenanceQueryResult> getMaintenanceSummary(String maintenanceId);
+    Optional<MaintenanceQueryResult> getMaintenanceSummary(String maintenanceId, String tenantId);
 
     /**
      * 根据保单ID查询保全案件摘要列表
      */
-    List<MaintenanceQueryResult> getMaintenanceSummariesByPolicyId(String policyId);
+    List<MaintenanceQueryResult> getMaintenanceSummariesByPolicyId(String policyId, String tenantId);
 
     /**
      * 根据客户ID查询保全案件摘要列表
      */
-    List<MaintenanceQueryResult> getMaintenanceSummariesByCustomerId(String customerId);
+    List<MaintenanceQueryResult> getMaintenanceSummariesByCustomerId(String customerId, String tenantId);
 }

@@ -32,6 +32,30 @@ public class MaintenanceReadModel {
     private BigDecimal    totalAmount;
     /** 退费金额 */
     private BigDecimal    refundAmount;
+    /** Product/Billing 费用事实及资金结算检查点状态 */
+    private String        premiumSettlementStatus;
+    private String        originalCalculationId;
+    private String        replacementCalculationId;
+    private String        premiumAdjustmentId;
+    private String        premiumAdjustmentResultHash;
+    private String        billingPostingId;
+    private String        refundInstructionId;
+    private String        refundOrderId;
+    private String        refundStatus;
+    private Integer       commissionAdjustmentCount;
+    private String        balanceDirection;
+    private BigDecimal    balanceAmount;
+    private String        balanceCurrency;
+    private String        surrenderPolicyCode;
+    private String        surrenderPolicyVersion;
+    private String        surrenderPolicyContentHash;
+    private Integer       surrenderPolicyYear;
+    private Integer       coolingOffDays;
+    private String        surrenderRefundType;
+    private Boolean       withinCoolingOff;
+    private BigDecimal    cashValueRate;
+    private BigDecimal    retainedCustomerAmount;
+    private BigDecimal    internalCostRetentionRate;
     /** 生效时间类型码值 */
     private String        effectiveTimeType;
     /** 指定生效日期 */

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.application.model.MaintenanceReadModel;
+import com.titanium.maintenance.application.model.MaintenanceSearchPageResult;
 import com.titanium.maintenance.application.model.MaintenanceStatisticsResult;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
@@ -28,7 +29,13 @@ import com.titanium.maintenance.common.exception.PendingMaintenanceExistsExcepti
 import com.titanium.maintenance.common.exception.PolicyNotActiveException;
 import com.titanium.maintenance.common.exception.PolicyNotFoundException;
 import com.titanium.maintenance.common.exception.PolicyNotTerminatedException;
+import com.titanium.maintenance.exception.MaintenanceLegacyCreationDisabledException;
+import com.titanium.maintenance.exception.MaintenanceLegacyExecutionDisabledException;
+import com.titanium.maintenance.exception.MaintenanceLegacyPremiumCalculationDisabledException;
 import com.titanium.maintenance.port.CustomerServicePort;
+import com.titanium.maintenance.port.MaintenanceLegacyCreationFeaturePort;
+import com.titanium.maintenance.port.MaintenanceLegacyExecutionFeaturePort;
+import com.titanium.maintenance.port.MaintenanceLegacyPremiumCalculationFeaturePort;
 import com.titanium.maintenance.port.PolicyServicePort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
@@ -54,17 +61,26 @@ public class MaintenanceApplicationService {
     private final MaintenanceExclusionRepository  maintenanceExclusionRepository;
     private final PolicyServicePort               policyServicePort;
     private final CustomerServicePort             customerServicePort;
+    private final MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort;
+    private final MaintenanceLegacyPremiumCalculationFeaturePort legacyPremiumCalculationFeaturePort;
+    private final MaintenanceLegacyExecutionFeaturePort legacyExecutionFeaturePort;
 
     public MaintenanceApplicationService(CommandGateway commandGateway,
                                          MaintenanceViewRepository maintenanceViewRepository,
                                          MaintenanceExclusionRepository maintenanceExclusionRepository,
                                          PolicyServicePort policyServicePort,
-                                         CustomerServicePort customerServicePort) {
+                                         CustomerServicePort customerServicePort,
+                                         MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort,
+                                         MaintenanceLegacyPremiumCalculationFeaturePort legacyPremiumCalculationFeaturePort,
+                                         MaintenanceLegacyExecutionFeaturePort legacyExecutionFeaturePort) {
         this.commandGateway = commandGateway;
         this.maintenanceViewRepository = maintenanceViewRepository;
         this.maintenanceExclusionRepository = maintenanceExclusionRepository;
         this.policyServicePort = policyServicePort;
         this.customerServicePort = customerServicePort;
+        this.legacyCreationFeaturePort = legacyCreationFeaturePort;
+        this.legacyPremiumCalculationFeaturePort = legacyPremiumCalculationFeaturePort;
+        this.legacyExecutionFeaturePort = legacyExecutionFeaturePort;
     }
 
     // 创建保全案件
@@ -73,6 +89,9 @@ public class MaintenanceApplicationService {
                                                            EffectiveTimeType effectiveTimeType,
                                                            LocalDateTime specificEffectiveDate, String description,
                                                            String createdBy, String tenantId) {
+        if (!legacyCreationFeaturePort.isEnabled(tenantId)) {
+            throw new MaintenanceLegacyCreationDisabledException();
+        }
         // 验证保单存在
         validatePolicyExists(policyId, tenantId);
         // 验证客户存在
@@ -91,8 +110,9 @@ public class MaintenanceApplicationService {
 
     // 添加保全变更记录
     public CompletableFuture<String> addMaintenanceChange(String maintenanceId, String changeType, String fieldName,
-                                                          String oldValue, String newValue, String createdBy) {
-        requireMaintenanceExists(maintenanceId);
+                                                          String oldValue, String newValue, String createdBy,
+                                                          String tenantId) {
+        requireMaintenanceExists(maintenanceId, tenantId);
         AddMaintenanceChangeCommand command = new AddMaintenanceChangeCommand(MaintenanceId.of(maintenanceId),
                 MaintenanceChangeType.fromCode(changeType), fieldName, oldValue, newValue, createdBy);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
@@ -101,8 +121,11 @@ public class MaintenanceApplicationService {
     // 计算保全保费
     public CompletableFuture<String> calculateMaintenancePremium(String maintenanceId, BigDecimal totalAmount,
                                                                  BigDecimal refundAmount, String calculationDetails,
-                                                                 String updatedBy) {
-        requireMaintenanceExists(maintenanceId);
+                                                                 String updatedBy, String tenantId) {
+        if (!legacyPremiumCalculationFeaturePort.isEnabled(tenantId)) {
+            throw new MaintenanceLegacyPremiumCalculationDisabledException();
+        }
+        requireMaintenanceExists(maintenanceId, tenantId);
         CalculateMaintenancePremiumCommand command = new CalculateMaintenancePremiumCommand(
                 MaintenanceId.of(maintenanceId), totalAmount, refundAmount, calculationDetails, updatedBy);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
@@ -110,8 +133,11 @@ public class MaintenanceApplicationService {
 
     // 执行保全
     public CompletableFuture<String> executeMaintenance(String maintenanceId, LocalDateTime effectiveTime,
-                                                        String executionDetails, String updatedBy) {
-        MaintenanceView view = requireMaintenanceExists(maintenanceId);
+                                                        String executionDetails, String updatedBy, String tenantId) {
+        if (!legacyExecutionFeaturePort.isEnabled(tenantId)) {
+            throw new MaintenanceLegacyExecutionDisabledException();
+        }
+        MaintenanceView view = requireMaintenanceExists(maintenanceId, tenantId);
         // 验证保全状态（读模型最终一致）
         if (view.getStatus() != MaintenanceStatus.APPROVED) {
             throw new InvalidMaintenanceStatusException();
@@ -123,8 +149,8 @@ public class MaintenanceApplicationService {
 
     // 变更保全记录状态
     public CompletableFuture<String> changeMaintenanceStatus(String maintenanceId, MaintenanceStatus newStatus,
-                                                             String changeReason, String changedBy) {
-        requireMaintenanceExists(maintenanceId);
+                                                             String changeReason, String changedBy, String tenantId) {
+        requireMaintenanceExists(maintenanceId, tenantId);
         ChangeMaintenanceStatusCommand command = ChangeMaintenanceStatusCommand.of(maintenanceId, newStatus,
                 changeReason, changedBy);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
@@ -132,14 +158,15 @@ public class MaintenanceApplicationService {
 
     // 根据ID查询保全记录（读模型 → 应用层读模型）
     @Transactional(readOnly = true)
-    public MaintenanceReadModel findMaintenanceById(String id) {
-        return toReadModel(requireMaintenanceExists(id));
+    public MaintenanceReadModel findMaintenanceById(String id, String tenantId) {
+        return toReadModel(requireMaintenanceExists(id, tenantId));
     }
 
     // 根据保单ID查询保全记录（读模型 → 应用层读模型）
     @Transactional(readOnly = true)
-    public List<MaintenanceReadModel> findMaintenancesByPolicyId(String policyId) {
-        return maintenanceViewRepository.findByPolicyId(policyId).stream()
+    public List<MaintenanceReadModel> findMaintenancesByPolicyId(String policyId, String tenantId) {
+        return maintenanceViewRepository.findByPolicyIdAndTenantId(policyId, tenantId).stream()
+                .filter(MaintenanceView::isOperatorVisible)
                 .map(this::toReadModel)
                 .toList();
     }
@@ -147,7 +174,7 @@ public class MaintenanceApplicationService {
     /**
      * 多条件搜索保全案件（内存过滤 + 手工分页）
      * <p>
-     * 路由优先级：policyId → customerId → status 单条件全量 → 返回空。
+     * 路由优先级：policyId → customerId → status 单条件全量 → 租户全部工单。
      * 在候选集基础上再按 maintenanceType、status 做内存过滤后分页返回。
      * </p>
      *
@@ -162,29 +189,43 @@ public class MaintenanceApplicationService {
     @Transactional(readOnly = true)
     public List<MaintenanceReadModel> searchMaintenances(String policyId, String customerId,
                                                           String maintenanceType, String status,
-                                                          int page, int size) {
+                                                          int page, int size, String tenantId) {
+        return searchMaintenancePage(policyId, customerId, maintenanceType, status, page, size, tenantId).list();
+    }
+
+    /** 搜索保全并返回真实过滤总数，供后台分页使用。 */
+    @Transactional(readOnly = true)
+    public MaintenanceSearchPageResult searchMaintenancePage(String policyId, String customerId,
+                                                               String maintenanceType, String status,
+                                                               int page, int size, String tenantId) {
         List<MaintenanceView> candidates;
         if (policyId != null && !policyId.isBlank()) {
-            candidates = maintenanceViewRepository.findByPolicyId(policyId);
+            candidates = maintenanceViewRepository.findByPolicyIdAndTenantId(policyId, tenantId);
         } else if (customerId != null && !customerId.isBlank()) {
-            candidates = maintenanceViewRepository.findByCustomerId(customerId);
+            candidates = maintenanceViewRepository.findByCustomerIdAndTenantId(customerId, tenantId);
         } else if (status != null && !status.isBlank()) {
             MaintenanceStatus statusEnum = MaintenanceStatus.fromCode(status);
-            candidates = statusEnum != null ? maintenanceViewRepository.findByStatus(statusEnum) : List.of();
+            candidates = statusEnum != null
+                    ? maintenanceViewRepository.findByTenantIdAndStatus(tenantId, statusEnum)
+                    : List.of();
         } else {
-            candidates = List.of();
+            candidates = maintenanceViewRepository.findByTenantIdOrderByCreateTimeDesc(tenantId);
         }
 
-        return candidates.stream()
+        List<MaintenanceReadModel> filtered = candidates.stream()
+                .filter(MaintenanceView::isOperatorVisible)
                 .filter(v -> maintenanceType == null || maintenanceType.isBlank()
                         || (v.getMaintenanceType() != null
                                 && maintenanceType.equals(v.getMaintenanceType().getValue())))
                 .filter(v -> status == null || status.isBlank()
                         || (v.getStatus() != null && status.equals(v.getStatus().getCode())))
-                .skip((long) page * size)
-                .limit(size)
                 .map(this::toReadModel)
                 .toList();
+        List<MaintenanceReadModel> pageItems = filtered.stream()
+                .skip((long) page * size)
+                .limit(size)
+                .toList();
+        return MaintenanceSearchPageResult.of(pageItems, filtered.size(), page + 1, size);
     }
 
     /**
@@ -193,8 +234,9 @@ public class MaintenanceApplicationService {
      * @return PENDING 状态的保全读模型列表
      */
     @Transactional(readOnly = true)
-    public List<MaintenanceReadModel> findPendingMaintenances() {
-        return maintenanceViewRepository.findByStatus(MaintenanceStatus.PENDING).stream()
+    public List<MaintenanceReadModel> findPendingMaintenances(String tenantId) {
+        return maintenanceViewRepository.findByTenantIdAndStatus(tenantId, MaintenanceStatus.PENDING).stream()
+                .filter(MaintenanceView::isOperatorVisible)
                 .map(this::toReadModel)
                 .toList();
     }
@@ -210,20 +252,21 @@ public class MaintenanceApplicationService {
      */
     @Transactional(readOnly = true)
     public MaintenanceStatisticsResult getStatistics(String tenantId) {
-        long processingCount = maintenanceViewRepository.countByTenantIdAndStatusIn(tenantId,
+        long processingCount = maintenanceViewRepository.countOperatorVisibleByTenantIdAndStatusIn(tenantId,
                 List.of(MaintenanceStatus.PENDING, MaintenanceStatus.PROCESSING));
         LocalDate today = LocalDate.now();
-        long todayCount = maintenanceViewRepository.countByTenantIdAndCreateTimeRange(tenantId,
+        long todayCount = maintenanceViewRepository.countOperatorVisibleByTenantIdAndCreateTimeRange(tenantId,
                 today.atStartOfDay(), today.plusDays(1).atStartOfDay());
-        long totalCount = maintenanceViewRepository.countByTenantId(tenantId);
+        long totalCount = maintenanceViewRepository.countOperatorVisibleByTenantId(tenantId);
         return new MaintenanceStatisticsResult(processingCount, todayCount, totalCount);
     }
 
     // ==================== 私有辅助 ====================
 
     /** 校验保全读模型存在并返回；不存在抛 {@link MaintenanceNotFoundException} */
-    private MaintenanceView requireMaintenanceExists(String maintenanceId) {
-        return maintenanceViewRepository.findByMaintenanceId(maintenanceId)
+    private MaintenanceView requireMaintenanceExists(String maintenanceId, String tenantId) {
+        return maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
+                .filter(MaintenanceView::isOperatorVisible)
                 .orElseThrow(MaintenanceNotFoundException::new);
     }
 
@@ -236,6 +279,31 @@ public class MaintenanceApplicationService {
                 .maintenanceType(view.getMaintenanceType() != null ? view.getMaintenanceType().getValue() : null)
                 .totalAmount(view.getTotalAmount())
                 .refundAmount(view.getRefundAmount())
+                .premiumSettlementStatus(view.getPremiumSettlementStatus() == null
+                        ? null
+                        : view.getPremiumSettlementStatus().name())
+                .originalCalculationId(view.getOriginalCalculationId())
+                .replacementCalculationId(view.getReplacementCalculationId())
+                .premiumAdjustmentId(view.getPremiumAdjustmentId())
+                .premiumAdjustmentResultHash(view.getPremiumAdjustmentResultHash())
+                .billingPostingId(view.getBillingPostingId())
+                .refundInstructionId(view.getRefundInstructionId())
+                .refundOrderId(view.getRefundOrderId())
+                .refundStatus(view.getRefundStatus())
+                .commissionAdjustmentCount(view.getCommissionAdjustmentCount())
+                .balanceDirection(view.getBalanceDirection() == null ? null : view.getBalanceDirection().name())
+                .balanceAmount(view.getBalanceAmount())
+                .balanceCurrency(view.getBalanceCurrency())
+                .surrenderPolicyCode(view.getSurrenderPolicyCode())
+                .surrenderPolicyVersion(view.getSurrenderPolicyVersion())
+                .surrenderPolicyContentHash(view.getSurrenderPolicyContentHash())
+                .surrenderPolicyYear(view.getSurrenderPolicyYear())
+                .coolingOffDays(view.getCoolingOffDays())
+                .surrenderRefundType(view.getSurrenderRefundType())
+                .withinCoolingOff(view.getWithinCoolingOff())
+                .cashValueRate(view.getCashValueRate())
+                .retainedCustomerAmount(view.getRetainedCustomerAmount())
+                .internalCostRetentionRate(view.getInternalCostRetentionRate())
                 .effectiveTimeType(view.getEffectiveTimeType() != null ? view.getEffectiveTimeType().getCode() : null)
                 .specificEffectiveDate(view.getSpecificEffectiveDate())
                 .description(view.getDescription())
@@ -291,14 +359,14 @@ public class MaintenanceApplicationService {
 
     // 检查是否存在在途保全案件（读模型：PENDING/PROCESSING/APPROVED 视为在途）
     private void checkPendingMaintenance(String policyId, String tenantId) {
-        if (!findInFlightMaintenances(policyId).isEmpty()) {
+        if (!findInFlightMaintenances(policyId, tenantId).isEmpty()) {
             throw new PendingMaintenanceExistsException();
         }
     }
 
     // 检查保全项互斥性
     private void checkMaintenanceExclusion(String policyId, MaintenanceType maintenanceType, String tenantId) {
-        for (MaintenanceView view : findInFlightMaintenances(policyId)) {
+        for (MaintenanceView view : findInFlightMaintenances(policyId, tenantId)) {
             if (maintenanceExclusionRepository.isMaintenanceTypeExcluded(view.getMaintenanceType(), maintenanceType,
                     tenantId)) {
                 throw new MaintenanceTypeExcludedException();
@@ -307,9 +375,11 @@ public class MaintenanceApplicationService {
     }
 
     // 查询保单在途保全（读模型最终一致）
-    private List<MaintenanceView> findInFlightMaintenances(String policyId) {
-        return maintenanceViewRepository.findByPolicyIdAndStatusIn(policyId,
-                List.of(MaintenanceStatus.PENDING, MaintenanceStatus.PROCESSING, MaintenanceStatus.APPROVED));
+    private List<MaintenanceView> findInFlightMaintenances(String policyId, String tenantId) {
+        return maintenanceViewRepository.findByPolicyIdAndTenantIdAndStatusIn(policyId, tenantId,
+                List.of(MaintenanceStatus.PENDING, MaintenanceStatus.PROCESSING, MaintenanceStatus.APPROVED)).stream()
+                .filter(MaintenanceView::isOperatorVisible)
+                .toList();
     }
 
     // 检查客户是否存在

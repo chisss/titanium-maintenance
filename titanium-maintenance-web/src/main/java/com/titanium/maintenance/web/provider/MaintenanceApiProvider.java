@@ -9,7 +9,11 @@ import org.springframework.web.bind.annotation.RestController;
 import com.titanium.maintenance.api.MaintenanceApi;
 import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
+import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
+import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
+import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
+import com.titanium.maintenance.application.command.MaintenancePremiumSettlementCommandService;
 import com.titanium.maintenance.application.service.MaintenanceApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
@@ -36,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 public class MaintenanceApiProvider implements MaintenanceApi {
 
     private final MaintenanceApplicationService maintenanceApplicationService;
+    private final MaintenancePremiumSettlementCommandService premiumSettlementCommandService;
     private final MaintenanceWebMapper          maintenanceWebMapper;
 
     @Override
@@ -65,7 +70,7 @@ public class MaintenanceApiProvider implements MaintenanceApi {
                     id,
                     MaintenanceStatus.fromValue(request.getNewStatus()),
                     request.getChangeReason(),
-                    request.getChangedBy()).get();
+                    request.getChangedBy(), tenantId).get();
         } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
             log.error("远程变更保全状态失败: {}", e.getMessage(), e);
@@ -74,13 +79,29 @@ public class MaintenanceApiProvider implements MaintenanceApi {
     }
 
     @Override
+    public MaintenancePremiumSettlementResponse settlePremium(
+            String id, SettleMaintenancePremiumRequest request, String tenantId) {
+        return maintenanceWebMapper.toSettlementResponse(
+                premiumSettlementCommandService.settle(id, tenantId,
+                maintenanceWebMapper.toSettlementInput(request)));
+    }
+
+    @Override
+    public MaintenancePremiumSettlementResponse settleReversal(
+            String id, SettleMaintenanceReversalRequest request, String tenantId) {
+        return maintenanceWebMapper.toSettlementResponse(
+                premiumSettlementCommandService.settleReversal(id, tenantId,
+                        maintenanceWebMapper.toReversalSettlementInput(request)));
+    }
+
+    @Override
     public MaintenanceResponse getMaintenanceById(String id, String tenantId) {
-        return maintenanceWebMapper.toApiResponse(maintenanceApplicationService.findMaintenanceById(id));
+        return maintenanceWebMapper.toApiResponse(maintenanceApplicationService.findMaintenanceById(id, tenantId));
     }
 
     @Override
     public List<MaintenanceResponse> getMaintenancesByPolicyId(String policyId, String tenantId) {
-        return maintenanceApplicationService.findMaintenancesByPolicyId(policyId).stream()
+        return maintenanceApplicationService.findMaintenancesByPolicyId(policyId, tenantId).stream()
                 .map(maintenanceWebMapper::toApiResponse)
                 .toList();
     }

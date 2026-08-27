@@ -13,7 +13,11 @@ import lombok.Getter;
 public enum EffectiveTimeType implements BaseEnum {
     IMMEDIATE(1, "IMMEDIATE", "立即", "保全变更立即生效"),
     NEXT_PERIOD(2, "NEXT_PERIOD", "次期", "保全变更于次期生效"),
-    SPECIFIED_DATE(3, "SPECIFIED_DATE", "指定日", "保全变更于指定日期生效");
+    SPECIFIED_DATE(3, "SPECIFIED_DATE", "指定日", "保全变更于指定日期生效"),
+    RETROACTIVE(4, "RETROACTIVE", "追溯生效", "保全变更追溯至历史业务时间生效"),
+    FUTURE(5, "FUTURE", "未来生效", "保全变更于未来计划时间生效"),
+    NEXT_BILLING_DATE(6, "NEXT_BILLING_DATE", "次期缴费日", "保全变更于下一缴费日生效"),
+    POLICY_ANNIVERSARY(7, "POLICY_ANNIVERSARY", "保单周年日", "保全变更于保单周年日生效");
 
     private final Integer enumCode;
     private final String  code;

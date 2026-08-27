@@ -67,6 +67,40 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
+        <!-- policy-api：复用统一响应封装与 Policy DTO，防止自维护 Feign 镜像漂移 -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-policy-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <!-- Product/Billing API：保全生命周期计价编排只依赖对外契约，不依赖外域实现 -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-product-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-billing-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-payment-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-claim-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-underwriting-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- Database -->
         <dependency>
             <groupId>com.mysql</groupId>
@@ -84,6 +118,16 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

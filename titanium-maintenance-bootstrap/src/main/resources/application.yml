@@ -21,8 +21,6 @@ spring:
       port: 6379
       password: 
       database: 0
-      cluster:
-        nodes: localhost:6379
   # Kafka配置
   kafka:
     bootstrap-servers: localhost:9092
@@ -98,3 +96,15 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+titanium:
+  maintenance:
+    # 旧版 POST /web|api/v1/maintenances 建案兼容开关；关闭后查询和案件后续操作仍可用
+    legacy-creation-enabled: true
+    # 旧版 POST /web/v1/maintenances/{id}/calculate-premium 人工金额写入开关；稳定期默认兼容
+    legacy-premium-calculation-enabled: true
+    # 旧版 POST /web/v1/maintenances/{id}/execute 整案执行开关；关闭后统一使用独立案件任务级生效
+    legacy-execution-enabled: true
+    configuration:
+      # 灰度回滚开关：关闭时禁止新建、创建修订版和首次发布，查询保持可用
+      write-enabled: true
