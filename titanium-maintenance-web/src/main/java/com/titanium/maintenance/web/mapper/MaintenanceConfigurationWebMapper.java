@@ -90,6 +90,8 @@ public class MaintenanceConfigurationWebMapper {
                 .map(rule -> new MaintenanceConfigurationPreviewVO.FieldVO(
                         rule.fieldCode(), rule.required(), rule.visible(), rule.editable(), rule.allowClear(),
                         sensitiveDetailsVisible ? rule.expectedValueType() : null,
+                        sensitiveDetailsVisible ? rule.validationType() : null,
+                        sensitiveDetailsVisible ? rule.validationMessage() : null,
                         !sensitiveDetailsVisible))
                 .toList();
         List<MaintenanceConfigurationPreviewVO.StepVO> steps = definition.steps().stream()
@@ -132,7 +134,8 @@ public class MaintenanceConfigurationWebMapper {
     private MaintenanceFieldRule toFieldRule(MaintenanceConfigurationDTO.FieldRuleDTO rule) {
         return new MaintenanceFieldRule(
                 rule.fieldCode(), rule.required(), rule.visible(), rule.editable(), rule.allowClear(),
-                rule.conditionRuleCode(), rule.expectedValueType());
+                rule.conditionRuleCode(), rule.expectedValueType(), rule.validationType(),
+                rule.validationPattern(), rule.validationMessage());
     }
 
     private MaintenanceStepDefinition toStep(MaintenanceConfigurationDTO.StepDTO step) {
@@ -201,6 +204,9 @@ public class MaintenanceConfigurationWebMapper {
                 rule.fieldCode(), rule.required(), rule.visible(), rule.editable(), rule.allowClear(),
                 sensitiveDetailsVisible ? rule.conditionRuleCode() : null,
                 sensitiveDetailsVisible ? rule.expectedValueType() : null,
+                sensitiveDetailsVisible ? rule.validationType() : null,
+                sensitiveDetailsVisible ? rule.validationPattern() : null,
+                sensitiveDetailsVisible ? rule.validationMessage() : null,
                 !sensitiveDetailsVisible);
     }
 
@@ -256,7 +262,8 @@ public class MaintenanceConfigurationWebMapper {
         MaintenanceItemDefinition definition = configuration.getDefinition();
         return new MaintenanceConfigurationPageVO.ItemVO(
                 configuration.getConfigurationId(), definition.itemCode(), definition.version(),
-                definition.name(), configuration.getStatus(), configuration.getValidFrom(),
+                definition.name(), definition.steps().size(), definition.feeMode(),
+                configuration.getStatus(), configuration.getValidFrom(),
                 configuration.getValidTo(), normalize(configuration.getContentHash()), stored.rowVersion(),
                 configuration.getAuditTrail().getLast().occurredAt());
     }

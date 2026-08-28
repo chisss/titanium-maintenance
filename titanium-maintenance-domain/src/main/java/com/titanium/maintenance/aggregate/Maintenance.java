@@ -92,6 +92,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpa
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodRecalculationStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
+import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
@@ -448,7 +449,10 @@ public class Maintenance extends BaseAggregate {
     public void handle(ClaimMaintenanceWorkflowTaskCommand command) {
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.CLAIM, command.taskId(), null, null, null, null, command.operatorId());
-        transition(command.taskId(), operation, task -> task.claim(operation), false);
+        transition(command.taskId(), operation, task -> {
+            requireSeparatedReviewer(task, command.operatorId());
+            return task.claim(operation);
+        }, false);
     }
 
     /** 开始处理已领取任务。 */
@@ -462,10 +466,16 @@ public class Maintenance extends BaseAggregate {
     /** 完成信息录入或业务校验任务。 */
     @CommandHandler
     public void handle(CompleteMaintenanceWorkflowTaskCommand command) {
+        MaintenanceWorkflowTask task = findWorkflowTask(command.taskId());
+        if (task.stepType() == MaintenanceStepType.DATA_ENTRY
+                && findItem(task.itemCode()).fieldChanges().isEmpty()) {
+            throw new MaintenanceValidationException(
+                    "CompleteMaintenanceWorkflowTaskCommand", "fieldChanges", "信息录入至少需要一项实际字段变更");
+        }
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.COMPLETE, command.taskId(), command.evidenceVersion(), command.evidenceHash(),
                 command.resultCode(), command.reason(), command.operatorId());
-        transition(command.taskId(), operation, task -> task.complete(operation), true);
+        transition(command.taskId(), operation, currentTask -> currentTask.complete(operation), true);
     }
 
     /** 将处理中任务记为失败。 */
@@ -509,8 +519,12 @@ public class Maintenance extends BaseAggregate {
                 MaintenanceWorkflowAction.DECIDE_REVIEW, command.taskId(), evidence.policyVersion(),
                 evidence.contentHash(), evidence.decision().getCode(), evidence.comment(), command.operatorId());
         boolean approved = evidence.decision() == MaintenanceReviewDecision.APPROVE;
-        boolean applied = transition(command.taskId(), operation, task -> task.decideReview(evidence, operation),
-                approved);
+        boolean applied = transition(command.taskId(), operation, task -> {
+            if (evidence.mode() == MaintenanceReviewMode.MANUAL) {
+                requireSeparatedReviewer(task, command.operatorId());
+            }
+            return task.decideReview(evidence, operation);
+        }, approved);
         if (applied && !approved) {
             AggregateLifecycle.apply(new MaintenanceCaseRejectedByReviewEvent(id, command.taskId(),
                     evidence.contentHash(), evidence.policyCode(), evidence.policyVersion(), evidence.comment(),
@@ -616,6 +630,9 @@ public class Maintenance extends BaseAggregate {
             throw new MaintenanceValidationException(
                     "PauseMaintenanceEffectScheduleCommand", "reason", "暂停原因不能为空");
         }
+        if (effectSchedule.status() == MaintenanceEffectScheduleStatus.PAUSED) {
+            return;
+        }
         LocalDateTime pausedAt = LocalDateTime.now();
         effectSchedule.pause(pausedAt);
         AggregateLifecycle.apply(new MaintenanceEffectSchedulePausedEvent(
@@ -630,6 +647,9 @@ public class Maintenance extends BaseAggregate {
         if (command.nextExecutionAt() == null || command.reason() == null || command.reason().isBlank()) {
             throw new MaintenanceValidationException(
                     "ResumeMaintenanceEffectScheduleCommand", "resume", "恢复时间和原因不能为空");
+        }
+        if (effectSchedule.status() == MaintenanceEffectScheduleStatus.ACTIVE) {
+            return;
         }
         LocalDateTime resumedAt = LocalDateTime.now();
         effectSchedule.resume(command.nextExecutionAt(), resumedAt);
@@ -2457,6 +2477,20 @@ public class Maintenance extends BaseAggregate {
         }
         return workflowTasks.stream().filter(task -> task.taskId().equals(taskId.trim())).findFirst().orElseThrow(
                 () -> new MaintenanceValidationException("MaintenanceWorkflowTask", "taskId", "案件中不存在流程任务"));
+    }
+
+    private void requireSeparatedReviewer(MaintenanceWorkflowTask task, String reviewerId) {
+        if (task.stepType() != MaintenanceStepType.REVIEW) {
+            return;
+        }
+        if (createdBy == null || createdBy.isBlank() || reviewerId == null || reviewerId.isBlank()) {
+            throw new MaintenanceValidationException(
+                    "MaintenanceWorkflowTask", "operatorId", "无法证明建案人与审核人职责分离");
+        }
+        if (createdBy.equals(reviewerId.trim())) {
+            throw new MaintenanceValidationException(
+                    "MaintenanceWorkflowTask", "operatorId", "建案人不能领取或决定审核任务");
+        }
     }
 
     private MaintenanceWorkflowTask findNextPendingTask(MaintenanceWorkflowTask completedTask) {

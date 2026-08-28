@@ -66,6 +66,13 @@
             <artifactId>fastjson2</artifactId>
         </dependency>
 
+        <!-- 线性时间正则引擎，避免可配置表达式触发回溯型拒绝服务 -->
+        <dependency>
+            <groupId>com.google.re2j</groupId>
+            <artifactId>re2j</artifactId>
+            <version>1.8</version>
+        </dependency>
+
         <!-- Java 8+ Time API -->
         <dependency>
             <groupId>javax.xml.bind</groupId>

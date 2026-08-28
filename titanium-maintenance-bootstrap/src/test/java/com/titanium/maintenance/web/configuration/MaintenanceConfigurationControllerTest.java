@@ -13,6 +13,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,8 @@ import com.titanium.maintenance.application.model.configuration.MaintenanceConfi
 import com.titanium.maintenance.application.query.MaintenanceConfigurationQueryService;
 import com.titanium.maintenance.common.context.TenantContext;
 import com.titanium.maintenance.exception.MaintenanceConfigurationPreconditionFailedException;
+import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationPage;
+import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationSearchCriteria;
 import com.titanium.maintenance.web.controller.MaintenanceConfigurationController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceConfigurationWebMapper;
@@ -149,6 +152,20 @@ class MaintenanceConfigurationControllerTest {
                 .andExpect(header().string(HttpHeaders.ETAG, "\"8\""));
 
         verify(queryService).resolveEffective("tenant-1", "CONTACT_CHANGE", businessTime);
+    }
+
+    @Test
+    void shouldExposeWorkflowAndFeeSummaryInConfigurationList() throws Exception {
+        authenticate("operator-1", "maintenance:config:view");
+        TenantContext.setCurrentTenant("tenant-1");
+        when(queryService.search(eq("tenant-1"), any(ConfigurationSearchCriteria.class)))
+                .thenReturn(new ConfigurationPage(
+                        List.of(MaintenanceConfigurationWebTestFixture.stored(7L)), 1, 0, 20));
+
+        mockMvc.perform(get("/api/v1/maintenance/configurations"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].stepCount").value(3))
+                .andExpect(jsonPath("$.items[0].feeMode").value("NONE"));
     }
 
     private void authenticate(String operatorId, String... authorities) {

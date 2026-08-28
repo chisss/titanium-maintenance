@@ -50,6 +50,14 @@ spring:
     enabled: true
     change-log: classpath:liquibase/changelog-master.xml
 
+jwt:
+  secret: ${JWT_SECRET:titanium-admin-jwt-secret-key-2026-must-be-at-least-32-chars}
+
+maintenance:
+  authentication:
+    enabled: true
+    internal-token: ${MAINTENANCE_INTERNAL_TOKEN:change-me-in-production-maintenance-internal-token}
+
 # Axon Framework配置
 axon:
   serializer:

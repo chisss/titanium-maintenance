@@ -32,4 +32,5 @@
     <include file="classpath:liquibase/ddl/maintenance_workflow_operation_id_compatibility_m5_09_202608261745_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_effect_time_precision_m5_10_202608261755_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_premium_calculation_checkpoint_m5_11_202608271730_weisun_ddl.sql"/>
+    <include file="classpath:liquibase/ddl/maintenance_configuration_audit_retention_202608281305_weisun_ddl.sql"/>
 </databaseChangeLog>

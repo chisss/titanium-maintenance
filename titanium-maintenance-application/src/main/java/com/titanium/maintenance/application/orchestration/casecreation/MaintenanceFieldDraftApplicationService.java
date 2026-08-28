@@ -108,10 +108,10 @@ public class MaintenanceFieldDraftApplicationService {
                     "MaintenanceFieldDraftApplicationService", "fieldCatalog", "Policy 字段目录回显不一致");
         }
         Map<String, MaintenanceFieldDescriptorSnapshot> fields = new TreeMap<>();
-        proposals.forEach(proposal -> {
-            PolicyFieldDescriptorEvidence descriptor = catalog.requireField(proposal.fieldCode());
-            fields.put(descriptor.fieldCode(), descriptorSnapshot(descriptor));
-        });
+        proposals.forEach(proposal -> catalog.requireField(proposal.fieldCode()));
+        catalog.fields().stream()
+                .filter(descriptor -> request.itemCode().equals(descriptor.capability().changeTypeCode()))
+                .forEach(descriptor -> fields.put(descriptor.fieldCode(), descriptorSnapshot(descriptor)));
         return new MaintenanceFieldCatalogSnapshot(
                 catalog.tenantId(), catalog.businessDate(), catalog.catalogVersion(), catalog.contentHash(),
                 OffsetDateTime.now(ZoneOffset.UTC), fields);

@@ -6,6 +6,7 @@ import java.util.Set;
 
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
+import com.titanium.maintenance.common.enums.config.MaintenanceFieldValidationType;
 import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenancePremiumRecalculationTiming;
@@ -51,7 +52,10 @@ public record MaintenanceConfigurationDTO(
             boolean editable,
             boolean allowClear,
             @Size(max = 128) String conditionRuleCode,
-            PolicyFieldValueType expectedValueType) {
+            PolicyFieldValueType expectedValueType,
+            MaintenanceFieldValidationType validationType,
+            @Size(max = 256) String validationPattern,
+            @Size(max = 200) String validationMessage) {
     }
 
     /** 标准流程步骤。 */

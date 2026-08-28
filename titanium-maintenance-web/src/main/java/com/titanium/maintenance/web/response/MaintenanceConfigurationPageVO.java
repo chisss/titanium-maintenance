@@ -3,6 +3,7 @@ package com.titanium.maintenance.web.response;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
 
 /** 配置管理列表分页响应。 */
@@ -14,6 +15,8 @@ public record MaintenanceConfigurationPageVO(
             String itemCode,
             String configurationVersion,
             String name,
+            int stepCount,
+            MaintenanceFeeMode feeMode,
             MaintenanceItemConfigurationStatus status,
             LocalDateTime validFrom,
             LocalDateTime validTo,

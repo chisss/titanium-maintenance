@@ -60,6 +60,9 @@ final class MaintenanceItemConfigurationHasher {
                     content.put("allowClear", rule.allowClear());
                     content.put("conditionRuleCode", nullable(rule.conditionRuleCode()));
                     content.put("expectedValueType", nullable(rule.expectedValueType()));
+                    content.put("validationType", rule.validationType().name());
+                    content.put("validationPattern", nullable(rule.validationPattern()));
+                    content.put("validationMessage", nullable(rule.validationMessage()));
                     return content;
                 })
                 .toList();

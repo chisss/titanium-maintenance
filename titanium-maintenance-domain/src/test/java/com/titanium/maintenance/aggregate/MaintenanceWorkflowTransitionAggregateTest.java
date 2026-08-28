@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import org.axonframework.test.aggregate.AggregateTestFixture;
 import org.axonframework.test.aggregate.FixtureConfiguration;
@@ -23,6 +24,7 @@ import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
 import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
 import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionCommand;
 import com.titanium.maintenance.command.FailMaintenanceEffectCommand;
+import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
@@ -32,12 +34,16 @@ import com.titanium.maintenance.command.RecordMaintenancePremiumQuoteCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumSettlementCommand;
 import com.titanium.maintenance.command.RequestMaintenanceCaseEffectCommand;
 import com.titanium.maintenance.command.RequestMaintenanceEffectCommand;
+import com.titanium.maintenance.command.ResumeMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ScheduleMaintenanceEffectCommand;
 import com.titanium.maintenance.command.StartMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.common.enums.change.PolicyFieldDataType;
+import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
+import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
+import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceBillingPostingStatus;
@@ -54,18 +60,27 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.maintenance.configuration.MaintenanceEffectiveRule;
+import com.titanium.maintenance.configuration.MaintenanceFieldRule;
+import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
+import com.titanium.maintenance.configuration.MaintenanceStepDefinition;
 import com.titanium.maintenance.event.MaintenanceCaseInitializationCompletedEvent;
 import com.titanium.maintenance.event.MaintenanceCaseRejectedByReviewEvent;
 import com.titanium.maintenance.event.MaintenanceCreatedEvent;
 import com.titanium.maintenance.event.MaintenanceEffectCompensationRequiredEvent;
 import com.titanium.maintenance.event.MaintenanceEffectCompensationResolvedEvent;
 import com.titanium.maintenance.event.MaintenanceEffectStatusChangedEvent;
+import com.titanium.maintenance.event.MaintenanceFieldChangesRecordedEvent;
+import com.titanium.maintenance.event.MaintenanceItemAddedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowInitializedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowTaskTransitionedEvent;
 import com.titanium.maintenance.valueobject.CustomerId;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.PolicyId;
+import com.titanium.maintenance.valueobject.change.MaintenanceFieldChange;
+import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
+import com.titanium.maintenance.valueobject.item.MaintenanceItemInstance;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceAppliedFieldEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
@@ -79,6 +94,7 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowOperatio
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowReviewEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowTask;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
+import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
 
 class MaintenanceWorkflowTransitionAggregateTest {
 
@@ -127,7 +143,9 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 null, null, null, null, "operator-1");
         MaintenanceWorkflowTask started = claimed.start(start);
 
-        fixture.given(createdEvent(), initializedEvent(), workflowInitializedEvent(),
+        fixture.given(createdEvent(), itemAddedEvent(ITEM_CODE, "policy.holder.mobile"),
+                        fieldChangesRecordedEvent(ITEM_CODE, "policy-1", "policy.holder.mobile"),
+                        initializedEvent(), workflowInitializedEvent(),
                         transition(dataEntry, claimed, null, null, claim),
                         transition(claimed, started, null, null, start))
                 .when(new CompleteMaintenanceWorkflowTaskCommand(
@@ -142,6 +160,28 @@ class MaintenanceWorkflowTransitionAggregateTest {
                     assertEquals(MaintenanceWorkflowTaskStatus.READY,
                             aggregate.getWorkflowTasks().get(1).status());
                 });
+    }
+
+    @Test
+    void shouldRejectCompletingDataEntryWithoutActualFieldChanges() {
+        MaintenanceWorkflowTask dataEntry = dataEntryTask();
+        MaintenanceWorkflowOperation claim = operation(
+                "operation-claim-empty", MaintenanceWorkflowAction.CLAIM, DATA_TASK_ID,
+                null, null, null, null, "operator-1");
+        MaintenanceWorkflowTask claimed = dataEntry.claim(claim);
+        MaintenanceWorkflowOperation start = operation(
+                "operation-start-empty", MaintenanceWorkflowAction.START, DATA_TASK_ID,
+                null, null, null, null, "operator-1");
+        MaintenanceWorkflowTask started = claimed.start(start);
+
+        fixture.given(createdEvent(), itemAddedEvent(ITEM_CODE, "policy.holder.mobile"),
+                        initializedEvent(), workflowInitializedEvent(),
+                        transition(dataEntry, claimed, null, null, claim),
+                        transition(claimed, started, null, null, start))
+                .when(new CompleteMaintenanceWorkflowTaskCommand(
+                        ID, DATA_TASK_ID, "operation-complete-empty",
+                        null, null, "DATA_RECORDED", "录入完成", "operator-1"))
+                .expectException(MaintenanceValidationException.class);
     }
 
     @Test
@@ -223,7 +263,9 @@ class MaintenanceWorkflowTransitionAggregateTest {
         MaintenanceBillingPostingEvidence posting = posting(MaintenanceBillingPostingStatus.POSTED);
         MaintenanceFundSettlementEvidence funds = funds(MaintenanceFundSettlementStatus.SUCCEEDED);
 
-        fixture.given(createdEvent(), initializedEvent(), phaseFourWorkflowInitializedEvent())
+        fixture.given(createdEvent(), itemAddedEvent(ITEM_CODE, "policy.holder.mobile"),
+                        fieldChangesRecordedEvent(ITEM_CODE, "policy-1", "policy.holder.mobile"),
+                        initializedEvent(), phaseFourWorkflowInitializedEvent())
                 .andGivenCommands(
                         new ClaimMaintenanceWorkflowTaskCommand(
                                 ID, DATA_TASK_ID, "phase4-claim-data", "operator-1"),
@@ -282,7 +324,14 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         MaintenanceStepType.VALIDATION, MaintenanceStepMode.REQUIRED,
                         null, MaintenanceWorkflowTaskStatus.PENDING));
 
-        fixture.given(createdEvent(), initializedEvent(), new MaintenanceWorkflowInitializedEvent(
+        fixture.given(createdEvent(),
+                        itemAddedEvent(ITEM_CODE, "policy.holder.mobile"),
+                        fieldChangesRecordedEvent(ITEM_CODE, "policy-1", "policy.holder.mobile"),
+                        itemAddedEvent(secondItem, "policy.insured.mobile"),
+                        fieldChangesRecordedEvent(secondItem, "insured-1", "policy.insured.mobile"),
+                        new MaintenanceCaseInitializationCompletedEvent(
+                                ID, List.of(ITEM_CODE, secondItem), NOW, "operator-1", "tenant-1"),
+                        new MaintenanceWorkflowInitializedEvent(
                         ID, tasks, NOW, "operator-1", "tenant-1"))
                 .andGivenCommands(
                         new ClaimMaintenanceWorkflowTaskCommand(
@@ -456,6 +505,31 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 .expectNoEvents()
                 .expectState(aggregate -> assertEquals(
                         MaintenanceEffectScheduleStatus.COMPLETED, aggregate.getEffectSchedule().status()));
+    }
+
+    @Test
+    void shouldTreatRepeatedSchedulePauseAndResumeAsIdempotent() {
+        PauseMaintenanceEffectScheduleCommand pause = new PauseMaintenanceEffectScheduleCommand(
+                ID, "workflow-case-1:effect", "等待人工确认", "operator-1");
+        ResumeMaintenanceEffectScheduleCommand resume = new ResumeMaintenanceEffectScheduleCommand(
+                ID, "workflow-case-1:effect", "resume-operation-1",
+                NOW.plusDays(2), "确认后恢复", "operator-1");
+
+        fixture.given(futureCreatedEvent(), initializedEvent(), effectWorkflowInitializedEvent())
+                .andGivenCommands(scheduleCommand(), pause)
+                .when(pause)
+                .expectSuccessfulHandlerExecution()
+                .expectNoEvents()
+                .expectState(aggregate -> assertEquals(
+                        MaintenanceEffectScheduleStatus.PAUSED, aggregate.getEffectSchedule().status()));
+
+        fixture.given(futureCreatedEvent(), initializedEvent(), effectWorkflowInitializedEvent())
+                .andGivenCommands(scheduleCommand(), pause, resume)
+                .when(resume)
+                .expectSuccessfulHandlerExecution()
+                .expectNoEvents()
+                .expectState(aggregate -> assertEquals(
+                        MaintenanceEffectScheduleStatus.ACTIVE, aggregate.getEffectSchedule().status()));
     }
 
     @Test
@@ -712,6 +786,41 @@ class MaintenanceWorkflowTransitionAggregateTest {
     }
 
     @Test
+    void shouldRejectCreatorClaimingManualReviewTask() {
+        MaintenanceWorkflowTask review = reviewTask();
+
+        fixture.given(createdEvent(), initializedEvent(), new MaintenanceWorkflowInitializedEvent(
+                        ID, List.of(review), NOW, "operator-1", "tenant-1"))
+                .when(new ClaimMaintenanceWorkflowTaskCommand(
+                        ID, REVIEW_TASK_ID, "operation-creator-review-claim", "operator-1"))
+                .expectException(MaintenanceValidationException.class);
+    }
+
+    @Test
+    void shouldRejectCreatorDecidingHistoricallyAssignedManualReviewTask() {
+        MaintenanceWorkflowTask review = reviewTask();
+        MaintenanceWorkflowOperation claim = operation(
+                "operation-legacy-claim", MaintenanceWorkflowAction.CLAIM, REVIEW_TASK_ID,
+                null, null, null, null, "operator-1");
+        MaintenanceWorkflowTask claimed = review.claim(claim);
+        MaintenanceWorkflowOperation start = operation(
+                "operation-legacy-start", MaintenanceWorkflowAction.START, REVIEW_TASK_ID,
+                null, null, null, null, "operator-1");
+        MaintenanceWorkflowTask started = claimed.start(start);
+        MaintenanceWorkflowReviewEvidence evidence = new MaintenanceWorkflowReviewEvidence(
+                MaintenanceReviewMode.MANUAL, MaintenanceReviewDecision.APPROVE,
+                "APPROVAL_STANDARD", "policy-v1", List.of(), "审核通过", NOW, "operator-1");
+
+        fixture.given(createdEvent(), initializedEvent(), new MaintenanceWorkflowInitializedEvent(
+                                ID, List.of(review), NOW, "operator-1", "tenant-1"),
+                        transition(review, claimed, null, null, claim),
+                        transition(claimed, started, null, null, start))
+                .when(new DecideMaintenanceReviewCommand(
+                        ID, REVIEW_TASK_ID, "operation-creator-review", evidence, "operator-1"))
+                .expectException(MaintenanceValidationException.class);
+    }
+
+    @Test
     void shouldRejectCaseWhenManualReviewRejects() {
         MaintenanceWorkflowTask review = reviewTask();
         MaintenanceWorkflowOperation claim = operation(
@@ -798,6 +907,30 @@ class MaintenanceWorkflowTransitionAggregateTest {
     private MaintenanceCaseInitializationCompletedEvent initializedEvent() {
         return new MaintenanceCaseInitializationCompletedEvent(
                 ID, List.of(ITEM_CODE), NOW, "operator-1", "tenant-1");
+    }
+
+    private MaintenanceItemAddedEvent itemAddedEvent(String itemCode, String fieldCode) {
+        MaintenanceItemDefinition definition = new MaintenanceItemDefinition(
+                itemCode, "1.0.0", itemCode, MaintenanceItemCategory.BASIC_INFORMATION,
+                Set.of(MaintenanceChannel.MANUAL),
+                List.of(MaintenanceFieldRule.editable(
+                        fieldCode, false, false, PolicyFieldValueType.TEXT)),
+                List.of(
+                        MaintenanceStepDefinition.required(1, MaintenanceStepType.DATA_ENTRY),
+                        MaintenanceStepDefinition.skipped(2, MaintenanceStepType.FEE_SETTLEMENT),
+                        MaintenanceStepDefinition.required(3, MaintenanceStepType.EFFECT)),
+                MaintenanceFeeMode.NONE, MaintenanceEffectiveRule.immediate(), Set.of(), false);
+        return new MaintenanceItemAddedEvent(
+                ID, MaintenanceItemInstance.from(definition, NOW), NOW, "operator-1", "tenant-1");
+    }
+
+    private MaintenanceFieldChangesRecordedEvent fieldChangesRecordedEvent(
+            String itemCode, String objectId, String fieldCode) {
+        MaintenanceFieldChange change = MaintenanceFieldChange.propose(
+                itemCode, objectId, fieldCode,
+                MaintenanceFieldValue.text("original"), MaintenanceFieldValue.text("changed"));
+        return new MaintenanceFieldChangesRecordedEvent(
+                ID, itemCode, List.of(change), NOW, "operator-1", "tenant-1");
     }
 
     private MaintenanceWorkflowInitializedEvent workflowInitializedEvent() {

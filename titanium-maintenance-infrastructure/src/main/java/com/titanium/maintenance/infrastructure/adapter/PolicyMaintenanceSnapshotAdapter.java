@@ -31,6 +31,9 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapshotPort {
 
+    private static final int MAX_CAPTURE_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MILLIS = 100L;
+
     private static final Pattern FIELD_CODE = Pattern.compile("[a-z][A-Za-z0-9]*(\\.[a-z][A-Za-z0-9]*)+");
     private static final Pattern OBJECT_ID = Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
 
@@ -38,6 +41,23 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
 
     @Override
     public PolicyMaintenanceSnapshot capture(PolicyMaintenanceSnapshotRequest request) {
+        PolicyMaintenanceSnapshotException lastFailure = null;
+        for (int attempt = 1; attempt <= MAX_CAPTURE_ATTEMPTS; attempt++) {
+            try {
+                return captureOnce(request);
+            } catch (PolicyMaintenanceSnapshotException exception) {
+                lastFailure = exception;
+                if (exception.getReason() != PolicyMaintenanceSnapshotFailureReason.UNAVAILABLE
+                        || attempt == MAX_CAPTURE_ATTEMPTS) {
+                    throw exception;
+                }
+                waitBeforeRetry(attempt);
+            }
+        }
+        throw lastFailure;
+    }
+
+    private PolicyMaintenanceSnapshot captureOnce(PolicyMaintenanceSnapshotRequest request) {
         try {
             ApiResponse<PolicyMaintenanceSnapshotResponse> response = policyServiceClient
                     .getMaintenanceSnapshot(request.policyId(), request.tenantId());
@@ -60,6 +80,16 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
         } catch (RuntimeException exception) {
             throw failure(PolicyMaintenanceSnapshotFailureReason.UNAVAILABLE,
                     "Policy建案快照服务不可用", exception);
+        }
+    }
+
+    private void waitBeforeRetry(int attempt) {
+        try {
+            Thread.sleep(RETRY_DELAY_MILLIS * attempt);
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            throw failure(PolicyMaintenanceSnapshotFailureReason.UNAVAILABLE,
+                    "Policy建案快照重试被中断", exception);
         }
     }
 
@@ -115,7 +145,8 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
                     "Policy建案快照缺少结构化字段值");
         }
         TreeMap<String, MaintenanceFieldValue> fields = new TreeMap<>();
-        remoteFields.forEach((fieldCode, fieldValue) -> {
+        remoteFields.forEach((remoteKey, fieldValue) -> {
+            String fieldCode = logicalFieldCode(remoteKey, fieldValue);
             if (fieldCode == null || !FIELD_CODE.matcher(fieldCode).matches() || fieldValue == null) {
                 throw failure(PolicyMaintenanceSnapshotFailureReason.CONTRACT_INVALID,
                         "Policy建案快照字段编码或字段值无效");
@@ -137,6 +168,14 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
             }
         });
         return Map.copyOf(fields);
+    }
+
+    private String logicalFieldCode(String remoteKey, PolicySnapshotFieldValueResponse fieldValue) {
+        if (remoteKey == null || fieldValue == null || fieldValue.objectId() == null) {
+            return remoteKey;
+        }
+        String prefix = fieldValue.objectId().trim() + ":";
+        return remoteKey.startsWith(prefix) ? remoteKey.substring(prefix.length()) : remoteKey;
     }
 
     private String snapshotKey(String fieldCode, String objectId) {

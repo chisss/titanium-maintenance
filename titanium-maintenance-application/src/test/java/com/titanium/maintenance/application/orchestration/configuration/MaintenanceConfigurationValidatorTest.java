@@ -117,6 +117,21 @@ class MaintenanceConfigurationValidatorTest {
         assertEquals("FIELD_TYPE_EXPECTATION_REQUIRED", result.issues().getFirst().code());
     }
 
+    @Test
+    void shouldRequireEditableFieldWhenWorkflowContainsDataEntry() {
+        MaintenanceConfigurationValidator validator = new MaintenanceConfigurationValidator(
+                request -> catalog(true, true, true, PolicyFieldValueType.TEXT),
+                this::resolveAllReferences);
+        MaintenanceFieldRule visibleOnly = new MaintenanceFieldRule(
+                "policy.holder.mobile", false, true, false, false, null,
+                PolicyFieldValueType.TEXT);
+
+        MaintenanceConfigurationValidationResult result = validator.validate(
+                "tenant-1", definition(visibleOnly), criteria(), VALIDATED_AT);
+
+        assertEquals("DATA_ENTRY_FIELD_REQUIRED", result.issues().getFirst().code());
+    }
+
     private MaintenanceConfigurationReferencePort.ReferenceValidationEvidence resolveAllReferences(
             MaintenanceConfigurationReferencePort.ReferenceValidationRequest request) {
         return new MaintenanceConfigurationReferencePort.ReferenceValidationEvidence(

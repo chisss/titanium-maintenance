@@ -82,6 +82,8 @@ class MaintenanceFieldDraftApplicationServiceTest {
         assertEquals("13900000000", command.proposals().getFirst().canonicalValue());
         assertEquals(PolicyFieldMaskingPolicy.MOBILE, command.fieldCatalogSnapshot()
                 .requireField("policy.holder.mobile").maskingPolicy());
+        assertEquals(PolicyFieldValueType.TEXT, command.fieldCatalogSnapshot()
+                .requireField("policy.holder.email").valueType());
         verify(policySnapshotPort).capture(new PolicyMaintenanceSnapshotRequest("policy-1", "tenant-1"));
     }
 
@@ -160,13 +162,18 @@ class MaintenanceFieldDraftApplicationServiceTest {
     }
 
     private PolicyFieldCatalogEvidence fieldCatalog() {
-        PolicyFieldDescriptorEvidence descriptor = new PolicyFieldDescriptorEvidence(
+        PolicyFieldDescriptorEvidence mobile = new PolicyFieldDescriptorEvidence(
                 "policy.holder.mobile", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
                 "policy.field.holder.mobile", false, null,
                 new PolicyFieldCapabilityEvidence(true, true, true, false, false, "POLICY_INFO_CHANGE"),
                 PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null);
+        PolicyFieldDescriptorEvidence email = new PolicyFieldDescriptorEvidence(
+                "policy.holder.email", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
+                "policy.field.holder.email", false, null,
+                new PolicyFieldCapabilityEvidence(true, true, true, false, false, "POLICY_INFO_CHANGE"),
+                PolicyFieldSensitivityLevel.PUBLIC, PolicyFieldMaskingPolicy.NONE, null);
         return new PolicyFieldCatalogEvidence(
                 "tenant-1", null, null, LocalDate.of(2026, 8, 1),
-                "catalog-v1", "b".repeat(64), List.of(descriptor));
+                "catalog-v1", "b".repeat(64), List.of(mobile, email));
     }
 }

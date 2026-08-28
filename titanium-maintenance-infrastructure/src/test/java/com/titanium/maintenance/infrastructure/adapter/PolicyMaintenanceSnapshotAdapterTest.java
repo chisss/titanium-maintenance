@@ -3,6 +3,8 @@ package com.titanium.maintenance.infrastructure.adapter;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.time.OffsetDateTime;
@@ -38,6 +40,35 @@ class PolicyMaintenanceSnapshotAdapterTest {
     }
 
     @Test
+    void shouldRetryTransientPolicySnapshotFailure() {
+        PolicyServiceClient client = mock(PolicyServiceClient.class);
+        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+                .thenReturn(new ApiResponse<>("POLICY_TEMPORARILY_UNAVAILABLE", "temporary", null))
+                .thenReturn(ApiResponse.success(response("tenant-1", 7L, "TEXT", "13800000000")));
+
+        var snapshot = new PolicyMaintenanceSnapshotAdapter(client)
+                .capture(new PolicyMaintenanceSnapshotRequest("policy-1", "tenant-1"));
+
+        assertEquals(7L, snapshot.policyVersion());
+        verify(client, times(2)).getMaintenanceSnapshot("policy-1", "tenant-1");
+    }
+
+    @Test
+    void shouldNotRetryNonTransientPolicySnapshotFailure() {
+        PolicyServiceClient client = mock(PolicyServiceClient.class);
+        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+                .thenReturn(new ApiResponse<>("POLICY_NOT_FOUND", "not found", null));
+
+        PolicyMaintenanceSnapshotException exception = assertThrows(
+                PolicyMaintenanceSnapshotException.class,
+                () -> new PolicyMaintenanceSnapshotAdapter(client)
+                        .capture(new PolicyMaintenanceSnapshotRequest("policy-1", "tenant-1")));
+
+        assertEquals(PolicyMaintenanceSnapshotFailureReason.NOT_FOUND, exception.getReason());
+        verify(client).getMaintenanceSnapshot("policy-1", "tenant-1");
+    }
+
+    @Test
     void shouldPreserveSuspendedStatusForProductOfferingDecision() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
@@ -69,6 +100,31 @@ class PolicyMaintenanceSnapshotAdapterTest {
 
         assertEquals("100000", snapshot.fieldValues()
                 .get("policy-product-1:policy.coverage.sumInsured").canonicalValue());
+    }
+
+    @Test
+    void shouldAcceptObjectPrefixedCollectionKeysForMultipleObjects() {
+        PolicyServiceClient client = mock(PolicyServiceClient.class);
+        OffsetDateTime capturedAt = OffsetDateTime.of(2026, 8, 24, 8, 0, 0, 0, ZoneOffset.UTC);
+        PolicyMaintenanceSnapshotResponse response = new PolicyMaintenanceSnapshotResponse(
+                "tenant-1", "policy-1", "P202608240001", "customer-1", "product-1", "product-v3",
+                "plan-v8", PolicyStatus.EFFECTIVE, 7L, capturedAt,
+                "axon-event://policy/tenant-1/policy-1?version=7", "a".repeat(64), capturedAt,
+                Map.of(
+                        "beneficiary-1:policy.beneficiary.name",
+                        new PolicySnapshotFieldValueResponse("TEXT", "李四", "beneficiary-1"),
+                        "beneficiary-2:policy.beneficiary.name",
+                        new PolicySnapshotFieldValueResponse("TEXT", "王五", "beneficiary-2")));
+        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+                .thenReturn(ApiResponse.success(response));
+
+        var snapshot = new PolicyMaintenanceSnapshotAdapter(client)
+                .capture(new PolicyMaintenanceSnapshotRequest("policy-1", "tenant-1"));
+
+        assertEquals("李四", snapshot.fieldValues()
+                .get("beneficiary-1:policy.beneficiary.name").canonicalValue());
+        assertEquals("王五", snapshot.fieldValues()
+                .get("beneficiary-2:policy.beneficiary.name").canonicalValue());
     }
 
     @Test

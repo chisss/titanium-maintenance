@@ -7,9 +7,11 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import com.titanium.maintenance.common.enums.change.PolicyFieldDataType;
@@ -25,6 +27,7 @@ import com.titanium.maintenance.valueobject.change.MaintenanceFieldProposalPlan;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemInstance;
+import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 
 /** 基于冻结配置、Policy 快照和字段目录生成完整字段差异及拟变更快照。 */
 public final class MaintenanceFieldProposalPlanner {
@@ -75,10 +78,10 @@ public final class MaintenanceFieldProposalPlanner {
             changes.add(change);
         }
         targetItem.withFieldChanges(changes);
-        validateRequiredFields(targetItem, changes);
 
         Map<String, MaintenanceFieldValue> proposedValues = mergeProposals(
                 baseSnapshot, currentSnapshot, items, targetItemCode, changes);
+        validateRequiredFields(targetItem, changes, proposedValues, catalogSnapshot);
         String contentHash = hash(tenantId, maintenanceId, currentSnapshot.policyVersion(), proposedValues);
         MaintenanceSnapshotReference reference = new MaintenanceSnapshotReference(
                 "axon-event://maintenance/" + tenantId + "/" + maintenanceId.id()
@@ -161,6 +164,7 @@ public final class MaintenanceFieldProposalPlanner {
         if (proposal.value().isNull() && (!rule.allowClear() || !descriptor.clearable())) {
             throw validation("proposals", "字段不允许清空: " + proposal.fieldCode());
         }
+        rule.validateValue(proposal.value());
     }
 
     private MaintenanceFieldValue snapshotValue(
@@ -183,14 +187,42 @@ public final class MaintenanceFieldProposalPlanner {
 
     private void validateRequiredFields(
             MaintenanceItemInstance item,
-            List<MaintenanceFieldChange> changes) {
-        item.fieldRules().stream()
-                .filter(rule -> rule.required() && rule.conditionRuleCode() == null)
-                .filter(rule -> changes.stream().noneMatch(change -> change.fieldCode().equals(rule.fieldCode())))
-                .findFirst()
-                .ifPresent(rule -> {
-                    throw validation("proposals", "缺少必填字段提案: " + rule.fieldCode());
-                });
+            List<MaintenanceFieldChange> changes,
+            Map<String, MaintenanceFieldValue> proposedValues,
+            MaintenanceFieldCatalogSnapshot catalogSnapshot) {
+        Map<PolicyFieldObjectType, Set<String>> touchedCollectionObjects = new HashMap<>();
+        for (MaintenanceFieldChange change : changes) {
+            MaintenanceFieldDescriptorSnapshot descriptor = catalogSnapshot.requireField(change.fieldCode());
+            if (descriptor.collection()) {
+                touchedCollectionObjects
+                        .computeIfAbsent(descriptor.objectType(), ignored -> new HashSet<>())
+                        .add(change.objectId());
+            }
+        }
+        for (MaintenanceFieldRule rule : item.fieldRules()) {
+            if (!rule.required() || rule.conditionRuleCode() != null) {
+                continue;
+            }
+            MaintenanceFieldDescriptorSnapshot descriptor = catalogSnapshot.requireField(rule.fieldCode());
+            if (!descriptor.collection()) {
+                requireProposedValue(proposedValues, rule.fieldCode(), rule.fieldCode());
+                continue;
+            }
+            for (String objectId : touchedCollectionObjects.getOrDefault(descriptor.objectType(), Set.of())) {
+                requireProposedValue(
+                        proposedValues, objectId + ":" + rule.fieldCode(), rule.fieldCode());
+            }
+        }
+    }
+
+    private void requireProposedValue(
+            Map<String, MaintenanceFieldValue> proposedValues,
+            String snapshotKey,
+            String fieldCode) {
+        MaintenanceFieldValue value = proposedValues.get(snapshotKey);
+        if (value == null || value.isNull()) {
+            throw validation("proposals", "缺少必填字段提案: " + fieldCode);
+        }
     }
 
     private Map<String, MaintenanceFieldValue> mergeProposals(

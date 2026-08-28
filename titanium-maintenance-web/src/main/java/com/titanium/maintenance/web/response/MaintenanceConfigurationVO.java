@@ -7,6 +7,7 @@ import java.util.Set;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceConfigurationAction;
+import com.titanium.maintenance.common.enums.config.MaintenanceFieldValidationType;
 import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
@@ -53,6 +54,9 @@ public record MaintenanceConfigurationVO(
             boolean allowClear,
             String conditionRuleCode,
             PolicyFieldValueType expectedValueType,
+            MaintenanceFieldValidationType validationType,
+            String validationPattern,
+            String validationMessage,
             boolean detailsRedacted) {
     }
 

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationCriteria;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationResult;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationResult.ValidationIssue;
+import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.exception.PolicyFieldCatalogUnavailableException;
 import com.titanium.maintenance.configuration.MaintenanceFieldRule;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
@@ -54,6 +55,7 @@ public class MaintenanceConfigurationValidator {
         }
 
         List<ValidationIssue> issues = new ArrayList<>();
+        validateDataEntryFields(definition, issues);
         validateFields(definition, criteria, catalog, issues);
         addMissingReferences("RULE_NOT_FOUND", "ruleCodes", references.rules(),
                 referenceEvidence.resolvedRuleCodes(), issues);
@@ -64,6 +66,17 @@ public class MaintenanceConfigurationValidator {
 
         return new MaintenanceConfigurationValidationResult(issues.isEmpty(), issues,
                 catalog.catalogVersion(), catalog.contentHash(), referenceEvidence.evidenceVersion(), validatedAt);
+    }
+
+    private void validateDataEntryFields(
+            MaintenanceItemDefinition definition, List<ValidationIssue> issues) {
+        boolean dataEntryRequired = definition.steps().stream()
+                .anyMatch(step -> step.stepType() == MaintenanceStepType.DATA_ENTRY);
+        boolean hasEditableField = definition.fieldRules().stream().anyMatch(MaintenanceFieldRule::editable);
+        if (dataEntryRequired && !hasEditableField) {
+            issues.add(issue("DATA_ENTRY_FIELD_REQUIRED", "fieldRules",
+                    "包含信息录入步骤时必须配置至少一个可编辑字段"));
+        }
     }
 
     /** 校验并在存在业务问题时阻止状态流转。 */
