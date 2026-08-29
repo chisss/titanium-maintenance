@@ -1,6 +1,6 @@
 package com.titanium.maintenance.valueobject;
 
-import java.util.UUID;
+import com.titanium.common.util.SnowflakeIdGenerator;
 
 /**
  * 保单标识值对象。
@@ -10,7 +10,7 @@ import java.util.UUID;
 public record PolicyId(String id) {
 
     public static PolicyId generate() {
-        return new PolicyId(UUID.randomUUID().toString());
+        return new PolicyId(SnowflakeIdGenerator.generate());
     }
 
     public static PolicyId of(String id) {

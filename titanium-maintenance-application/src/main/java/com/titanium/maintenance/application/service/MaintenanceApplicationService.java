@@ -273,6 +273,7 @@ public class MaintenanceApplicationService {
     // 读模型 → 应用层读模型（操作人由事件投影写入读模型 created_by/updated_by 列）
     private MaintenanceReadModel toReadModel(MaintenanceView view) {
         return MaintenanceReadModel.builder()
+                .maintenanceNo(view.getMaintenanceNo())
                 .id(view.getMaintenanceId())
                 .policyId(view.getPolicyId())
                 .customerId(view.getCustomerId())

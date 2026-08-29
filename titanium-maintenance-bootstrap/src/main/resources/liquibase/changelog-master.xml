@@ -7,6 +7,7 @@
     <include file="classpath:liquibase/ddl/maintenance_exclusion_do_202607101700_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_init_202607091700_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_view_202607091700_weisun_ddl.sql"/>
+    <include file="classpath:liquibase/ddl/maintenance_no_202608281620_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_premium_settlement_v2d2_202608201700_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_financial_settlement_v2d2b_202608201800_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_surrender_value_v2d3_202608210910_weisun_ddl.sql"/>

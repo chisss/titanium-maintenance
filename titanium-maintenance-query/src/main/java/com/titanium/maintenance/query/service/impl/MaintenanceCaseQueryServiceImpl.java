@@ -183,7 +183,7 @@ public class MaintenanceCaseQueryServiceImpl implements MaintenanceCaseQueryServ
 
     private MaintenanceCaseSummaryQueryResult toSummary(MaintenanceView view, List<String> itemCodes) {
         return new MaintenanceCaseSummaryQueryResult(
-                view.getMaintenanceId(), view.getPolicyId(), view.getPolicyNumber(), view.getCustomerId(),
+                view.getMaintenanceId(), view.getMaintenanceNo(), view.getPolicyId(), view.getPolicyNumber(), view.getCustomerId(),
                 itemCodes, view.getSource(), view.getStatus(), view.getEffectStatus(), view.getCreatedBy(),
                 view.getCreateTime(), view.getUpdateTime());
     }

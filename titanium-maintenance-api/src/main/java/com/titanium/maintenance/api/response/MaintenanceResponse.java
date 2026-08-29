@@ -17,6 +17,7 @@ import lombok.Data;
 @Data
 @Builder
 public class MaintenanceResponse {
+    private String maintenanceNo;
     private String id;
     private String policyId;
     private String customerId;

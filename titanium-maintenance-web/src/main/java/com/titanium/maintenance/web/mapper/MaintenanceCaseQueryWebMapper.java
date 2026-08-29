@@ -48,7 +48,7 @@ public class MaintenanceCaseQueryWebMapper {
         return new MaintenanceCasePageVO(
                 result.list().stream()
                         .map(item -> new MaintenanceCaseSummaryVO(
-                                item.maintenanceId(), item.policyId(), item.policyNumber(), item.customerId(),
+                                item.maintenanceId(), item.maintenanceNo(), item.policyId(), item.policyNumber(), item.customerId(),
                                 item.itemCodes(), item.source(), item.status(), item.effectStatus(), item.operatorId(),
                                 item.createdAt(), item.updatedAt()))
                         .toList(),

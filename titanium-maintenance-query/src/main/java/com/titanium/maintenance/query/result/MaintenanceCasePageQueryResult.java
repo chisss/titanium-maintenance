@@ -22,6 +22,7 @@ public record MaintenanceCasePageQueryResult(
     /** 保全管理列表单行数据。 */
     public record MaintenanceCaseSummaryQueryResult(
             String maintenanceId,
+            String maintenanceNo,
             String policyId,
             String policyNumber,
             String customerId,
@@ -40,6 +41,7 @@ public record MaintenanceCasePageQueryResult(
         /** 兼容 M5-01 之前不含生效状态的内部列表构造。 */
         public MaintenanceCaseSummaryQueryResult(
                 String maintenanceId,
+                String maintenanceNo,
                 String policyId,
                 String policyNumber,
                 String customerId,
@@ -49,7 +51,7 @@ public record MaintenanceCasePageQueryResult(
                 String operatorId,
                 LocalDateTime createdAt,
                 LocalDateTime updatedAt) {
-            this(maintenanceId, policyId, policyNumber, customerId, itemCodes, source, status,
+            this(maintenanceId, maintenanceNo, policyId, policyNumber, customerId, itemCodes, source, status,
                     MaintenanceEffectStatus.NOT_STARTED, operatorId, createdAt, updatedAt);
         }
     }

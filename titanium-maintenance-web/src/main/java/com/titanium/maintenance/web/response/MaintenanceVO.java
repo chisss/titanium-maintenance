@@ -13,6 +13,7 @@ import lombok.Data;
  */
 @Data
 public class MaintenanceVO {
+    private String maintenanceNo;
     private String id;
     private String policyId;
     private String customerId;

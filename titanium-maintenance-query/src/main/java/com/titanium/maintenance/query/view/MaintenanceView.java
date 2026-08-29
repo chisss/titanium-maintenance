@@ -40,6 +40,8 @@ import lombok.Setter;
 @Getter
 @Setter
 public class MaintenanceView extends BaseView {
+    @Column(name = "maintenance_no", nullable = false, length = 32)
+    private String            maintenanceNo;
 
     /** 保全案件ID（聚合根ID，读模型主键） */
     @Id

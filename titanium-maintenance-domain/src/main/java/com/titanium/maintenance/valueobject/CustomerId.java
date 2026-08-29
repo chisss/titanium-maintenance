@@ -1,6 +1,6 @@
 package com.titanium.maintenance.valueobject;
 
-import java.util.UUID;
+import com.titanium.common.util.SnowflakeIdGenerator;
 
 /**
  * 客户标识值对象。
@@ -10,7 +10,7 @@ import java.util.UUID;
 public record CustomerId(String id) {
 
     public static CustomerId generate() {
-        return new CustomerId(UUID.randomUUID().toString());
+        return new CustomerId(SnowflakeIdGenerator.generate());
     }
 
     public static CustomerId of(String id) {

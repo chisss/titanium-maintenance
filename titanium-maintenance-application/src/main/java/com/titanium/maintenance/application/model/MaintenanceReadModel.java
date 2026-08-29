@@ -20,6 +20,8 @@ import lombok.Data;
 @Data
 @Builder
 public class MaintenanceReadModel {
+    /** 系统生成的保全号 */
+    private String        maintenanceNo;
     /** 保全案件ID */
     private String        id;
     /** 保单ID */

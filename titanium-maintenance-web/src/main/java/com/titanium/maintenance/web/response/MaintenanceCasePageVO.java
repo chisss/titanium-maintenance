@@ -22,6 +22,7 @@ public record MaintenanceCasePageVO(
     /** 保全管理列表行。 */
     public record MaintenanceCaseSummaryVO(
             String caseId,
+            String maintenanceNo,
             String policyId,
             String policyNumber,
             String customerId,

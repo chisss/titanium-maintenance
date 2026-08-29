@@ -25,8 +25,9 @@ import com.titanium.maintenance.event.MaintenanceSurrenderValueRecordedEvent;
 import com.titanium.maintenance.query.mapper.MaintenanceViewMapper;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
+import com.titanium.common.number.BusinessNumberGenerator;
+import com.titanium.common.number.BusinessNumberType;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -42,11 +43,22 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 @ProcessingGroup("maintenance-query-group")
-@RequiredArgsConstructor
 public class MaintenanceProjectionEventHandler {
 
     private final MaintenanceViewRepository maintenanceViewRepository;
     private final MaintenanceViewMapper maintenanceViewMapper;
+    private final BusinessNumberGenerator businessNumberGenerator;
+
+    public MaintenanceProjectionEventHandler(MaintenanceViewRepository repository, MaintenanceViewMapper mapper,
+                                              BusinessNumberGenerator generator) {
+        this.maintenanceViewRepository = repository;
+        this.maintenanceViewMapper = mapper;
+        this.businessNumberGenerator = generator;
+    }
+
+    public MaintenanceProjectionEventHandler(MaintenanceViewRepository repository, MaintenanceViewMapper mapper) {
+        this(repository, mapper, null);
+    }
 
     /** 投影 Policy 已成功但案件回执待人工勾稽的补偿事实。 */
     @EventHandler
@@ -128,6 +140,9 @@ public class MaintenanceProjectionEventHandler {
 
         // 事件字段 → 读模型的结构映射收敛到 MapStruct（值对象拆解、状态置 PENDING），消除逐字段 set
         maintenanceViewMapper.applyCreated(view, event);
+        if (view.getMaintenanceNo() == null && businessNumberGenerator != null) {
+            view.setMaintenanceNo(businessNumberGenerator.next(event.tenantId(), BusinessNumberType.MAINTENANCE));
+        }
         // 审计时间戳含"仅首次"语义，取事件发生时间，留投影处理器控制
         if (view.getCreateTime() == null) {
             view.setCreateTime(event.createdAt());
