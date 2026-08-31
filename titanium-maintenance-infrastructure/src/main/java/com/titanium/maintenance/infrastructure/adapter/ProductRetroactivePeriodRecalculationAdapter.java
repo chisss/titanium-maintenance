@@ -2,13 +2,13 @@ package com.titanium.maintenance.infrastructure.adapter;
 
 import java.util.Objects;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.ProductRetroactivePeriodRecalculationPort;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveProductPeriodDifference;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.ProductPremiumCalculationApi;
 import com.titanium.product.api.request.RetroactivePremiumPeriodRecalculationRequest;
@@ -92,8 +92,7 @@ public class ProductRetroactivePeriodRecalculationAdapter
         return response.getData();
     }
 
-    private BusinessException remoteError(String message) {
-        return new BusinessException(message, "MAINTENANCE_PRODUCT_RETROACTIVE_RECALCULATION_ERROR",
-                HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException remoteError(String message) {
+        return new MaintenanceRemoteCallException(message, MaintenanceErrorCode.MAINTENANCE_PRODUCT_RETROACTIVE_RECALCULATION_ERROR);
     }
 }

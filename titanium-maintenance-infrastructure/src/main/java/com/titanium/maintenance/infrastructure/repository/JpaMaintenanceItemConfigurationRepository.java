@@ -1,10 +1,7 @@
 package com.titanium.maintenance.infrastructure.repository;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -13,11 +10,10 @@ import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.titanium.maintenance.configuration.MaintenanceConfigurationAuditEntry;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationConflictException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationNotFoundException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
-import com.titanium.maintenance.exception.MaintenanceConfigurationConflictException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationNotFoundException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.infrastructure.entity.MaintenanceConfigurationAuditDO;
 import com.titanium.maintenance.infrastructure.entity.MaintenanceItemConfigurationDO;
 import com.titanium.maintenance.infrastructure.repository.jpa.MaintenanceConfigurationAuditJpaRepository;
@@ -32,11 +28,10 @@ import lombok.RequiredArgsConstructor;
 public class JpaMaintenanceItemConfigurationRepository
         implements MaintenanceItemConfigurationRepository {
 
-    private static final String OPERATION_SUCCESS = "SUCCESS";
-
     private final MaintenanceItemConfigurationJpaRepository configurationJpaRepository;
     private final MaintenanceConfigurationAuditJpaRepository auditJpaRepository;
     private final MaintenanceItemConfigurationJsonMapper jsonMapper;
+    private final MaintenanceConfigurationPersistenceAssembler persistenceAssembler;
 
     @Override
     public boolean existsByBusinessKey(
@@ -119,7 +114,8 @@ public class JpaMaintenanceItemConfigurationRepository
             }
             String afterJson = jsonMapper.toJson(configuration);
             appendAudits(configuration, persistedAuditCount, entity.getConfigurationJson(), afterJson,
-                    normalizeHash(entity.getContentHash()), normalizeHash(configuration.getContentHash()), context);
+                    persistenceAssembler.normalizeHash(entity.getContentHash()),
+                    persistenceAssembler.normalizeHash(configuration.getContentHash()), context);
             configurationJpaRepository.delete(entity);
             configurationJpaRepository.flush();
         } catch (ObjectOptimisticLockingFailureException exception) {
@@ -139,10 +135,10 @@ public class JpaMaintenanceItemConfigurationRepository
         entity.setConfigurationId(configuration.getConfigurationId());
         entity.setTenantId(configuration.getTenantId());
         entity.setCreatedAt(configuration.getAuditTrail().getFirst().occurredAt());
-        applySnapshot(entity, configuration, afterJson);
+        persistenceAssembler.applySnapshot(entity, configuration, afterJson);
         MaintenanceItemConfigurationDO saved = configurationJpaRepository.saveAndFlush(entity);
         appendAudits(configuration, 0, null, afterJson, null,
-                normalizeHash(configuration.getContentHash()), context);
+                persistenceAssembler.normalizeHash(configuration.getContentHash()), context);
         return toStoredConfiguration(saved);
     }
 
@@ -160,55 +156,19 @@ public class JpaMaintenanceItemConfigurationRepository
             throw new MaintenanceConfigurationConflictException("配置保存缺少新增审计记录");
         }
         String beforeJson = entity.getConfigurationJson();
-        String beforeHash = normalizeHash(entity.getContentHash());
+        String beforeHash = persistenceAssembler.normalizeHash(entity.getContentHash());
         String afterJson = jsonMapper.toJson(configuration);
-        applySnapshot(entity, configuration, afterJson);
+        persistenceAssembler.applySnapshot(entity, configuration, afterJson);
         MaintenanceItemConfigurationDO saved = configurationJpaRepository.saveAndFlush(entity);
         appendAudits(configuration, persistedAuditCount, beforeJson, afterJson, beforeHash,
-                normalizeHash(configuration.getContentHash()), context);
+                persistenceAssembler.normalizeHash(configuration.getContentHash()), context);
         return toStoredConfiguration(saved);
-    }
-
-    private void applySnapshot(MaintenanceItemConfigurationDO entity,
-            MaintenanceItemConfiguration configuration, String configurationJson) {
-        entity.setItemCode(configuration.getDefinition().itemCode());
-        entity.setConfigurationVersion(configuration.getDefinition().version());
-        entity.setRevisionOfConfigurationId(configuration.getRevisionOfConfigurationId());
-        entity.setStatus(configuration.getStatus());
-        entity.setValidFrom(configuration.getValidFrom());
-        entity.setValidTo(configuration.getValidTo());
-        entity.setContentHash(normalizeHash(configuration.getContentHash()));
-        entity.setConfigurationJson(configurationJson);
-        entity.setAuditEntryCount(configuration.getAuditTrail().size());
-        entity.setUpdatedAt(configuration.getAuditTrail().getLast().occurredAt());
     }
 
     private void appendAudits(MaintenanceItemConfiguration configuration, int persistedAuditCount,
             String beforeJson, String afterJson, String beforeHash, String afterHash, SaveContext context) {
-        List<MaintenanceConfigurationAuditDO> auditEntities = new ArrayList<>();
-        List<MaintenanceConfigurationAuditEntry> auditTrail = configuration.getAuditTrail();
-        for (int index = persistedAuditCount; index < auditTrail.size(); index++) {
-            MaintenanceConfigurationAuditEntry entry = auditTrail.get(index);
-            MaintenanceConfigurationAuditDO audit = new MaintenanceConfigurationAuditDO();
-            audit.setAuditId(UUID.randomUUID().toString());
-            audit.setTenantId(configuration.getTenantId());
-            audit.setConfigurationId(configuration.getConfigurationId());
-            audit.setAuditSequence(index + 1);
-            audit.setAction(entry.action());
-            audit.setOperatorId(entry.operatorId());
-            audit.setDetail(entry.detail());
-            audit.setBeforeJson(beforeJson);
-            audit.setAfterJson(afterJson);
-            audit.setBeforeHash(beforeHash);
-            audit.setAfterHash(afterHash);
-            audit.setSourceIp(context.sourceIp());
-            audit.setCorrelationId(context.correlationId());
-            audit.setOperationResult(OPERATION_SUCCESS);
-            audit.setOccurredAt(entry.occurredAt());
-            audit.setRecordedAt(configuration.getAuditTrail().getLast().occurredAt());
-            auditEntities.add(audit);
-        }
-        auditJpaRepository.saveAll(auditEntities);
+        auditJpaRepository.saveAll(persistenceAssembler.appendAudits(
+                configuration, persistedAuditCount, beforeJson, afterJson, beforeHash, afterHash, context));
     }
 
     private StoredConfiguration toStoredConfiguration(MaintenanceItemConfigurationDO entity) {
@@ -225,10 +185,6 @@ public class JpaMaintenanceItemConfigurationRepository
                 jsonMapper.fromJson(entity.getAfterJson()), entity.getBeforeHash(), entity.getAfterHash(),
                 entity.getSourceIp(), entity.getCorrelationId(), entity.getOperationResult(),
                 entity.getOccurredAt(), entity.getRecordedAt());
-    }
-
-    private String normalizeHash(String value) {
-        return value == null || value.isBlank() ? null : value;
     }
 
     private MaintenanceConfigurationConflictException conflict(RuntimeException exception) {

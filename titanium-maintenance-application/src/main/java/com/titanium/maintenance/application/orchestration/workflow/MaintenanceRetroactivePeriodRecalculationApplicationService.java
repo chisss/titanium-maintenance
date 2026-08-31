@@ -1,5 +1,6 @@
 package com.titanium.maintenance.application.orchestration.workflow;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -50,6 +51,21 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
 
     private static final String PRODUCT_FAILURE_CODE = "RETROACTIVE_PRODUCT_RECALCULATION_FAILED";
     private static final String BILLING_FAILURE_CODE = "RETROACTIVE_BILLING_ADJUSTMENT_FAILED";
+
+    // 无费用保全（无需产品重算/计费调整）追溯重算的落库证据常量（红线 20：落库/跨域业务描述禁止写死字符串）
+    private static final String NO_FEE_MARKER                = "NO_FEE";
+    private static final String NO_FEE_ORIGINAL_ID_PREFIX    = "no-fee-original-";
+    private static final String NO_FEE_REPLACEMENT_ID_PREFIX = "no-fee-replacement-";
+    private static final String HASH_SALT_ORIGINAL           = "ORIGINAL";
+    private static final String HASH_SALT_REPLACEMENT        = "REPLACEMENT";
+    private static final String NO_FEE_PRODUCT_VERSION       = "PERIOD_V1";
+    private static final String NO_FEE_PRODUCT_ID_PREFIX     = "no-fee-product-";
+    private static final String NO_FEE_DIRECTION             = "NONE";
+    private static final String NO_FEE_ZERO_AMOUNT           = "0";
+    private static final String NO_FEE_CURRENCY              = "CNY";
+    private static final String NO_FEE_BILLING_MARKER        = "NO_BILLING_REQUIRED";
+    private static final String NO_FEE_BILLING_ID_PREFIX     = "no-fee-billing-";
+    private static final String NO_FEE_BILLING_STATUS        = "NOT_REQUIRED";
 
     private final CommandGateway commandGateway;
     private final MaintenanceViewRepository maintenanceViewRepository;
@@ -165,30 +181,30 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
                 ? view.getRetroactivePeriodRecalculationId() : recalculationId(input);
         int version = sameOperation(view, input.operationId()) ? currentVersion(view) : currentVersion(view) + 1;
         String requestHash = MaintenanceRetroactiveImpactSourcePort.itemHash(
-                input.tenantId(), input.maintenanceId(), input.operationId(), "NO_FEE");
+                input.tenantId(), input.maintenanceId(), input.operationId(), NO_FEE_MARKER);
         LocalDateTime now = LocalDateTime.now();
         commandGateway.sendAndWait(new StartMaintenanceRetroactivePeriodRecalculationCommand(
                 MaintenanceId.of(input.maintenanceId()), id, input.operationId(), requestHash,
                 view.getRetroactiveImpactAnalysisId(), view.getRetroactiveImpactAnalysisVersion(),
                 view.getRetroactiveImpactResultHash(), now, input.operatorId()));
-        String originalId = "no-fee-original-" + input.maintenanceId();
-        String replacementId = "no-fee-replacement-" + input.maintenanceId();
-        String originalHash = MaintenanceRetroactiveImpactSourcePort.itemHash(originalId, "ORIGINAL");
-        String replacementHash = MaintenanceRetroactiveImpactSourcePort.itemHash(replacementId, "REPLACEMENT");
+        String originalId = NO_FEE_ORIGINAL_ID_PREFIX + input.maintenanceId();
+        String replacementId = NO_FEE_REPLACEMENT_ID_PREFIX + input.maintenanceId();
+        String originalHash = MaintenanceRetroactiveImpactSourcePort.itemHash(originalId, HASH_SALT_ORIGINAL);
+        String replacementHash = MaintenanceRetroactiveImpactSourcePort.itemHash(replacementId, HASH_SALT_REPLACEMENT);
         String productInputHash = MaintenanceRetroactiveImpactSourcePort.itemHash(requestHash, originalHash, replacementHash);
         String productResultHash = MaintenanceRetroactiveImpactSourcePort.itemHash(
-                "PERIOD_V1", productInputHash, "NONE", "0", "CNY");
+                NO_FEE_PRODUCT_VERSION, productInputHash, NO_FEE_DIRECTION, NO_FEE_ZERO_AMOUNT, NO_FEE_CURRENCY);
         MaintenanceRetroactiveProductRecalculationEvidence product =
                 new MaintenanceRetroactiveProductRecalculationEvidence(
-                        "no-fee-product-" + input.maintenanceId(), "PERIOD_V1", originalId, originalHash,
-                        replacementId, replacementHash, MaintenanceBalanceDirection.NONE,
-                        java.math.BigDecimal.ZERO, "CNY", productInputHash, productResultHash, now, List.of());
+                        NO_FEE_PRODUCT_ID_PREFIX + input.maintenanceId(), NO_FEE_PRODUCT_VERSION, originalId,
+                        originalHash, replacementId, replacementHash, MaintenanceBalanceDirection.NONE,
+                        BigDecimal.ZERO, NO_FEE_CURRENCY, productInputHash, productResultHash, now, List.of());
         commandGateway.sendAndWait(new RecordMaintenanceRetroactiveProductRecalculationCommand(
                 MaintenanceId.of(input.maintenanceId()), id, input.operationId(), product, now, input.operatorId()));
         String billingResultHash = MaintenanceRetroactiveImpactSourcePort.itemHash(
-                "NO_BILLING_REQUIRED", id, productResultHash);
+                NO_FEE_BILLING_MARKER, id, productResultHash);
         MaintenanceRetroactiveBillingAdjustmentEvidence billing = new MaintenanceRetroactiveBillingAdjustmentEvidence(
-                "no-fee-billing-" + input.maintenanceId(), "NOT_REQUIRED", 0, 0,
+                NO_FEE_BILLING_ID_PREFIX + input.maintenanceId(), NO_FEE_BILLING_STATUS, 0, 0,
                 requestHash, billingResultHash, now, List.of());
         commandGateway.sendAndWait(new CompleteMaintenanceRetroactivePeriodRecalculationCommand(
                 MaintenanceId.of(input.maintenanceId()), id, input.operationId(), billing, now, input.operatorId()));

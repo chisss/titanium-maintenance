@@ -22,6 +22,7 @@ import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
 import com.titanium.maintenance.common.enums.config.MaintenancePremiumRecalculationTiming;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationStateException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.configuration.control.MaintenanceAccessRule;
 import com.titanium.maintenance.configuration.control.MaintenanceChannelCapability;
@@ -29,7 +30,6 @@ import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
 import com.titanium.maintenance.configuration.control.MaintenanceMaterialRequirement;
 import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
-import com.titanium.maintenance.exception.MaintenanceConfigurationStateException;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
 
 class MaintenanceItemConfigurationTest {

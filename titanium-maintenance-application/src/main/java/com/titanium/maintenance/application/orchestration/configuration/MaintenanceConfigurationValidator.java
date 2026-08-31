@@ -14,12 +14,12 @@ import com.titanium.maintenance.application.model.configuration.MaintenanceConfi
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationResult;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationResult.ValidationIssue;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationDependencyException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationValidationException;
 import com.titanium.maintenance.common.exception.PolicyFieldCatalogUnavailableException;
 import com.titanium.maintenance.configuration.MaintenanceFieldRule;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
-import com.titanium.maintenance.exception.MaintenanceConfigurationDependencyException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationValidationException;
 import com.titanium.maintenance.port.MaintenanceConfigurationReferencePort;
 import com.titanium.maintenance.port.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
 import com.titanium.maintenance.port.MaintenanceConfigurationReferencePort.ReferenceValidationRequest;

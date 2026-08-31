@@ -9,8 +9,8 @@ import java.util.regex.Pattern;
 
 import com.titanium.maintenance.common.enums.config.MaintenanceConfigurationAction;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationStateException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationStateException;
 
 import lombok.Getter;
 

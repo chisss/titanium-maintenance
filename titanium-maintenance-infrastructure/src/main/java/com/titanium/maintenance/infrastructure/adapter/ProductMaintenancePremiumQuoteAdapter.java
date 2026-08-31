@@ -10,7 +10,9 @@ import com.alibaba.fastjson2.JSONObject;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.ProductMaintenancePremiumQuotePort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.ProductMaintenancePremiumQuoteApi;
 import com.titanium.product.api.request.MaintenancePremiumQuoteRequest;
@@ -135,14 +137,22 @@ public class ProductMaintenancePremiumQuoteAdapter implements ProductMaintenance
         }
     }
 
-    private BusinessException remoteError(String message) {
-        return new BusinessException(message, "MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException remoteError(String message) {
+        return new MaintenanceRemoteCallException(message, MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR);
     }
 
+    /**
+     * 下游拒绝信息收敛为本域业务异常。
+     * <p>下游字符串错误码不允许作为本域业务错误码外泄（红线 19），统一携带
+     * {@code MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR}，下游码与 HTTP 状态并入消息供排查。</p>
+     */
     private BusinessException downstreamError(String message, String errorCode, HttpStatus status) {
         if (!hasText(message) || !hasText(errorCode)) {
             return remoteError("Product 未返回有效保全报价结果");
         }
-        return new BusinessException(message, errorCode, status);
+        return new BusinessException(
+                "Product 保全报价下游拒绝: " + message + " [code=" + errorCode
+                        + ", httpStatus=" + (status == null ? "unknown" : status.value()) + "]",
+                MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR);
     }
 }

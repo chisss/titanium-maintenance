@@ -35,13 +35,14 @@ import com.titanium.maintenance.application.command.MaintenanceConfigurationComm
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
 import com.titanium.maintenance.application.query.MaintenanceConfigurationQueryService;
 import com.titanium.maintenance.common.context.TenantContext;
-import com.titanium.maintenance.exception.MaintenanceConfigurationPreconditionFailedException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationPage;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationSearchCriteria;
 import com.titanium.maintenance.web.controller.MaintenanceConfigurationController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceConfigurationWebMapper;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenanceConfigurationControllerTest {
@@ -98,7 +99,7 @@ class MaintenanceConfigurationControllerTest {
                         .header(HttpHeaders.IF_MATCH, "\"6\""))
                 .andExpect(status().isPreconditionFailed())
                 .andExpect(jsonPath("$.code")
-                        .value("MAINTENANCE_CONFIGURATION_PRECONDITION_FAILED"));
+                        .value(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_PRECONDITION_FAILED.getCode()));
     }
 
     @Test
@@ -107,7 +108,7 @@ class MaintenanceConfigurationControllerTest {
 
         mockMvc.perform(get("/api/v1/maintenance/configurations/config-1"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("MAINTENANCE_CONFIGURATION_UNAUTHENTICATED"));
+                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_UNAUTHENTICATED.getCode()));
 
         verify(queryService, never()).get(any(), any());
     }
@@ -119,7 +120,7 @@ class MaintenanceConfigurationControllerTest {
 
         mockMvc.perform(post("/api/v1/maintenance/configurations/config-1/retire"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("MAINTENANCE_INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
 
         verify(commandService, never()).retire(any(), any(Long.class), any());
     }

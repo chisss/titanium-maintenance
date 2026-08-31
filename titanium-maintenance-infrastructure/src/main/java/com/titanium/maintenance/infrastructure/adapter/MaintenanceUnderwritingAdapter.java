@@ -2,13 +2,14 @@ package com.titanium.maintenance.infrastructure.adapter;
 
 import java.util.Objects;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.MaintenanceUnderwritingPort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.request.AssessMaintenanceUnderwritingRequest;
 import com.titanium.underwriting.api.request.AssessMaintenanceUnderwritingRequest.RiskFieldChangeRequest;
@@ -81,7 +82,7 @@ public class MaintenanceUnderwritingAdapter implements MaintenanceUnderwritingPo
         }
     }
 
-    private BusinessException remoteError(String message) {
-        return new BusinessException(message, "MAINTENANCE_UNDERWRITING_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException remoteError(String message) {
+        return new MaintenanceRemoteCallException(message, MaintenanceErrorCode.MAINTENANCE_UNDERWRITING_REMOTE_ERROR);
     }
 }

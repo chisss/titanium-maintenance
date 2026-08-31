@@ -37,6 +37,7 @@ import com.titanium.maintenance.web.response.MaintenanceConfigurationVO;
 import com.titanium.maintenance.web.response.MaintenanceConfigurationValidationVO;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver.ResolvedRequestContext;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -301,7 +302,7 @@ public class MaintenanceConfigurationController {
     private BusinessException invalidEtag() {
         return new BusinessException(
                 "If-Match 必须是当前响应返回的强 ETag",
-                "MAINTENANCE_CONFIGURATION_INVALID_ETAG", HttpStatus.BAD_REQUEST);
+                MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_INVALID_ETAG);
     }
 
     private String etag(long rowVersion) {

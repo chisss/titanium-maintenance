@@ -3,7 +3,6 @@ package com.titanium.maintenance.web.security;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -12,6 +11,9 @@ import org.springframework.stereotype.Component;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
 import com.titanium.maintenance.common.context.TenantContext;
 import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
+import com.titanium.maintenance.common.exception.MaintenanceForbiddenException;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -50,26 +52,27 @@ public class MaintenanceConfigurationRequestContextResolver {
                 || authentication instanceof AnonymousAuthenticationToken
                 || !hasText(authentication.getName())) {
             throw accessDenied(request, tenantId, null, sourceIp, correlationId,
-                    "未认证的配置管理请求", "MAINTENANCE_CONFIGURATION_UNAUTHENTICATED",
-                    HttpStatus.UNAUTHORIZED);
+                    new MaintenanceAuthenticationException(
+                            "未认证的配置管理请求", MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_UNAUTHENTICATED));
         }
         request.setAttribute(AUDIT_OPERATOR_ATTRIBUTE, authentication.getName());
         if (authentication.getAuthorities().stream()
                 .noneMatch(authority -> permission.equals(authority.getAuthority()))) {
             throw accessDenied(request, tenantId, authentication.getName(), sourceIp, correlationId,
-                    "无权执行该保全配置操作", "MAINTENANCE_CONFIGURATION_FORBIDDEN",
-                    HttpStatus.FORBIDDEN);
+                    new MaintenanceForbiddenException(
+                            "无权执行该保全配置操作", MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_FORBIDDEN));
         }
         if (!hasText(tenantId)) {
             throw accessDenied(request, null, authentication.getName(), sourceIp, correlationId,
-                    "认证请求缺少租户上下文", "MAINTENANCE_CONFIGURATION_TENANT_REQUIRED",
-                    HttpStatus.UNAUTHORIZED);
+                    new MaintenanceAuthenticationException(
+                            "认证请求缺少租户上下文", MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_TENANT_REQUIRED));
         }
         if (tenantId.trim().length() > MAX_ID_LENGTH
                 || authentication.getName().trim().length() > MAX_ID_LENGTH) {
             throw accessDenied(request, tenantId, authentication.getName(), sourceIp, correlationId,
-                    "认证主体或租户标识超过长度限制",
-                    "MAINTENANCE_CONFIGURATION_IDENTITY_INVALID", HttpStatus.BAD_REQUEST);
+                    new BusinessException(
+                            "认证主体或租户标识超过长度限制",
+                            MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_IDENTITY_INVALID));
         }
         boolean sensitiveDetailsVisible = authentication.getAuthorities().stream()
                 .anyMatch(authority -> SENSITIVE_VIEW_PERMISSION.equals(authority.getAuthority()));
@@ -96,13 +99,13 @@ public class MaintenanceConfigurationRequestContextResolver {
         return value != null && !value.isBlank();
     }
 
-    private BusinessException accessDenied(HttpServletRequest request, String tenantId, String operatorId,
-            String sourceIp, String correlationId, String message, String errorCode, HttpStatus status) {
+    private <T extends BusinessException> T accessDenied(HttpServletRequest request, String tenantId, String operatorId,
+            String sourceIp, String correlationId, T exception) {
         log.warn("保全配置访问审计: method={}, path={}, tenantId={}, operatorId={}, sourceIp={}, "
                         + "correlationId={}, errorCode={}, result=DENIED",
                 request.getMethod(), request.getRequestURI(), tenantId, operatorId,
-                sourceIp, correlationId, errorCode);
-        return new BusinessException(message, errorCode, status);
+                sourceIp, correlationId, exception.getErrorCode());
+        return exception;
     }
 
     /** 单次管理请求解析出的可信身份与审计信息。 */

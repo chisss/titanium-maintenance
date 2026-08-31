@@ -9,11 +9,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationValidationException;
 import com.titanium.maintenance.configuration.MaintenanceConfigurationAuditEntry;
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.MaintenancePublicationEvidence;
-import com.titanium.maintenance.exception.MaintenanceConfigurationValidationException;
 
 import lombok.RequiredArgsConstructor;
 

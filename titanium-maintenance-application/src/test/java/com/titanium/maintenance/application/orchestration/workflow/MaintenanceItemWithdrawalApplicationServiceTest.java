@@ -16,7 +16,6 @@ import java.util.concurrent.CompletableFuture;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 
 import com.titanium.maintenance.application.command.MaintenanceItemWithdrawalInput;
 import com.titanium.maintenance.command.ConfigureMaintenanceItemWithdrawalRecoveryCommand;
@@ -30,7 +29,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementS
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalFundAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.BillingPremiumLifecyclePort;
 import com.titanium.maintenance.port.BillingPremiumLifecyclePort.ReversalFact;
 import com.titanium.maintenance.port.PaymentMaintenanceRefundPort;
@@ -46,6 +45,7 @@ import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceItemWithdrawalApplicationServiceTest {
 
@@ -158,13 +158,13 @@ class MaintenanceItemWithdrawalApplicationServiceTest {
     void shouldRecordRecoverableFailureWhenBillingIsUnavailable() {
         financialTask(MaintenanceBalanceDirection.DEBIT,
                 MaintenanceFundSettlementType.COLLECTION, MaintenanceFundSettlementStatus.SUCCEEDED, "payment-1");
-        when(billingPort.reverse(any())).thenThrow(new BusinessException(
-                "Billing unavailable", "BILLING_DOWN", HttpStatus.BAD_GATEWAY));
+        when(billingPort.reverse(any())).thenThrow(new MaintenanceRemoteCallException(
+                "Billing unavailable", MaintenanceErrorCode.MAINTENANCE_BILLING_REMOTE_ERROR));
 
         var result = service.withdraw(input("BANK_CARD")).join();
 
         assertEquals(MaintenanceItemWithdrawalStatus.FAILED, result.status());
-        assertEquals("BILLING_DOWN", result.failureCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_BILLING_REMOTE_ERROR.getCode(), result.failureCode());
         verify(commandGateway).send(any(FailMaintenanceItemWithdrawalCommand.class));
     }
 
@@ -174,14 +174,14 @@ class MaintenanceItemWithdrawalApplicationServiceTest {
                 MaintenanceFundSettlementType.COLLECTION, MaintenanceFundSettlementStatus.SUCCEEDED, "payment-1");
         when(billingPort.reverse(any())).thenAnswer(invocation -> reversal(
                 invocation.getArgument(0), MaintenanceBalanceDirection.CREDIT));
-        when(refundPort.create(any())).thenThrow(new BusinessException(
-                "Payment unavailable", "PAYMENT_DOWN", HttpStatus.BAD_GATEWAY));
+        when(refundPort.create(any())).thenThrow(new MaintenanceRemoteCallException(
+                "Payment unavailable", MaintenanceErrorCode.MAINTENANCE_PAYMENT_REFUND_REMOTE_ERROR));
 
         var result = service.withdraw(input("BANK_CARD")).join();
 
         assertEquals(MaintenanceItemWithdrawalStatus.FAILED, result.status());
         assertEquals("reversal-1", result.reversalId());
-        assertEquals("PAYMENT_DOWN", result.failureCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_PAYMENT_REFUND_REMOTE_ERROR.getCode(), result.failureCode());
         verify(commandGateway).send(any(RecordMaintenanceItemWithdrawalCompensationCommand.class));
         verify(commandGateway, never()).send(any(FailMaintenanceItemWithdrawalCommand.class));
     }

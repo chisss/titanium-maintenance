@@ -13,6 +13,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditi
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.metadata.exception.CommandValidationException;
 
 /** 案件内由冻结步骤定义实例化的不可变流程任务。 */
 public record MaintenanceWorkflowTask(
@@ -692,7 +693,7 @@ public record MaintenanceWorkflowTask(
         }
     }
 
-    private MaintenanceValidationException invalidTransition(String message) {
+    private CommandValidationException invalidTransition(String message) {
         return new MaintenanceConflictException(
                 "MaintenanceWorkflowTask", "status", message);
     }

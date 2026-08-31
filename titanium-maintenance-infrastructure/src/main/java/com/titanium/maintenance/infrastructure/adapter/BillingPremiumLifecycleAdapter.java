@@ -1,6 +1,5 @@
 package com.titanium.maintenance.infrastructure.adapter;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.titanium.billing.api.request.PostPremiumLifecycleAdjustmentRequest;
@@ -8,9 +7,10 @@ import com.titanium.billing.api.request.ReversePremiumLifecyclePostingRequest;
 import com.titanium.billing.api.response.PremiumLifecyclePostingResponse;
 import com.titanium.billing.api.response.PremiumLifecycleReversalResponse;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.BillingPremiumLifecycleClient;
 import com.titanium.maintenance.port.BillingPremiumLifecyclePort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -35,8 +35,8 @@ public class BillingPremiumLifecycleAdapter implements BillingPremiumLifecyclePo
             String detail = apiResponse == null
                     ? "空响应"
                     : apiResponse.getCode() + ":" + apiResponse.getMessage();
-            throw new BusinessException("Billing 生命周期入账失败: " + detail,
-                    "MAINTENANCE_BILLING_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+            throw new MaintenanceRemoteCallException("Billing 生命周期入账失败: " + detail,
+                    MaintenanceErrorCode.MAINTENANCE_BILLING_REMOTE_ERROR);
         }
         PremiumLifecyclePostingResponse response = apiResponse.getData();
         return new PostingFact(
@@ -57,14 +57,14 @@ public class BillingPremiumLifecycleAdapter implements BillingPremiumLifecyclePo
             String detail = apiResponse == null
                     ? "空响应"
                     : apiResponse.getCode() + ":" + apiResponse.getMessage();
-            throw new BusinessException("Billing 生命周期冲正失败: " + detail,
-                    "MAINTENANCE_BILLING_REVERSAL_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+            throw new MaintenanceRemoteCallException("Billing 生命周期冲正失败: " + detail,
+                    MaintenanceErrorCode.MAINTENANCE_BILLING_REVERSAL_REMOTE_ERROR);
         }
         PremiumLifecycleReversalResponse response = apiResponse.getData();
         if (!BILLING_REVERSAL_POSTED.equals(response.status())) {
-            throw new BusinessException(
+            throw new MaintenanceRemoteCallException(
                     "Billing 生命周期冲正状态无效: " + response.status(),
-                    "MAINTENANCE_BILLING_REVERSAL_CONTRACT_INVALID", HttpStatus.BAD_GATEWAY);
+                    MaintenanceErrorCode.MAINTENANCE_BILLING_REVERSAL_CONTRACT_INVALID);
         }
         return new ReversalFact(
                 response.reversalId(), response.requestId(), response.requestHash(), response.resultHash(),

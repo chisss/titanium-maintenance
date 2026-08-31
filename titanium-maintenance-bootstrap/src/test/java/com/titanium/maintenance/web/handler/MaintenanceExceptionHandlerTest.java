@@ -7,9 +7,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.mock.web.MockHttpServletRequest;
 
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
+import com.titanium.maintenance.common.exception.MaintenanceSettlementConflictException;
 import com.titanium.maintenance.web.response.MaintenanceErrorVO;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceExceptionHandlerTest {
 
@@ -18,24 +19,24 @@ class MaintenanceExceptionHandlerTest {
     @Test
     void shouldPreserveNotFoundStatusAndErrorCode() {
         ResponseEntity<MaintenanceErrorVO> response =
-                handler.handleBusinessException(
+                handler.handleNotFoundException(
                         new MaintenanceNotFoundException(), new MockHttpServletRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NOT_FOUND);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().code()).isEqualTo("MAINTENANCE_NOT_FOUND");
+        assertThat(response.getBody().code()).isEqualTo(MaintenanceErrorCode.MAINTENANCE_NOT_FOUND.getCode());
     }
 
     @Test
     void shouldPreserveConflictStatusAndErrorCode() {
-        BusinessException exception = new BusinessException(
-                "保全计价产品与保单产品不一致", "MAINTENANCE_PREMIUM_PRODUCT_MISMATCH", HttpStatus.CONFLICT);
+        MaintenanceSettlementConflictException exception = new MaintenanceSettlementConflictException(
+                "保全计价产品与保单产品不一致", MaintenanceErrorCode.MAINTENANCE_PREMIUM_PRODUCT_MISMATCH);
 
-        ResponseEntity<MaintenanceErrorVO> response = handler.handleBusinessException(
+        ResponseEntity<MaintenanceErrorVO> response = handler.handleSettlementConflictException(
                 exception, new MockHttpServletRequest());
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
         assertThat(response.getBody()).isNotNull();
-        assertThat(response.getBody().code()).isEqualTo("MAINTENANCE_PREMIUM_PRODUCT_MISMATCH");
+        assertThat(response.getBody().code()).isEqualTo(MaintenanceErrorCode.MAINTENANCE_PREMIUM_PRODUCT_MISMATCH.getCode());
     }
 }

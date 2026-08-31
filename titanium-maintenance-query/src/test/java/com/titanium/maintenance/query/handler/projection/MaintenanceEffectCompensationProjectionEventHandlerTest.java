@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 
 import com.titanium.maintenance.event.MaintenanceEffectCompensationRequiredEvent;
 import com.titanium.maintenance.event.MaintenanceEffectCompensationResolvedEvent;
@@ -25,7 +26,7 @@ class MaintenanceEffectCompensationProjectionEventHandlerTest {
     void shouldProjectRequiredAndResolvedCompensationState() {
         MaintenanceViewRepository repository = mock(MaintenanceViewRepository.class);
         MaintenanceProjectionEventHandler handler = new MaintenanceProjectionEventHandler(
-                repository, mock(MaintenanceViewMapper.class));
+                repository, Mappers.getMapper(MaintenanceViewMapper.class));
         MaintenanceView view = new MaintenanceView();
         view.setMaintenanceId("maintenance-1");
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "tenant-1"))

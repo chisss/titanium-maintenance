@@ -39,7 +39,7 @@ import com.titanium.maintenance.query.result.MaintenanceCasePageQueryResult;
 import com.titanium.maintenance.query.result.MaintenanceCasePageQueryResult.MaintenanceCaseSummaryQueryResult;
 import com.titanium.maintenance.web.controller.MaintenanceCaseController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
-import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapper;
+import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
@@ -56,7 +56,7 @@ class MaintenanceCaseQueryControllerTest {
         accessResolver = mock(MaintenanceCaseQueryAccessResolver.class);
         MaintenanceCaseController controller = new MaintenanceCaseController(
                 mock(MaintenanceCaseCommandService.class), queryService,
-                new MaintenanceCaseQueryWebMapper(), accessResolver);
+                new MaintenanceCaseQueryWebMapperImpl(), accessResolver);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new MaintenanceExceptionHandler())
                 .build();
@@ -65,9 +65,10 @@ class MaintenanceCaseQueryControllerTest {
     @Test
     void shouldSearchIndependentCasesWithStructuredFilters() throws Exception {
         MaintenanceCaseSummaryQueryResult summary = new MaintenanceCaseSummaryQueryResult(
-                "case-1", "policy-1", "P202608240001", "customer-1",
+                "case-1", "M202608240001", "policy-1", "P202608240001", "customer-1",
                 List.of("POLICY_INFO_CHANGE"), MaintenanceChannel.MANUAL, MaintenanceStatus.PENDING,
-                "operator-1", LocalDateTime.parse("2026-08-24T10:00:00"),
+                MaintenanceEffectStatus.NOT_STARTED, "operator-1",
+                LocalDateTime.parse("2026-08-24T10:00:00"),
                 LocalDateTime.parse("2026-08-24T10:05:00"));
         when(queryService.search(any(), any()))
                 .thenReturn(new MaintenanceCasePageQueryResult(List.of(summary), 1, 0, 20, 1));

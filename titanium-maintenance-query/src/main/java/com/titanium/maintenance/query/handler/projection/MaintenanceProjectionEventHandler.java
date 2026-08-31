@@ -1,15 +1,17 @@
 package com.titanium.maintenance.query.handler.projection;
 
 import java.math.BigDecimal;
+import java.util.function.Consumer;
 
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.titanium.common.number.BusinessNumberGenerator;
+import com.titanium.common.number.BusinessNumberType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
-import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.event.MaintenanceCaseRejectedByReviewEvent;
 import com.titanium.maintenance.event.MaintenanceCaseRejectedByUnderwritingEvent;
 import com.titanium.maintenance.event.MaintenanceCreatedEvent;
@@ -25,8 +27,6 @@ import com.titanium.maintenance.event.MaintenanceSurrenderValueRecordedEvent;
 import com.titanium.maintenance.query.mapper.MaintenanceViewMapper;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
-import com.titanium.common.number.BusinessNumberGenerator;
-import com.titanium.common.number.BusinessNumberType;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -35,6 +35,10 @@ import lombok.extern.slf4j.Slf4j;
  * <p>
  * 订阅 maintenance 域领域事件，投影到读模型表 {@code t_maintenance_view}，实现读写分离。 只做「事件 → 读模型」写入，
  * 不发命令、不持有 CommandGateway（读侧编排越界禁止）。
+ * </p>
+ * <p>
+ * 事件字段 → 读模型的纯结构拷贝已收敛到 {@link MaintenanceViewMapper}；处理器只保留审计时间戳、
+ * 业务号生成与金额分流等含业务决策的部分。
  * </p>
  * <p>
  * <b>处理组</b>：{@code maintenance-query-group}，读侧投影 + 查询处理器 + DLQ 三处一致。
@@ -64,66 +68,36 @@ public class MaintenanceProjectionEventHandler {
     @EventHandler
     @Transactional
     public void on(MaintenanceEffectCompensationRequiredEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    var evidence = event.evidence();
-                    view.setEffectCompensationRequired(true);
-                    view.setEffectCompensationId(evidence.compensationId());
-                    view.setEffectCompensationRequestId(evidence.requestId());
-                    view.setEffectCompensationEndorsementNo(evidence.endorsementNo());
-                    view.setEffectCompensationPolicyVersion(evidence.actualPolicyVersion());
-                    view.setEffectCompensationApplicationHash(evidence.applicationHash());
-                    view.setEffectCompensationReason(evidence.failureReason());
-                    view.setEffectCompensationRecordedAt(evidence.recordedAt());
-                    view.setUpdatedBy(event.recordedBy());
-                    view.setUpdateTime(event.recordedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] 生效补偿记录失败：未找到案件 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyEffectCompensationRequired(view, event),
+                "[读模型投影] 生效补偿记录失败：未找到案件 maintenanceId={}");
     }
 
     /** 幂等重试勾稽成功后关闭人工补偿标记。 */
     @EventHandler
     @Transactional
     public void on(MaintenanceEffectCompensationResolvedEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setEffectCompensationRequired(false);
-                    view.setEffectCompensationResolvedAt(event.resolvedAt());
-                    view.setEffectCompensationResolvedBy(event.resolvedBy());
-                    view.setUpdatedBy(event.resolvedBy());
-                    view.setUpdateTime(event.resolvedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] 生效补偿关闭失败：未找到案件 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyEffectCompensationResolved(view, event),
+                "[读模型投影] 生效补偿关闭失败：未找到案件 maintenanceId={}");
     }
 
     /** 审核拒绝将案件主投影同步置为终态。 */
     @EventHandler
     @Transactional
     public void on(MaintenanceCaseRejectedByReviewEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setStatus(MaintenanceStatus.REJECTED);
-                    view.setUpdatedBy(event.rejectedBy());
-                    view.setUpdateTime(event.rejectedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] 审核拒绝失败：未找到案件 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyRejectedByReview(view, event),
+                "[读模型投影] 审核拒绝失败：未找到案件 maintenanceId={}");
     }
 
     /** 核保拒绝将案件主投影同步置为终态。 */
     @EventHandler
     @Transactional
     public void on(MaintenanceCaseRejectedByUnderwritingEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setStatus(MaintenanceStatus.REJECTED);
-                    view.setUpdatedBy(event.rejectedBy());
-                    view.setUpdateTime(event.rejectedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] 核保拒绝失败：未找到案件 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyRejectedByUnderwriting(view, event),
+                "[读模型投影] 核保拒绝失败：未找到案件 maintenanceId={}");
     }
 
     /**
@@ -160,15 +134,9 @@ public class MaintenanceProjectionEventHandler {
     public void on(MaintenanceStatusChangedEvent event) {
         log.info("[读模型投影] 保全状态变更: maintenanceId={}, {} -> {}", event.maintenanceId().id(),
                 event.oldStatus(), event.newStatus());
-
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-            view.setStatus(event.newStatus());
-            view.setUpdatedBy(event.changedBy());
-            view.setUpdateTime(event.changedAt());
-            maintenanceViewRepository.save(view);
-        }, () -> log.warn("[读模型投影] 保全状态变更失败：未找到读模型记录 maintenanceId={}",
-                event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyStatusChanged(view, event),
+                "[读模型投影] 保全状态变更失败：未找到读模型记录 maintenanceId={}");
     }
 
     /**
@@ -178,101 +146,55 @@ public class MaintenanceProjectionEventHandler {
     @Transactional
     public void on(MaintenancePremiumCalculatedEvent event) {
         log.info("[读模型投影] 保全保费计算: maintenanceId={}", event.maintenanceId().id());
-
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-            view.setTotalAmount(event.totalAmount());
-            view.setRefundAmount(event.refundAmount());
-            view.setUpdatedBy(event.updatedBy());
-            view.setUpdateTime(event.updatedAt());
-            maintenanceViewRepository.save(view);
-        }, () -> log.warn("[读模型投影] 保全保费计算失败：未找到读模型记录 maintenanceId={}",
-                event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyPremiumCalculated(view, event),
+                "[读模型投影] 保全保费计算失败：未找到读模型记录 maintenanceId={}");
     }
 
     /** 投影 Product 生命周期差额检查点。 */
     @EventHandler
     @Transactional
     public void on(MaintenancePremiumAdjustmentRecordedEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setOriginalCalculationId(event.originalCalculationId());
-                    view.setReplacementCalculationId(event.replacementCalculationId());
-                    view.setPremiumAdjustmentId(event.adjustmentId());
-                    view.setPremiumAdjustmentResultHash(event.adjustmentResultHash());
-                    view.setBalanceDirection(event.direction());
-                    view.setBalanceAmount(event.amount());
-                    view.setBalanceCurrency(event.currency());
-                    view.setTotalAmount(event.direction() == MaintenanceBalanceDirection.DEBIT
-                            ? event.amount()
-                            : BigDecimal.ZERO);
-                    view.setRefundAmount(event.direction() == MaintenanceBalanceDirection.CREDIT
-                            ? event.amount()
-                            : BigDecimal.ZERO);
-                    view.setPremiumSettlementStatus(event.direction() == MaintenanceBalanceDirection.NONE
-                            ? MaintenancePremiumSettlementStatus.NOT_REQUIRED
-                            : MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED);
-                    view.setUpdatedBy(event.updatedBy());
-                    view.setUpdateTime(event.recordedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] Product 差额记录失败：未找到读模型 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(), view -> {
+            maintenanceViewMapper.applyPremiumAdjustmentCheckpoint(view, event);
+            // 金额归集与结算状态按差额方向分流（业务规则留处理器，不下沉映射器）
+            view.setTotalAmount(event.direction() == MaintenanceBalanceDirection.DEBIT
+                    ? event.amount()
+                    : BigDecimal.ZERO);
+            view.setRefundAmount(event.direction() == MaintenanceBalanceDirection.CREDIT
+                    ? event.amount()
+                    : BigDecimal.ZERO);
+            view.setPremiumSettlementStatus(event.direction() == MaintenanceBalanceDirection.NONE
+                    ? MaintenancePremiumSettlementStatus.NOT_REQUIRED
+                    : MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED);
+        }, "[读模型投影] Product 差额记录失败：未找到读模型 maintenanceId={}");
     }
 
     /** 投影 Product 退保价值策略证据。 */
     @EventHandler
     @Transactional
     public void on(MaintenanceSurrenderValueRecordedEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setSurrenderPolicyCode(event.policyCode());
-                    view.setSurrenderPolicyVersion(event.policyVersion());
-                    view.setSurrenderPolicyContentHash(event.policyContentHash());
-                    view.setSurrenderPolicyYear(event.policyYear());
-                    view.setCoolingOffDays(event.coolingOffDays());
-                    view.setSurrenderRefundType(event.refundType());
-                    view.setWithinCoolingOff(event.withinCoolingOff());
-                    view.setCashValueRate(event.cashValueRate());
-                    view.setRetainedCustomerAmount(event.retainedCustomerAmount());
-                    view.setInternalCostRetentionRate(event.internalCostRetentionRate());
-                    view.setUpdatedBy(event.updatedBy());
-                    view.setUpdateTime(event.recordedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] 退保价值记录失败：未找到读模型 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applySurrenderValueRecorded(view, event),
+                "[读模型投影] 退保价值记录失败：未找到读模型 maintenanceId={}");
     }
 
     /** 投影 Billing 生命周期余额检查点。 */
     @EventHandler
     @Transactional
     public void on(MaintenancePremiumPostingRecordedEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setBillingPostingId(event.postingId());
-                    view.setPremiumSettlementStatus(MaintenancePremiumSettlementStatus.POSTED);
-                    view.setUpdatedBy(event.updatedBy());
-                    view.setUpdateTime(event.recordedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] Billing 入账记录失败：未找到读模型 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyPremiumPostingRecorded(view, event),
+                "[读模型投影] Billing 入账记录失败：未找到读模型 maintenanceId={}");
     }
 
     /** 投影 Billing 资金结算检查点。 */
     @EventHandler
     @Transactional
     public void on(MaintenanceFinancialSettlementRecordedEvent event) {
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-                    view.setRefundInstructionId(event.refundInstructionId());
-                    view.setRefundOrderId(event.refundOrderId());
-                    view.setRefundStatus(event.refundStatus());
-                    view.setCommissionAdjustmentCount(event.commissionAdjustmentCount());
-                    view.setPremiumSettlementStatus(event.premiumSettlementStatus());
-                    view.setUpdatedBy(event.updatedBy());
-                    view.setUpdateTime(event.recordedAt());
-                    maintenanceViewRepository.save(view);
-                }, () -> log.warn("[读模型投影] Billing 资金结算记录失败：未找到读模型 maintenanceId={}",
-                        event.maintenanceId().id()));
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyFinancialSettlementRecorded(view, event),
+                "[读模型投影] Billing 资金结算记录失败：未找到读模型 maintenanceId={}");
     }
 
     /**
@@ -282,14 +204,18 @@ public class MaintenanceProjectionEventHandler {
     @Transactional
     public void on(MaintenanceExecutedEvent event) {
         log.info("[读模型投影] 保全执行完成: maintenanceId={}", event.maintenanceId().id());
+        applyToView(event.maintenanceId().id(), event.tenantId(),
+                view -> maintenanceViewMapper.applyExecuted(view, event),
+                "[读模型投影] 保全执行失败：未找到读模型记录 maintenanceId={}");
+    }
 
-        maintenanceViewRepository.findByMaintenanceIdAndTenantId(
-                event.maintenanceId().id(), event.tenantId()).ifPresentOrElse(view -> {
-            view.setStatus(MaintenanceStatus.COMPLETED);
-            view.setUpdatedBy(event.updatedBy());
-            view.setUpdateTime(event.updatedAt());
-            maintenanceViewRepository.save(view);
-        }, () -> log.warn("[读模型投影] 保全执行失败：未找到读模型记录 maintenanceId={}",
-                event.maintenanceId().id()));
+    /** 按主键加载读模型并应用更新；未找到时仅告警（原 ifPresentOrElse 语义收敛） */
+    private void applyToView(String maintenanceId, String tenantId, Consumer<MaintenanceView> updater,
+            String warnMessage) {
+        maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
+                .ifPresentOrElse(view -> {
+                    updater.accept(view);
+                    maintenanceViewRepository.save(view);
+                }, () -> log.warn(warnMessage, maintenanceId));
     }
 }

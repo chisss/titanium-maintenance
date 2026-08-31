@@ -26,6 +26,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingCon
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
+import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 
 class MaintenanceWorkflowTaskTest {
@@ -105,7 +106,7 @@ class MaintenanceWorkflowTaskTest {
                 .claim(operation("op-claim", MaintenanceWorkflowAction.CLAIM,
                         null, null, null, null, "operator-1"));
 
-        assertThrows(MaintenanceValidationException.class, () -> claimed.start(operation(
+        assertThrows(MaintenanceConflictException.class, () -> claimed.start(operation(
                 "op-start", MaintenanceWorkflowAction.START,
                 null, null, null, null, "operator-2")));
     }
@@ -120,7 +121,7 @@ class MaintenanceWorkflowTaskTest {
                 .start(operation("op-start", MaintenanceWorkflowAction.START,
                         null, null, null, null, "operator-1"));
 
-        assertThrows(MaintenanceValidationException.class, () -> review.complete(operation(
+        assertThrows(MaintenanceConflictException.class, () -> review.complete(operation(
                 "op-complete", MaintenanceWorkflowAction.COMPLETE,
                 null, null, "APPROVED", "审核通过", "operator-1")));
     }
@@ -162,7 +163,7 @@ class MaintenanceWorkflowTaskTest {
         MaintenanceWorkflowTask claimed = ready.claim(operation(
                 "op-claim", MaintenanceWorkflowAction.CLAIM,
                 null, null, null, null, "reviewer-1"));
-        assertThrows(MaintenanceValidationException.class,
+        assertThrows(MaintenanceConflictException.class,
                 () -> claimed.decideReview(evidence, reviewOperation("op-auto", evidence)));
         assertThrows(MaintenanceValidationException.class,
                 () -> new MaintenanceWorkflowReviewEvidence(
@@ -228,7 +229,7 @@ class MaintenanceWorkflowTaskTest {
         assertEquals(MaintenanceWorkflowTaskStatus.SKIPPED,
                 skipped.decideUnderwriting(
                         notRequired, underwritingOperation("uw-not-required", notRequired)).status());
-        assertThrows(MaintenanceValidationException.class,
+        assertThrows(MaintenanceConflictException.class,
                 () -> required.decideUnderwriting(
                         notRequired, underwritingOperation("uw-invalid", notRequired)));
     }
@@ -273,7 +274,7 @@ class MaintenanceWorkflowTaskTest {
         assertEquals(MaintenanceWorkflowTaskStatus.SKIPPED, recorded.status());
         assertEquals(MaintenancePremiumQuoteStatus.NOT_REQUIRED,
                 recorded.premiumQuoteEvidence().status());
-        assertThrows(MaintenanceValidationException.class,
+        assertThrows(MaintenanceConflictException.class,
                 () -> required.recordPremiumQuote(
                         evidence, quoteOperation("quote-invalid", evidence)));
     }

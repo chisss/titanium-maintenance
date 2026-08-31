@@ -2,6 +2,7 @@ package com.titanium.maintenance.configuration;
 
 import com.google.re2j.Pattern;
 import com.google.re2j.PatternSyntaxException;
+
 import com.titanium.maintenance.common.enums.config.MaintenanceFieldValidationType;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;

@@ -21,6 +21,7 @@ import com.titanium.maintenance.command.CreateMaintenanceCaseCommand;
 import com.titanium.maintenance.command.CreateMaintenanceCommand;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
+import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.event.MaintenanceCaseItemsPlannedEvent;
 import com.titanium.maintenance.event.MaintenanceCaseOpenedEvent;
@@ -99,7 +100,7 @@ class MaintenanceCaseCreationTest {
 
         fixture.given(createdEvent(original), openedEvent(original), snapshotCapturedEvent(original))
                 .when(conflicting)
-                .expectException(MaintenanceValidationException.class);
+                .expectException(MaintenanceConflictException.class);
     }
 
     @Test

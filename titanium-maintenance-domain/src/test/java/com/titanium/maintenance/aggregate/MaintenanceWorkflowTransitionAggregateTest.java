@@ -59,6 +59,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingCon
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
+import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.configuration.MaintenanceEffectiveRule;
 import com.titanium.maintenance.configuration.MaintenanceFieldRule;
@@ -782,7 +783,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(baseEvents())
                 .when(new StartMaintenanceWorkflowTaskCommand(
                         ID, VALIDATION_TASK_ID, "operation-start", "operator-1"))
-                .expectException(MaintenanceValidationException.class);
+                .expectException(MaintenanceConflictException.class);
     }
 
     @Test

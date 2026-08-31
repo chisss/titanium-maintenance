@@ -82,6 +82,7 @@ import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
+import com.titanium.maintenance.common.enums.PaymentRefundStatus;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceBillingPostingStatus;
@@ -98,6 +99,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceConflictException;
+import com.titanium.maintenance.common.exception.MaintenanceStatusException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.event.MaintenanceCaseInitializationCompletedEvent;
 import com.titanium.maintenance.event.MaintenanceCaseItemsPlannedEvent;
@@ -144,7 +146,6 @@ import com.titanium.maintenance.event.MaintenanceStatusChangedEvent;
 import com.titanium.maintenance.event.MaintenanceSurrenderValueRecordedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowInitializedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowTaskTransitionedEvent;
-import com.titanium.maintenance.exception.MaintenanceStatusException;
 import com.titanium.maintenance.service.MaintenanceFieldConflictPlanner;
 import com.titanium.maintenance.service.MaintenanceFieldProposalPlanner;
 import com.titanium.maintenance.service.MaintenanceWorkflowPlanner;
@@ -2596,7 +2597,8 @@ public class Maintenance extends BaseAggregate {
                     "退费资金事实必须包含退款状态");
         }
         if (balanceDirection == MaintenanceBalanceDirection.DEBIT
-                && (hasInstruction || hasOrder || !"NOT_REQUIRED".equals(command.refundStatus()))) {
+                && (hasInstruction || hasOrder
+                        || PaymentRefundStatus.fromCode(command.refundStatus()) != PaymentRefundStatus.NOT_REQUIRED)) {
             throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "refundStatus",
                     "追加应收不得包含退款事实");
         }
@@ -2610,10 +2612,11 @@ public class Maintenance extends BaseAggregate {
         if (balanceDirection == MaintenanceBalanceDirection.DEBIT) {
             return MaintenancePremiumSettlementStatus.POSTED;
         }
-        if ("SUCCEEDED".equals(currentRefundStatus)) {
+        PaymentRefundStatus status = PaymentRefundStatus.fromCode(currentRefundStatus);
+        if (status == PaymentRefundStatus.SUCCEEDED) {
             return MaintenancePremiumSettlementStatus.SETTLED;
         }
-        if ("FAILED".equals(currentRefundStatus) || "CANCELLED".equals(currentRefundStatus)) {
+        if (status == PaymentRefundStatus.FAILED || status == PaymentRefundStatus.CANCELLED) {
             return MaintenancePremiumSettlementStatus.SETTLEMENT_FAILED;
         }
         return MaintenancePremiumSettlementStatus.SETTLEMENT_PENDING;

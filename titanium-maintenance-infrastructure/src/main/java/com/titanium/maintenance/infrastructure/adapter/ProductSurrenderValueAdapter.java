@@ -1,12 +1,12 @@
 package com.titanium.maintenance.infrastructure.adapter;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.ProductSurrenderValueClient;
 import com.titanium.maintenance.port.ProductSurrenderValuePort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.request.SurrenderValueCalculationRequest;
 import com.titanium.product.api.response.SurrenderValueCalculationResponse;
@@ -30,9 +30,9 @@ public class ProductSurrenderValueAdapter implements ProductSurrenderValuePort {
                         request.businessTime(), request.reason()), request.tenantId());
         if (apiResponse == null || !apiResponse.isSuccess() || apiResponse.getData() == null) {
             String detail = apiResponse == null ? "空响应" : apiResponse.getCode() + ":" + apiResponse.getMessage();
-            throw new BusinessException(
+            throw new MaintenanceRemoteCallException(
                     "Product 退保价值计算失败: " + detail,
-                    "MAINTENANCE_SURRENDER_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+                    MaintenanceErrorCode.MAINTENANCE_SURRENDER_REMOTE_ERROR);
         }
         SurrenderValueCalculationResponse response = apiResponse.getData();
         return new SurrenderFact(

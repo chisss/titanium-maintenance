@@ -5,15 +5,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import com.titanium.maintenance.common.context.TenantContext;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
+import com.titanium.maintenance.common.exception.MaintenanceForbiddenException;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceConfigurationRequestContextResolverTest {
 
@@ -51,8 +52,9 @@ class MaintenanceConfigurationRequestContextResolverTest {
 
         assertThatThrownBy(() -> resolver.require(
                 new MockHttpServletRequest(), "maintenance:config:publish"))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        exception -> assertThat(exception.getStatus()).isEqualTo(HttpStatus.FORBIDDEN));
+                .isInstanceOfSatisfying(MaintenanceForbiddenException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_FORBIDDEN.getCode()));
     }
 
     @Test
@@ -61,8 +63,9 @@ class MaintenanceConfigurationRequestContextResolverTest {
 
         assertThatThrownBy(() -> resolver.require(
                 new MockHttpServletRequest(), "maintenance:config:view"))
-                .isInstanceOfSatisfying(BusinessException.class,
-                        exception -> assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED));
+                .isInstanceOfSatisfying(MaintenanceAuthenticationException.class,
+                        exception -> assertThat(exception.getErrorCode())
+                                .isEqualTo(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_UNAUTHENTICATED.getCode()));
     }
 
     private void authenticate(String operatorId, String... authorities) {

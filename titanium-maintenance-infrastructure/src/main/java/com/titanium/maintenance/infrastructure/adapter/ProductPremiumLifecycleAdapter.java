@@ -2,13 +2,13 @@ package com.titanium.maintenance.infrastructure.adapter;
 
 import java.util.List;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.ProductPremiumLifecycleClient;
 import com.titanium.maintenance.port.ProductPremiumLifecyclePort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.request.PremiumCalculationRequest;
 import com.titanium.product.api.request.PremiumLifecycleAdjustmentRequest;
@@ -79,8 +79,8 @@ public class ProductPremiumLifecycleAdapter implements ProductPremiumLifecyclePo
     private <T> T requireSuccess(ApiResponse<T> response, String action) {
         if (response == null || !response.isSuccess() || response.getData() == null) {
             String detail = response == null ? "空响应" : response.getCode() + ":" + response.getMessage();
-            throw new BusinessException(action + "失败: " + detail,
-                    "MAINTENANCE_PRODUCT_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+            throw new MaintenanceRemoteCallException(action + "失败: " + detail,
+                    MaintenanceErrorCode.MAINTENANCE_PRODUCT_REMOTE_ERROR);
         }
         return response.getData();
     }

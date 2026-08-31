@@ -17,13 +17,13 @@ import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.HttpStatus;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.ProductMaintenancePremiumQuotePort.QuoteFact;
 import com.titanium.maintenance.port.ProductMaintenancePremiumQuotePort.QuoteRequest;
 import com.titanium.maintenance.port.ProductMaintenancePremiumQuotePort.SnapshotReference;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.ProductMaintenancePremiumQuoteApi;
 import com.titanium.product.api.response.MaintenancePremiumQuoteResponse;
@@ -78,9 +78,10 @@ class ProductMaintenancePremiumQuoteAdapterTest {
         BusinessException exception = assertThrows(
                 BusinessException.class, () -> adapter.quote(request));
 
-        assertEquals("60000117", exception.getErrorCode());
-        assertEquals("定价方案校验失败: 原计算用途不受支持", exception.getMessage());
-        assertEquals(HttpStatus.UNPROCESSABLE_CONTENT, exception.getStatus());
+        // 下游字符串错误码不允许作为本域业务错误码外泄，收敛为本域远程调用错误码并保留下游信息于消息
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR.getCode(), exception.getErrorCode());
+        assertEquals("Product 保全报价下游拒绝: 定价方案校验失败: 原计算用途不受支持 "
+                + "[code=60000117, httpStatus=422]", exception.getMessage());
     }
 
     @Test
@@ -93,9 +94,9 @@ class ProductMaintenancePremiumQuoteAdapterTest {
         BusinessException exception = assertThrows(
                 BusinessException.class, () -> adapter.quote(request));
 
-        assertEquals("60000117", exception.getErrorCode());
-        assertEquals("定价方案校验失败: 原计算用途不受支持", exception.getMessage());
-        assertEquals(HttpStatus.UNPROCESSABLE_CONTENT, exception.getStatus());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR.getCode(), exception.getErrorCode());
+        assertEquals("Product 保全报价下游拒绝: 定价方案校验失败: 原计算用途不受支持 "
+                + "[code=60000117, httpStatus=422]", exception.getMessage());
     }
 
     private QuoteRequest request() {

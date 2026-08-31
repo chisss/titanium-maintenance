@@ -2,12 +2,13 @@ package com.titanium.maintenance.infrastructure.adapter;
 
 import java.util.Objects;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.PaymentPremiumCollectionClient;
 import com.titanium.maintenance.port.PaymentPremiumCollectionPort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.errorcode.PaymentErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.request.CreatePaymentOrderRequest;
@@ -105,8 +106,8 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
                 response.getStatus(), response.getTransactionId(), response.getPaymentDate());
     }
 
-    private BusinessException remoteError(String message) {
-        return new BusinessException(
-                message, "MAINTENANCE_PAYMENT_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException remoteError(String message) {
+        return new MaintenanceRemoteCallException(
+                message, MaintenanceErrorCode.MAINTENANCE_PAYMENT_REMOTE_ERROR);
     }
 }

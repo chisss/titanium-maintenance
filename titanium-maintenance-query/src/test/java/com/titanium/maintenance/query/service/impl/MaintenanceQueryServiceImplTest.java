@@ -10,9 +10,11 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.titanium.maintenance.query.mapper.MaintenanceQueryResultMapper;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 
@@ -25,7 +27,8 @@ class MaintenanceQueryServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new MaintenanceQueryServiceImpl(repository);
+        service = new MaintenanceQueryServiceImpl(repository,
+                Mappers.getMapper(MaintenanceQueryResultMapper.class));
     }
 
     @Test

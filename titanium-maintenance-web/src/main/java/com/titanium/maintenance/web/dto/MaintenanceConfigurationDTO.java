@@ -6,8 +6,8 @@ import java.util.Set;
 
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
-import com.titanium.maintenance.common.enums.config.MaintenanceFieldValidationType;
 import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
+import com.titanium.maintenance.common.enums.config.MaintenanceFieldValidationType;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenancePremiumRecalculationTiming;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepMode;

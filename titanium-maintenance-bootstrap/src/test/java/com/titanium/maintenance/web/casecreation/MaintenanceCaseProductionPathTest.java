@@ -61,7 +61,7 @@ import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepositor
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
 import com.titanium.maintenance.web.controller.MaintenanceCaseController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
-import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapper;
+import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
 import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
@@ -216,7 +216,7 @@ class MaintenanceCaseProductionPathTest {
         return new MaintenanceCaseController(
                 commandService,
                 mock(MaintenanceCaseQueryApplicationService.class),
-                new MaintenanceCaseQueryWebMapper(),
+                new MaintenanceCaseQueryWebMapperImpl(),
                 mock(MaintenanceCaseQueryAccessResolver.class));
     }
 

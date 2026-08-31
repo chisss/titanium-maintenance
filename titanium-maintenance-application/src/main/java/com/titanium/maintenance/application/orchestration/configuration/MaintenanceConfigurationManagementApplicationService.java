@@ -9,13 +9,13 @@ import com.titanium.maintenance.application.model.configuration.MaintenanceConfi
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationCriteria;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationResult;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationConflictException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationFeatureDisabledException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationNotFoundException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.MaintenancePublicationEvidence;
-import com.titanium.maintenance.exception.MaintenanceConfigurationConflictException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationFeatureDisabledException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationNotFoundException;
-import com.titanium.maintenance.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.port.MaintenanceConfigurationFeaturePort;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.SaveContext;

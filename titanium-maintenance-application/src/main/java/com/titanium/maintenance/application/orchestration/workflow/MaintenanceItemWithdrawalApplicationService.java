@@ -50,6 +50,7 @@ import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceBillingReversalEvidence;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawalCompensation;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -111,12 +112,12 @@ public class MaintenanceItemWithdrawalApplicationService {
                         exception.getErrorCode(), exception.getMessage()));
             } catch (RuntimeException exception) {
                 return record(input, withdrawal, failedFunds(feeTask, reversal,
-                        "MAINTENANCE_PAYMENT_COMPENSATION_ERROR", exception.getMessage()));
+                        MaintenanceErrorCode.MAINTENANCE_PAYMENT_COMPENSATION_ERROR.getCode(), exception.getMessage()));
             }
         } catch (BusinessException exception) {
             return fail(input, withdrawal, exception.getErrorCode(), exception.getMessage());
         } catch (RuntimeException exception) {
-            return fail(input, withdrawal, "MAINTENANCE_ITEM_WITHDRAWAL_ERROR", exception.getMessage());
+            return fail(input, withdrawal, MaintenanceErrorCode.MAINTENANCE_ITEM_WITHDRAWAL_ERROR.getCode(), exception.getMessage());
         }
     }
 
@@ -285,7 +286,7 @@ public class MaintenanceItemWithdrawalApplicationService {
                 MaintenanceFundSettlementStatus.FAILED,
                 null, null, "REMOTE_ERROR", feeTask.getBillingPostingAmount(),
                 feeTask.getBillingPostingCurrency(),
-                defaultText(failureCode, "MAINTENANCE_PAYMENT_COMPENSATION_ERROR"),
+                defaultText(failureCode, MaintenanceErrorCode.MAINTENANCE_PAYMENT_COMPENSATION_ERROR.getCode()),
                 safeMessage(failureMessage), LocalDateTime.now());
     }
 
@@ -328,7 +329,7 @@ public class MaintenanceItemWithdrawalApplicationService {
             String failureMessage) {
         FailMaintenanceItemWithdrawalCommand command = new FailMaintenanceItemWithdrawalCommand(
                 MaintenanceId.of(input.maintenanceId()), input.itemCode(), withdrawal.operationId(),
-                withdrawal.requestHash(), defaultText(failureCode, "MAINTENANCE_ITEM_WITHDRAWAL_ERROR"),
+                withdrawal.requestHash(), defaultText(failureCode, MaintenanceErrorCode.MAINTENANCE_ITEM_WITHDRAWAL_ERROR.getCode()),
                 safeMessage(failureMessage), input.operatorId());
         return commandGateway.<MaintenanceItemWithdrawal>send(command).thenApply(this::result);
     }

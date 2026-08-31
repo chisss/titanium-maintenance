@@ -32,11 +32,11 @@ import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.configuration.MaintenanceEffectiveRule;
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.MaintenanceStepDefinition;
-import com.titanium.maintenance.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.infrastructure.entity.MaintenanceConfigurationAuditDO;
 import com.titanium.maintenance.infrastructure.entity.MaintenanceItemConfigurationDO;
 import com.titanium.maintenance.infrastructure.repository.jpa.MaintenanceConfigurationAuditJpaRepository;
@@ -63,7 +63,8 @@ class MaintenanceItemConfigurationPersistenceTest {
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
         jsonMapper = new MaintenanceItemConfigurationJsonMapper(objectMapper);
         repository = new JpaMaintenanceItemConfigurationRepository(
-                configurationJpaRepository, auditJpaRepository, jsonMapper);
+                configurationJpaRepository, auditJpaRepository, jsonMapper,
+                new MaintenanceConfigurationPersistenceAssembler());
     }
 
     @Test

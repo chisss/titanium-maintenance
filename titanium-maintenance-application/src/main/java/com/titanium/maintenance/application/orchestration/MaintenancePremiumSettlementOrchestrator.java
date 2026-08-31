@@ -5,7 +5,6 @@ import java.util.List;
 import java.util.Objects;
 
 import org.axonframework.commandhandling.gateway.CommandGateway;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.titanium.maintenance.application.model.MaintenancePremiumSettlementInput;
@@ -19,8 +18,11 @@ import com.titanium.maintenance.command.RecordMaintenancePremiumPostingCommand;
 import com.titanium.maintenance.command.RecordMaintenanceSurrenderValueCommand;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
+import com.titanium.maintenance.common.enums.PaymentRefundStatus;
 import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
+import com.titanium.maintenance.common.exception.MaintenanceSettlementConflictException;
 import com.titanium.maintenance.port.BillingPremiumLifecyclePort;
 import com.titanium.maintenance.port.PolicyServicePort;
 import com.titanium.maintenance.port.ProductPremiumLifecyclePort;
@@ -29,6 +31,7 @@ import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -59,8 +62,8 @@ public class MaintenancePremiumSettlementOrchestrator {
         MaintenanceView view = maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
                 .orElseThrow(MaintenanceNotFoundException::new);
         if (view.getMaintenanceType() == MaintenanceType.POLICY_TERMINATION) {
-            throw new BusinessException("退保案件必须使用现金价值结算入口",
-                    "MAINTENANCE_SURRENDER_ENDPOINT_REQUIRED", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("退保案件必须使用现金价值结算入口",
+                    MaintenanceErrorCode.MAINTENANCE_SURRENDER_ENDPOINT_REQUIRED);
         }
         MaintenancePremiumSettlementStatus currentStatus = view.getPremiumSettlementStatus() == null
                 ? MaintenancePremiumSettlementStatus.NOT_STARTED
@@ -88,8 +91,8 @@ public class MaintenancePremiumSettlementOrchestrator {
         MaintenanceView view = maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
                 .orElseThrow(MaintenanceNotFoundException::new);
         if (view.getMaintenanceType() != MaintenanceType.POLICY_TERMINATION) {
-            throw new BusinessException("只有保单终止案件可以执行退保价值结算",
-                    "MAINTENANCE_SURRENDER_TYPE_INVALID", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("只有保单终止案件可以执行退保价值结算",
+                    MaintenanceErrorCode.MAINTENANCE_SURRENDER_TYPE_INVALID);
         }
         MaintenancePremiumSettlementStatus currentStatus = view.getPremiumSettlementStatus() == null
                 ? MaintenancePremiumSettlementStatus.NOT_STARTED
@@ -131,8 +134,8 @@ public class MaintenancePremiumSettlementOrchestrator {
         MaintenanceView view = maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
                 .orElseThrow(MaintenanceNotFoundException::new);
         if (view.getMaintenanceType() != MaintenanceType.POLICY_REVERSAL) {
-            throw new BusinessException("只有保单费用冲正案件可以执行冲正结算",
-                    "MAINTENANCE_REVERSAL_TYPE_INVALID", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("只有保单费用冲正案件可以执行冲正结算",
+                    MaintenanceErrorCode.MAINTENANCE_REVERSAL_TYPE_INVALID);
         }
         MaintenancePremiumSettlementStatus currentStatus = view.getPremiumSettlementStatus() == null
                 ? MaintenancePremiumSettlementStatus.NOT_STARTED : view.getPremiumSettlementStatus();
@@ -277,8 +280,8 @@ public class MaintenancePremiumSettlementOrchestrator {
                 || isBlank(view.getSurrenderRefundType()) || view.getWithinCoolingOff() == null
                 || invalidRate(view.getCashValueRate()) || invalidRate(view.getInternalCostRetentionRate())
                 || view.getRetainedCustomerAmount() == null || view.getRetainedCustomerAmount().signum() < 0) {
-            throw new BusinessException("退保价值检查点不完整",
-                    "MAINTENANCE_SURRENDER_CHECKPOINT_INVALID", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("退保价值检查点不完整",
+                    MaintenanceErrorCode.MAINTENANCE_SURRENDER_CHECKPOINT_INVALID);
         }
     }
 
@@ -328,8 +331,8 @@ public class MaintenancePremiumSettlementOrchestrator {
         if (isBlank(view.getReplacementCalculationId()) || isBlank(view.getPremiumAdjustmentId())
                 || isBlank(view.getPremiumAdjustmentResultHash()) || view.getBalanceDirection() == null
                 || invalidAmount || isBlank(view.getBalanceCurrency())) {
-            throw new BusinessException("保全费用差额检查点不完整",
-                    "MAINTENANCE_PREMIUM_CHECKPOINT_INVALID", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("保全费用差额检查点不完整",
+                    MaintenanceErrorCode.MAINTENANCE_PREMIUM_CHECKPOINT_INVALID);
         }
     }
 
@@ -408,7 +411,7 @@ public class MaintenancePremiumSettlementOrchestrator {
                 || input.coverageTermYears() == null || input.coverageTermYears() < 1
                 || input.paymentPeriods() == null || input.paymentPeriods() < 1
                 || isBlank(input.reason()) || isBlank(input.updatedBy())) {
-            throw new BusinessException("保全替代计算参数不完整", "MAINTENANCE_PREMIUM_INPUT_INVALID");
+            throw new BusinessException("保全替代计算参数不完整", MaintenanceErrorCode.MAINTENANCE_PREMIUM_INPUT_INVALID);
         }
     }
 
@@ -416,14 +419,14 @@ public class MaintenancePremiumSettlementOrchestrator {
         if (input == null || isBlank(input.originalCalculationId()) || input.surrenderDate() == null
                 || input.policyYear() == null || input.policyYear() < 1 || input.businessTime() == null
                 || isBlank(input.reason()) || isBlank(input.updatedBy())) {
-            throw new BusinessException("退保价值结算参数不完整", "MAINTENANCE_SURRENDER_INPUT_INVALID");
+            throw new BusinessException("退保价值结算参数不完整", MaintenanceErrorCode.MAINTENANCE_SURRENDER_INPUT_INVALID);
         }
     }
 
     private void validateReversalInput(MaintenanceReversalSettlementInput input) {
         if (input == null || isBlank(input.sourceAdjustmentId()) || input.businessTime() == null
                 || isBlank(input.reason()) || isBlank(input.updatedBy())) {
-            throw new BusinessException("保全冲正参数不完整", "MAINTENANCE_REVERSAL_INPUT_INVALID");
+            throw new BusinessException("保全冲正参数不完整", MaintenanceErrorCode.MAINTENANCE_REVERSAL_INPUT_INVALID);
         }
     }
 
@@ -438,8 +441,8 @@ public class MaintenancePremiumSettlementOrchestrator {
 
     private void requireSameOriginalCalculation(MaintenanceView view, String originalCalculationId) {
         if (!Objects.equals(view.getOriginalCalculationId(), originalCalculationId)) {
-            throw new BusinessException("保全案件已绑定其他原确认计算",
-                    "MAINTENANCE_PREMIUM_SETTLEMENT_CONFLICT", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("保全案件已绑定其他原确认计算",
+                    MaintenanceErrorCode.MAINTENANCE_PREMIUM_SETTLEMENT_CONFLICT);
         }
     }
 
@@ -449,8 +452,8 @@ public class MaintenancePremiumSettlementOrchestrator {
             throw invalidRemoteFact("Policy 未返回可用的保单产品事实");
         }
         if (!Objects.equals(policyProductId, requestedProductId)) {
-            throw new BusinessException("保全计价产品与保单产品不一致",
-                    "MAINTENANCE_PREMIUM_PRODUCT_MISMATCH", HttpStatus.CONFLICT);
+            throw new MaintenanceSettlementConflictException("保全计价产品与保单产品不一致",
+                    MaintenanceErrorCode.MAINTENANCE_PREMIUM_PRODUCT_MISMATCH);
         }
     }
 
@@ -508,10 +511,11 @@ public class MaintenancePremiumSettlementOrchestrator {
         if (direction == MaintenanceBalanceDirection.DEBIT) {
             return MaintenancePremiumSettlementStatus.POSTED;
         }
-        if ("SUCCEEDED".equals(refundStatus)) {
+        PaymentRefundStatus status = PaymentRefundStatus.fromCode(refundStatus);
+        if (status == PaymentRefundStatus.SUCCEEDED) {
             return MaintenancePremiumSettlementStatus.SETTLED;
         }
-        if ("FAILED".equals(refundStatus) || "CANCELLED".equals(refundStatus)) {
+        if (status == PaymentRefundStatus.FAILED || status == PaymentRefundStatus.CANCELLED) {
             return MaintenancePremiumSettlementStatus.SETTLEMENT_FAILED;
         }
         return MaintenancePremiumSettlementStatus.SETTLEMENT_PENDING;
@@ -522,8 +526,9 @@ public class MaintenancePremiumSettlementOrchestrator {
                 || status == MaintenancePremiumSettlementStatus.NOT_REQUIRED;
     }
 
-    private BusinessException invalidRemoteFact(String message) {
-        return new BusinessException(message, "MAINTENANCE_PREMIUM_REMOTE_FACT_INVALID", HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException invalidRemoteFact(String message) {
+        return new MaintenanceRemoteCallException(
+                message, MaintenanceErrorCode.MAINTENANCE_PREMIUM_REMOTE_FACT_INVALID);
     }
 
     private boolean sameAmount(BigDecimal left, BigDecimal right) {

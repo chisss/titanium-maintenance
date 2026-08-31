@@ -77,8 +77,9 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditi
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.web.controller.MaintenanceCaseController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
-import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapper;
+import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceCaseControllerTest {
 
@@ -91,7 +92,7 @@ class MaintenanceCaseControllerTest {
         mockMvc = MockMvcBuilders.standaloneSetup(new MaintenanceCaseController(
                         commandService,
                         mock(MaintenanceCaseQueryApplicationService.class),
-                        new MaintenanceCaseQueryWebMapper(),
+                        new MaintenanceCaseQueryWebMapperImpl(),
                         mock(MaintenanceCaseQueryAccessResolver.class)))
                 .setControllerAdvice(new MaintenanceExceptionHandler())
                 .build();
@@ -248,7 +249,7 @@ class MaintenanceCaseControllerTest {
                         .contentType("application/json")
                         .content(requestJson()))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("MAINTENANCE_INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
     }
 
     @Test
@@ -475,7 +476,7 @@ class MaintenanceCaseControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("MAINTENANCE_INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
     }
 
     @Test
@@ -751,7 +752,7 @@ class MaintenanceCaseControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("MAINTENANCE_INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
     }
 
     @Test
@@ -834,7 +835,7 @@ class MaintenanceCaseControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("MAINTENANCE_INVALID_REQUEST"));
+                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
 
         verify(commandService, never()).settlePremium(any());
     }

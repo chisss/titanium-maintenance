@@ -2,7 +2,6 @@ package com.titanium.maintenance.infrastructure.adapter;
 
 import java.util.Objects;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import com.titanium.billing.api.RetroactivePeriodAdjustmentApi;
@@ -10,9 +9,10 @@ import com.titanium.billing.api.request.PostRetroactivePeriodAdjustmentRequest;
 import com.titanium.billing.api.request.PostRetroactivePeriodAdjustmentRequest.PeriodAdjustmentRequest;
 import com.titanium.billing.api.response.RetroactivePeriodAdjustmentResponse;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.BillingRetroactivePeriodAdjustmentPort;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveBillingPeriodAdjustment;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -89,8 +89,7 @@ public class BillingRetroactivePeriodAdjustmentAdapter implements BillingRetroac
         return response.getData();
     }
 
-    private BusinessException remoteError(String message) {
-        return new BusinessException(message, "MAINTENANCE_BILLING_RETROACTIVE_ADJUSTMENT_ERROR",
-                HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException remoteError(String message) {
+        return new MaintenanceRemoteCallException(message, MaintenanceErrorCode.MAINTENANCE_BILLING_RETROACTIVE_ADJUSTMENT_ERROR);
     }
 }

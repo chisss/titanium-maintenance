@@ -2,12 +2,12 @@ package com.titanium.maintenance.infrastructure.adapter;
 
 import java.util.Objects;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.PaymentMaintenanceRefundClient;
 import com.titanium.maintenance.port.PaymentMaintenanceRefundPort;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.request.CreateRefundOrderRequest;
 import com.titanium.payment.api.response.RefundOrderResponse;
@@ -72,7 +72,7 @@ public class PaymentMaintenanceRefundAdapter implements PaymentMaintenanceRefund
                 response.getFailureCode(), response.getFailureMessage(), response.getUpdatedAt());
     }
 
-    private BusinessException remoteError(String message) {
-        return new BusinessException(message, "MAINTENANCE_PAYMENT_REFUND_REMOTE_ERROR", HttpStatus.BAD_GATEWAY);
+    private MaintenanceRemoteCallException remoteError(String message) {
+        return new MaintenanceRemoteCallException(message, MaintenanceErrorCode.MAINTENANCE_PAYMENT_REFUND_REMOTE_ERROR);
     }
 }

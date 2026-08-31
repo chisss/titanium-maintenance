@@ -19,7 +19,6 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.http.HttpStatus;
 
 import com.titanium.maintenance.application.command.MaintenancePremiumSettlementGateInput;
 import com.titanium.maintenance.command.FailMaintenancePremiumSettlementCommand;
@@ -32,7 +31,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementS
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementType;
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.BillingPremiumLifecyclePort;
 import com.titanium.maintenance.port.BillingPremiumLifecyclePort.PostingFact;
 import com.titanium.maintenance.port.PaymentPremiumCollectionPort;
@@ -41,6 +40,7 @@ import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceWorkflowTaskViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenancePremiumSettlementApplicationServiceTest {
 
@@ -177,8 +177,8 @@ class MaintenancePremiumSettlementApplicationServiceTest {
         when(billingPort.post(any())).thenReturn(posting(
                 MaintenanceBalanceDirection.DEBIT, new BigDecimal("20"), "POSTED",
                 null, null, "NOT_REQUIRED"));
-        when(paymentPort.create(any())).thenThrow(new BusinessException(
-                "Payment unavailable", "PAYMENT_DOWN", HttpStatus.BAD_GATEWAY));
+        when(paymentPort.create(any())).thenThrow(new MaintenanceRemoteCallException(
+                "Payment unavailable", MaintenanceErrorCode.MAINTENANCE_PAYMENT_REMOTE_ERROR));
 
         var result = service.settle(input()).join();
 
@@ -187,13 +187,14 @@ class MaintenancePremiumSettlementApplicationServiceTest {
         ArgumentCaptor<RecordMaintenancePremiumSettlementCommand> captor =
                 ArgumentCaptor.forClass(RecordMaintenancePremiumSettlementCommand.class);
         verify(commandGateway).send(captor.capture());
-        assertEquals("PAYMENT_DOWN", captor.getValue().fundEvidence().failureCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_PAYMENT_REMOTE_ERROR.getCode(),
+                captor.getValue().fundEvidence().failureCode());
     }
 
     @Test
     void shouldRecordRecoverableFailureWhenBillingIsUnavailable() {
-        when(billingPort.post(any())).thenThrow(new BusinessException(
-                "Billing unavailable", "BILLING_DOWN", HttpStatus.BAD_GATEWAY));
+        when(billingPort.post(any())).thenThrow(new MaintenanceRemoteCallException(
+                "Billing unavailable", MaintenanceErrorCode.MAINTENANCE_BILLING_REMOTE_ERROR));
 
         var result = service.settle(input()).join();
 
@@ -201,7 +202,8 @@ class MaintenancePremiumSettlementApplicationServiceTest {
         ArgumentCaptor<FailMaintenancePremiumSettlementCommand> captor =
                 ArgumentCaptor.forClass(FailMaintenancePremiumSettlementCommand.class);
         verify(commandGateway).send(captor.capture());
-        assertEquals("BILLING_DOWN", captor.getValue().failureCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_BILLING_REMOTE_ERROR.getCode(),
+                captor.getValue().failureCode());
     }
 
     private void visibleContext(MaintenanceBalanceDirection direction, BigDecimal amount) {

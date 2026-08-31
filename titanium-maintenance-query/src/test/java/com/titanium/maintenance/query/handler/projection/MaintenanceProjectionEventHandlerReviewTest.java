@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
+import org.mapstruct.factory.Mappers;
 
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.event.MaintenanceCaseRejectedByReviewEvent;
@@ -24,7 +25,7 @@ class MaintenanceProjectionEventHandlerReviewTest {
     void shouldProjectReviewRejectionAsTerminalCaseStatus() {
         MaintenanceViewRepository repository = mock(MaintenanceViewRepository.class);
         MaintenanceProjectionEventHandler handler = new MaintenanceProjectionEventHandler(
-                repository, mock(MaintenanceViewMapper.class));
+                repository, Mappers.getMapper(MaintenanceViewMapper.class));
         MaintenanceView view = new MaintenanceView();
         when(repository.findByMaintenanceIdAndTenantId("case-1", "tenant-1"))
                 .thenReturn(Optional.of(view));
@@ -45,7 +46,7 @@ class MaintenanceProjectionEventHandlerReviewTest {
     void shouldProjectUnderwritingRejectionAsTerminalCaseStatus() {
         MaintenanceViewRepository repository = mock(MaintenanceViewRepository.class);
         MaintenanceProjectionEventHandler handler = new MaintenanceProjectionEventHandler(
-                repository, mock(MaintenanceViewMapper.class));
+                repository, Mappers.getMapper(MaintenanceViewMapper.class));
         MaintenanceView view = new MaintenanceView();
         when(repository.findByMaintenanceIdAndTenantId("case-1", "tenant-1"))
                 .thenReturn(Optional.of(view));
