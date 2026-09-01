@@ -31,7 +31,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-import com.titanium.maintenance.application.command.MaintenanceConfigurationCommandService;
+import com.titanium.maintenance.application.command.configuration.MaintenanceConfigurationCommandService;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
 import com.titanium.maintenance.application.query.MaintenanceConfigurationQueryService;
 import com.titanium.maintenance.common.context.TenantContext;

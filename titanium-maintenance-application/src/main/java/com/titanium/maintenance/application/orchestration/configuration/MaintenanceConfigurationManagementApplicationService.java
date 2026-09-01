@@ -16,7 +16,7 @@ import com.titanium.maintenance.common.exception.MaintenanceConfigurationPrecond
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.MaintenancePublicationEvidence;
-import com.titanium.maintenance.port.MaintenanceConfigurationFeaturePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationFeaturePort;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.SaveContext;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;

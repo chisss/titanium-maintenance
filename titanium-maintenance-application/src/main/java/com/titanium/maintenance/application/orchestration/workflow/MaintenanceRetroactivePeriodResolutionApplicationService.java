@@ -12,8 +12,8 @@ import java.util.Objects;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 
-import com.titanium.maintenance.application.command.MaintenanceRetroactivePeriodResolutionInput;
-import com.titanium.maintenance.application.model.MaintenanceRetroactivePeriodResolutionResult;
+import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactivePeriodResolutionInput;
+import com.titanium.maintenance.application.model.retroactive.MaintenanceRetroactivePeriodResolutionResult;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodResolutionCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodResolutionCommand;
 import com.titanium.maintenance.command.StartMaintenanceRetroactivePeriodResolutionCommand;
@@ -23,9 +23,9 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeri
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort.ResolutionFact;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort.ResolutionRequest;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionFact;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionRequest;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.MaintenanceId;

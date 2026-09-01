@@ -40,7 +40,7 @@ import com.titanium.maintenance.configuration.control.MaintenanceChannelCapabili
 import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
 import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
-import com.titanium.maintenance.port.MaintenanceConfigurationFeaturePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationFeaturePort;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
 

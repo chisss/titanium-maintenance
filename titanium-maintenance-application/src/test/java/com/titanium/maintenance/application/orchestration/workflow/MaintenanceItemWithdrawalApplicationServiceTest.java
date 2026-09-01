@@ -17,7 +17,7 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import com.titanium.maintenance.application.command.MaintenanceItemWithdrawalInput;
+import com.titanium.maintenance.application.command.withdrawal.MaintenanceItemWithdrawalInput;
 import com.titanium.maintenance.command.ConfigureMaintenanceItemWithdrawalRecoveryCommand;
 import com.titanium.maintenance.command.FailMaintenanceItemWithdrawalCommand;
 import com.titanium.maintenance.command.RecordMaintenanceItemWithdrawalCompensationCommand;
@@ -30,12 +30,12 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementT
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalFundAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalStatus;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
-import com.titanium.maintenance.port.BillingPremiumLifecyclePort;
-import com.titanium.maintenance.port.BillingPremiumLifecyclePort.ReversalFact;
-import com.titanium.maintenance.port.PaymentMaintenanceRefundPort;
-import com.titanium.maintenance.port.PaymentMaintenanceRefundPort.RefundFact;
-import com.titanium.maintenance.port.PaymentPremiumCollectionPort;
-import com.titanium.maintenance.port.PaymentPremiumCollectionPort.CollectionFact;
+import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
+import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort.ReversalFact;
+import com.titanium.maintenance.port.payment.PaymentMaintenanceRefundPort;
+import com.titanium.maintenance.port.payment.PaymentMaintenanceRefundPort.RefundFact;
+import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort;
+import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort.CollectionFact;
 import com.titanium.maintenance.query.repository.MaintenanceCaseItemViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceWorkflowTaskViewRepository;

@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.titanium.maintenance.application.command.MaintenancePremiumSettlementGateInput;
+import com.titanium.maintenance.application.command.premium.MaintenancePremiumSettlementGateInput;
 import com.titanium.maintenance.command.FailMaintenancePremiumSettlementCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumSettlementCommand;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
@@ -32,10 +32,10 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementT
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
-import com.titanium.maintenance.port.BillingPremiumLifecyclePort;
-import com.titanium.maintenance.port.BillingPremiumLifecyclePort.PostingFact;
-import com.titanium.maintenance.port.PaymentPremiumCollectionPort;
-import com.titanium.maintenance.port.PaymentPremiumCollectionPort.CollectionFact;
+import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
+import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort.PostingFact;
+import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort;
+import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort.CollectionFact;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceWorkflowTaskViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;

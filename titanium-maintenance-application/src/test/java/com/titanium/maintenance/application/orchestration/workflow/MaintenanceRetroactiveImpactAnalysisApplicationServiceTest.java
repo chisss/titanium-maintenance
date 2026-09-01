@@ -17,7 +17,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.titanium.maintenance.application.command.MaintenanceRetroactiveImpactAnalysisInput;
+import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactiveImpactAnalysisInput;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactiveImpactAnalysisCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactiveImpactAnalysisCommand;
 import com.titanium.maintenance.command.StartMaintenanceRetroactiveImpactAnalysisCommand;
@@ -27,8 +27,8 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpa
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactItemStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactSeverity;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactType;
-import com.titanium.maintenance.port.MaintenanceRetroactiveImpactSourcePort;
-import com.titanium.maintenance.port.MaintenanceRetroactiveImpactSourcePort.SourceEvidence;
+import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort.SourceEvidence;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactItem;

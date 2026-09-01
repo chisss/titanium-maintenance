@@ -2,7 +2,7 @@ package com.titanium.maintenance.application.orchestration.casecreation;
 
 import java.util.List;
 
-import com.titanium.maintenance.application.command.RecordMaintenanceFieldChangesInput.FieldProposalInput;
+import com.titanium.maintenance.application.command.field.RecordMaintenanceFieldChangesInput.FieldProposalInput;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemCode;
 

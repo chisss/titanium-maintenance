@@ -33,14 +33,14 @@ import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepositor
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationAuditRecord;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationPage;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
-import com.titanium.maintenance.web.dto.MaintenanceConfigurationDTO;
-import com.titanium.maintenance.web.dto.MaintenanceConfigurationValidationDTO;
-import com.titanium.maintenance.web.response.MaintenanceConfigurationAuditPageVO;
-import com.titanium.maintenance.web.response.MaintenanceConfigurationAuditPageVO.ChangeVO;
-import com.titanium.maintenance.web.response.MaintenanceConfigurationPageVO;
-import com.titanium.maintenance.web.response.MaintenanceConfigurationPreviewVO;
-import com.titanium.maintenance.web.response.MaintenanceConfigurationVO;
-import com.titanium.maintenance.web.response.MaintenanceConfigurationValidationVO;
+import com.titanium.maintenance.web.dto.configuration.MaintenanceConfigurationDTO;
+import com.titanium.maintenance.web.dto.configuration.MaintenanceConfigurationValidationDTO;
+import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurationAuditPageVO;
+import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurationAuditPageVO.ChangeVO;
+import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurationPageVO;
+import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurationPreviewVO;
+import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurationVO;
+import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurationValidationVO;
 
 import lombok.RequiredArgsConstructor;
 

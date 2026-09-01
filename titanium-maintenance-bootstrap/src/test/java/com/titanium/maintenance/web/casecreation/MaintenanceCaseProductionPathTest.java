@@ -27,7 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.titanium.maintenance.application.command.MaintenanceCaseCommandService;
+import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceCaseCreationApplicationService;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceFieldDraftApplicationService;
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceEffectApplicationService;
@@ -48,13 +48,13 @@ import com.titanium.maintenance.configuration.MaintenanceEffectiveRule;
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.MaintenanceStepDefinition;
-import com.titanium.maintenance.infrastructure.adapter.PolicyFieldCatalogAdapter;
-import com.titanium.maintenance.infrastructure.adapter.PolicyMaintenanceSnapshotAdapter;
-import com.titanium.maintenance.infrastructure.adapter.ProductMaintenanceOfferingAdapter;
-import com.titanium.maintenance.infrastructure.client.PolicyFieldCatalogClient;
-import com.titanium.maintenance.infrastructure.client.PolicyServiceClient;
-import com.titanium.maintenance.infrastructure.client.ProductMaintenanceOfferingClient;
-import com.titanium.maintenance.port.TenantTimeZonePort;
+import com.titanium.maintenance.infrastructure.adapter.policy.PolicyFieldCatalogAdapter;
+import com.titanium.maintenance.infrastructure.adapter.policy.PolicyMaintenanceSnapshotAdapter;
+import com.titanium.maintenance.infrastructure.adapter.product.ProductMaintenanceOfferingAdapter;
+import com.titanium.maintenance.infrastructure.client.policy.PolicyFieldCatalogClient;
+import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
+import com.titanium.maintenance.infrastructure.client.product.ProductMaintenanceOfferingClient;
+import com.titanium.maintenance.port.tenant.TenantTimeZonePort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
@@ -74,7 +74,7 @@ import com.titanium.policy.api.response.PolicySnapshotFieldValueResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldCapabilityResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldCatalogResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldDescriptorResponse;
-import com.titanium.product.api.response.ProductMaintenanceOfferingResolutionResponse;
+import com.titanium.product.api.response.maintenance.ProductMaintenanceOfferingResolutionResponse;
 
 class MaintenanceCaseProductionPathTest {
 

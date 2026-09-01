@@ -10,7 +10,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
-import com.titanium.maintenance.application.model.MaintenancePremiumSettlementResult;
+import com.titanium.maintenance.application.model.premium.MaintenancePremiumSettlementResult;
 import com.titanium.maintenance.web.mapper.MaintenanceWebMapper;
 import com.titanium.maintenance.web.mapper.MaintenanceWebMapperImpl;
 

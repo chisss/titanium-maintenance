@@ -3,7 +3,7 @@ package com.titanium.maintenance.web.mapper;
 import org.mapstruct.Mapper;
 
 import com.titanium.maintenance.api.response.MaintenanceStatisticsResponse;
-import com.titanium.maintenance.application.model.MaintenanceStatisticsResult;
+import com.titanium.maintenance.application.model.casecreation.MaintenanceStatisticsResult;
 
 /**
  * 保全统计 Web 层对象映射器（MapStruct）

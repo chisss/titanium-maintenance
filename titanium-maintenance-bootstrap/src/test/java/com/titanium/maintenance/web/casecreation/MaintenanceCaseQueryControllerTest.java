@@ -18,7 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import com.titanium.maintenance.application.command.MaintenanceCaseCommandService;
+import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
 import com.titanium.maintenance.application.query.MaintenanceCaseQueryApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;

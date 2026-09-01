@@ -107,4 +107,89 @@ class MaintenanceArchitectureTest extends AbstractArchitectureGuardTest {
         super.apiInterfacesMustBeNamedByAggregate();
     }
 
+
+    /**
+     * 启用「port 包顶层不得平铺类」（2026-09 包结构分包规范）。
+     * <p>
+     * 远程 Port 已按对端域拆子包（billing/customer/maintenance/payment/policy/product/tenant），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void portShouldNotContainFlatClasses() {
+        super.portShouldNotContainFlatClasses();
+    }
+
+    /**
+     * 启用「infrastructure.adapter 包顶层不得平铺类」（2026-09 包结构分包规范）。
+     * <p>
+     * Adapter 已按对端域拆子包（billing/customer/maintenance.config|lease/payment/policy/product/retroactive/underwriting），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void adapterShouldNotContainFlatClasses() {
+        super.adapterShouldNotContainFlatClasses();
+    }
+
+    /**
+     * 启用「infrastructure.client 包顶层不得平铺类」（2026-09 包结构分包规范）。
+     * <p>
+     * Feign Client 已按对端域拆子包（billing/claim/customer/insurance/payment/policy/product），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void clientShouldNotContainFlatClasses() {
+        super.clientShouldNotContainFlatClasses();
+    }
+
+    /**
+     * 启用「web.dto 包顶层不得平铺类」（2026-09 批次 2 包结构分包规范）。
+     * <p>
+     * 前端入参 DTO 已按业务主题拆子包（casecreation/configuration/effect/field/premium/retroactive/withdrawal），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void webDtoShouldNotContainFlatClasses() {
+        super.webDtoShouldNotContainFlatClasses();
+    }
+
+    /**
+     * 启用「web.response 包顶层不得平铺类」（2026-09 批次 2 包结构分包规范）。
+     * <p>
+     * 前端出参 VO 已按业务主题拆子包（casecreation/configuration/effect/premium/retroactive/field/withdrawal/underwriting/error），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void webResponseShouldNotContainFlatClasses() {
+        super.webResponseShouldNotContainFlatClasses();
+    }
+
+    /**
+     * 启用「application.command 包顶层不得平铺类」（2026-09 批次 2 包结构分包规范）。
+     * <p>
+     * 命令门面与入参已按业务主题拆子包（casecreation/configuration/effect/field/premium/retroactive/underwriting/withdrawal），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void applicationCommandShouldNotContainFlatClasses() {
+        super.applicationCommandShouldNotContainFlatClasses();
+    }
+
+    /**
+     * 启用「application.model 包顶层不得平铺类」（2026-09 批次 2 包结构分包规范）。
+     * <p>
+     * 应用层结果模型已按业务主题拆子包（casecreation/effect/field/premium/retroactive/settlement/underwriting/withdrawal，configuration 已于批次 1 拆分），顶层清零。
+     * </p>
+     */
+    @Test
+    @Override
+    protected void applicationModelShouldNotContainFlatClasses() {
+        super.applicationModelShouldNotContainFlatClasses();
+    }
+
 }

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.titanium.maintenance.application.command.MaintenanceRetroactivePeriodRecalculationInput;
+import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactivePeriodRecalculationInput;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodRecalculationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceRetroactiveProductRecalculationCommand;
 import com.titanium.maintenance.command.StartMaintenanceRetroactivePeriodRecalculationCommand;
@@ -29,10 +29,10 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpa
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodRecalculationStatus;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
-import com.titanium.maintenance.port.BillingRetroactivePeriodAdjustmentPort;
-import com.titanium.maintenance.port.BillingRetroactivePeriodAdjustmentPort.AdjustmentFact;
-import com.titanium.maintenance.port.ProductRetroactivePeriodRecalculationPort;
-import com.titanium.maintenance.port.ProductRetroactivePeriodRecalculationPort.RecalculationFact;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodAdjustmentPort;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodAdjustmentPort.AdjustmentFact;
+import com.titanium.maintenance.port.product.ProductRetroactivePeriodRecalculationPort;
+import com.titanium.maintenance.port.product.ProductRetroactivePeriodRecalculationPort.RecalculationFact;
 import com.titanium.maintenance.query.repository.MaintenanceRetroactiveImpactItemViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceRetroactivePeriodAdjustmentViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;

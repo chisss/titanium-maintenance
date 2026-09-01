@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.titanium.maintenance.application.command.MaintenanceAutomaticReviewInput;
+import com.titanium.maintenance.application.command.casecreation.MaintenanceAutomaticReviewInput;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewGate;

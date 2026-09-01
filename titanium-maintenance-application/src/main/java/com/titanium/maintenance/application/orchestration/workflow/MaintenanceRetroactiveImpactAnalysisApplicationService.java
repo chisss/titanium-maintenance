@@ -11,8 +11,8 @@ import java.util.Set;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 
-import com.titanium.maintenance.application.command.MaintenanceRetroactiveImpactAnalysisInput;
-import com.titanium.maintenance.application.model.MaintenanceRetroactiveImpactAnalysisResult;
+import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactiveImpactAnalysisInput;
+import com.titanium.maintenance.application.model.retroactive.MaintenanceRetroactiveImpactAnalysisResult;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactiveImpactAnalysisCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactiveImpactAnalysisCommand;
 import com.titanium.maintenance.command.StartMaintenanceRetroactiveImpactAnalysisCommand;
@@ -21,9 +21,9 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpa
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactDomain;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
-import com.titanium.maintenance.port.MaintenanceRetroactiveImpactSourcePort;
-import com.titanium.maintenance.port.MaintenanceRetroactiveImpactSourcePort.ImpactRequest;
-import com.titanium.maintenance.port.MaintenanceRetroactiveImpactSourcePort.SourceEvidence;
+import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort.ImpactRequest;
+import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort.SourceEvidence;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.MaintenanceId;

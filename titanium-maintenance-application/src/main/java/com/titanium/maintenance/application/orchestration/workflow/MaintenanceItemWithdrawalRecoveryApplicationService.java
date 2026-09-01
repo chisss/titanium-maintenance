@@ -7,10 +7,10 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
-import com.titanium.maintenance.application.command.MaintenanceItemWithdrawalInput;
+import com.titanium.maintenance.application.command.withdrawal.MaintenanceItemWithdrawalInput;
 import com.titanium.maintenance.application.configuration.MaintenanceWithdrawalRecoveryProperties;
-import com.titanium.maintenance.port.MaintenanceItemWithdrawalRecoveryLeasePort;
-import com.titanium.maintenance.port.MaintenanceItemWithdrawalRecoveryLeasePort.WithdrawalRecoveryLease;
+import com.titanium.maintenance.port.maintenance.MaintenanceItemWithdrawalRecoveryLeasePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceItemWithdrawalRecoveryLeasePort.WithdrawalRecoveryLease;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

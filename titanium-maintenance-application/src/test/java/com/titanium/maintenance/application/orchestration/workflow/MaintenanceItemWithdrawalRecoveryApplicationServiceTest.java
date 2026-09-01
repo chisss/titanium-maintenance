@@ -14,10 +14,10 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.titanium.maintenance.application.command.MaintenanceItemWithdrawalInput;
+import com.titanium.maintenance.application.command.withdrawal.MaintenanceItemWithdrawalInput;
 import com.titanium.maintenance.application.configuration.MaintenanceWithdrawalRecoveryProperties;
-import com.titanium.maintenance.port.MaintenanceItemWithdrawalRecoveryLeasePort;
-import com.titanium.maintenance.port.MaintenanceItemWithdrawalRecoveryLeasePort.WithdrawalRecoveryLease;
+import com.titanium.maintenance.port.maintenance.MaintenanceItemWithdrawalRecoveryLeasePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceItemWithdrawalRecoveryLeasePort.WithdrawalRecoveryLease;
 
 class MaintenanceItemWithdrawalRecoveryApplicationServiceTest {
 

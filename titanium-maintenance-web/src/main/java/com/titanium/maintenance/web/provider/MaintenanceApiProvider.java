@@ -13,7 +13,7 @@ import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
 import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
-import com.titanium.maintenance.application.command.MaintenancePremiumSettlementCommandService;
+import com.titanium.maintenance.application.command.premium.MaintenancePremiumSettlementCommandService;
 import com.titanium.maintenance.application.service.MaintenanceApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;

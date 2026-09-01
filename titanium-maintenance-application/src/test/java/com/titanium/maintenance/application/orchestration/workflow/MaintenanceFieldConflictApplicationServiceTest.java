@@ -17,14 +17,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.titanium.maintenance.application.command.RefreshMaintenanceFieldConflictsInput;
-import com.titanium.maintenance.application.command.ResolveMaintenanceFieldConflictInput;
+import com.titanium.maintenance.application.command.field.RefreshMaintenanceFieldConflictsInput;
+import com.titanium.maintenance.application.command.field.ResolveMaintenanceFieldConflictInput;
 import com.titanium.maintenance.command.RefreshMaintenanceFieldConflictsCommand;
 import com.titanium.maintenance.command.ResolveMaintenanceFieldConflictCommand;
 import com.titanium.maintenance.common.enums.change.MaintenanceFieldConflictResolutionAction;
 import com.titanium.maintenance.common.enums.change.PolicyFieldDataType;
-import com.titanium.maintenance.port.PolicyMaintenanceApplicationPort;
-import com.titanium.maintenance.port.PolicyMaintenanceSnapshotPort;
+import com.titanium.maintenance.port.policy.PolicyMaintenanceApplicationPort;
+import com.titanium.maintenance.port.policy.PolicyMaintenanceSnapshotPort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.CustomerId;

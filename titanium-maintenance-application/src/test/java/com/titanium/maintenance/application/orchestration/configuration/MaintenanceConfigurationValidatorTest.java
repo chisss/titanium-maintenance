@@ -28,10 +28,10 @@ import com.titanium.maintenance.configuration.control.MaintenanceChannelCapabili
 import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
 import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
-import com.titanium.maintenance.port.MaintenanceConfigurationReferencePort;
-import com.titanium.maintenance.port.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
-import com.titanium.maintenance.port.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
-import com.titanium.maintenance.port.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
+import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort;
+import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
+import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
+import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;

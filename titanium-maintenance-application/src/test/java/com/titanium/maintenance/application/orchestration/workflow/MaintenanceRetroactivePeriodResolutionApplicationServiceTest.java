@@ -20,7 +20,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
-import com.titanium.maintenance.application.command.MaintenanceRetroactivePeriodResolutionInput;
+import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactivePeriodResolutionInput;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodResolutionCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodResolutionCommand;
 import com.titanium.maintenance.command.StartMaintenanceRetroactivePeriodResolutionCommand;
@@ -29,10 +29,10 @@ import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactAnalysisStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodRecalculationStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort.ResolutionFact;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort.ResolutionLineFact;
-import com.titanium.maintenance.port.BillingRetroactivePeriodResolutionPort.ResolutionRequest;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionFact;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionLineFact;
+import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionRequest;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 

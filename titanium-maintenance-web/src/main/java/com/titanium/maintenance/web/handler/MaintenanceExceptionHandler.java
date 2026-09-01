@@ -31,7 +31,7 @@ import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.common.exception.MaintenanceSettlementConflictException;
 import com.titanium.maintenance.common.exception.PolicyNotFoundException;
-import com.titanium.maintenance.web.response.MaintenanceErrorVO;
+import com.titanium.maintenance.web.response.error.MaintenanceErrorVO;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.exception.DomainException;

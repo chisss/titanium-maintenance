@@ -9,7 +9,7 @@ import org.springframework.mock.web.MockHttpServletRequest;
 
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceSettlementConflictException;
-import com.titanium.maintenance.web.response.MaintenanceErrorVO;
+import com.titanium.maintenance.web.response.error.MaintenanceErrorVO;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceExceptionHandlerTest {

@@ -4,8 +4,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import com.titanium.maintenance.infrastructure.adapter.UnavailablePolicyMaintenanceSnapshotAdapter;
-import com.titanium.maintenance.port.PolicyMaintenanceSnapshotPort;
+import com.titanium.maintenance.infrastructure.adapter.policy.UnavailablePolicyMaintenanceSnapshotAdapter;
+import com.titanium.maintenance.port.policy.PolicyMaintenanceSnapshotPort;
 
 /** Policy 建案快照 Adapter 配置。 */
 @Configuration

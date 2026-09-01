@@ -12,13 +12,13 @@ import com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
 import com.titanium.maintenance.api.response.MaintenanceSurrenderSettlementResponse;
-import com.titanium.maintenance.application.model.MaintenancePremiumSettlementInput;
-import com.titanium.maintenance.application.model.MaintenancePremiumSettlementResult;
-import com.titanium.maintenance.application.model.MaintenanceReadModel;
-import com.titanium.maintenance.application.model.MaintenanceReversalSettlementInput;
-import com.titanium.maintenance.application.model.MaintenanceSurrenderSettlementInput;
-import com.titanium.maintenance.application.model.MaintenanceSurrenderSettlementResult;
-import com.titanium.maintenance.web.response.MaintenanceVO;
+import com.titanium.maintenance.application.model.casecreation.MaintenanceReadModel;
+import com.titanium.maintenance.application.model.premium.MaintenancePremiumSettlementInput;
+import com.titanium.maintenance.application.model.premium.MaintenancePremiumSettlementResult;
+import com.titanium.maintenance.application.model.settlement.MaintenanceReversalSettlementInput;
+import com.titanium.maintenance.application.model.settlement.MaintenanceSurrenderSettlementInput;
+import com.titanium.maintenance.application.model.settlement.MaintenanceSurrenderSettlementResult;
+import com.titanium.maintenance.web.response.casecreation.MaintenanceVO;
 
 /**
  * 保全 Web 层对象映射器（MapStruct 声明式映射）

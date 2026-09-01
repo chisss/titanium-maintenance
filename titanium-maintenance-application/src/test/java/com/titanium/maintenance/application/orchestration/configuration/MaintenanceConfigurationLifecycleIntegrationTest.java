@@ -14,7 +14,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
-import com.titanium.maintenance.application.command.MaintenanceConfigurationCommandService;
+import com.titanium.maintenance.application.command.configuration.MaintenanceConfigurationCommandService;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationValidationCriteria;
 import com.titanium.maintenance.application.query.MaintenanceConfigurationQueryService;
@@ -33,10 +33,10 @@ import com.titanium.maintenance.configuration.control.MaintenanceChannelCapabili
 import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
 import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
-import com.titanium.maintenance.port.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
-import com.titanium.maintenance.port.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
-import com.titanium.maintenance.port.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
-import com.titanium.maintenance.port.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
+import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
+import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
+import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
+import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationAuditPage;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationPage;

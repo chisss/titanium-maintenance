@@ -20,7 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import com.titanium.maintenance.application.model.MaintenanceSearchPageResult;
+import com.titanium.maintenance.application.model.casecreation.MaintenanceSearchPageResult;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
@@ -28,11 +28,11 @@ import com.titanium.maintenance.common.exception.MaintenanceLegacyCreationDisabl
 import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyPremiumCalculationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
-import com.titanium.maintenance.port.CustomerServicePort;
-import com.titanium.maintenance.port.MaintenanceLegacyCreationFeaturePort;
-import com.titanium.maintenance.port.MaintenanceLegacyExecutionFeaturePort;
-import com.titanium.maintenance.port.MaintenanceLegacyPremiumCalculationFeaturePort;
-import com.titanium.maintenance.port.PolicyServicePort;
+import com.titanium.maintenance.port.customer.CustomerServicePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceLegacyCreationFeaturePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceLegacyExecutionFeaturePort;
+import com.titanium.maintenance.port.maintenance.MaintenanceLegacyPremiumCalculationFeaturePort;
+import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.repository.MaintenanceExclusionRepository;

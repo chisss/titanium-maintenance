@@ -9,9 +9,9 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 
-import com.titanium.maintenance.infrastructure.adapter.PolicyMaintenanceSnapshotAdapter;
-import com.titanium.maintenance.infrastructure.client.PolicyServiceClient;
-import com.titanium.maintenance.port.PolicyMaintenanceSnapshotPort;
+import com.titanium.maintenance.infrastructure.adapter.policy.PolicyMaintenanceSnapshotAdapter;
+import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
+import com.titanium.maintenance.port.policy.PolicyMaintenanceSnapshotPort;
 
 class PolicyMaintenanceSnapshotAdapterConfigTest {
 
