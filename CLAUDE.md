@@ -137,12 +137,12 @@ titanium-maintenance/
 ```bash
 export JAVA_HOME=/Users/sunwei/Library/Java/JavaVirtualMachines/corretto-21.0.4/Contents/Home
 
-# 仅构建本模块（依赖已装入本地仓库时）
-cd /Users/sunwei/titanium-project
-mvn -pl titanium-maintenance -am clean install -DskipTests
+# 构建保全域（域目录即 Maven reactor，一次构建全部子模块）
+cd /Users/sunwei/titanium-project/titanium-maintenance
+mvn clean install -DskipTests
 
 # 启动保全域服务（端口 8083）
-cd titanium-maintenance/titanium-maintenance-bootstrap
+cd titanium-maintenance-bootstrap
 mvn spring-boot:run
 ```
 
