@@ -160,7 +160,7 @@ mvn spring-boot:run
 4. **🟠 端口/库端口需复核**：服务端口 `8083`；数据库连到 `localhost:8066`（疑似 MyCat/中间件端口而非 MySQL 默认 3306），与其它域端口规划需统一，避免与已有域冲突。
 5. **🟠 包结构不符规约**：领域层包名缺 `.domain` 段；命令未用 record；启动类名为 `Bootstrap`。需评估重构成本与向后兼容。
 6. **🟡 跨域同步耦合**：创建保全强依赖保单域/客户域 Feign 同步调用，且未配置熔断（`feign.hystrix.enabled: false`），下游不可用时保全创建直接失败，无降级。
-7. **🟡 异常吞噬**：`validatePolicyStatusForMaintenance` 的 `catch (Exception)` 会把所有异常归并为 `PolicyNotFoundException`（仅显式放行两类），易掩盖真实错误。
+7. ~~**🟡 异常吞噬**：`validatePolicyStatusForMaintenance` 的 `catch (Exception)` 会把所有异常归并为 `PolicyNotFoundException`，易掩盖真实错误。~~ ✅ **已修复（D13）**：`PolicyServiceAdapter` 现严格区分「不可达」与「不存在」——保单域**正常应答**但业务码失败/数据缺失 → 返回 `false`/`null`（业务语义）；调用**抛异常**（连接失败、超时、5xx、契约反序列化）→ 抛 `MaintenanceRemoteCallException`（错误码 `MAINTENANCE_POLICY_REMOTE_ERROR` 71006012，Web 层映射 HTTP 502）。应用层 `validatePolicyStatusForMaintenance` 的 catch-all 已删除，技术故障不再被伪装成「保单不存在」。
 8. **🟡 缺测试**：domain/application/infrastructure 三层均缺单元测试，违反根规约第九章；补测试为交付前必做项。
 9. **🟡 缺 README**：本模块尚无符合规约第十二章的 README.md。
 

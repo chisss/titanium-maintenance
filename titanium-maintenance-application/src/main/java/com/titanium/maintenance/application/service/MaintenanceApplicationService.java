@@ -318,6 +318,8 @@ public class MaintenanceApplicationService {
     }
 
     // 检查保单是否存在
+    // 🔴 适配器已区分「不可达」与「不存在」：此处返回 false 仅代表保单域正常应答但无有效保单事实，
+    // 服务不可达时适配器抛 MaintenanceRemoteCallException，不会被误判为不存在（D13）
     private void validatePolicyExists(String policyId, String tenantId) {
         if (!policyServicePort.policyExists(policyId, tenantId)) {
             throw new PolicyNotFoundException();
@@ -325,13 +327,10 @@ public class MaintenanceApplicationService {
     }
 
     // 验证保单状态是否符合保全类型要求
+    // 🔴 禁止 catch-all 归一为「保单不存在」：那会把保单服务故障伪装成数据问题（D13）。
+    // 适配器已把技术故障抛为 MaintenanceRemoteCallException，此处原样上抛，由 Web 层映射 HTTP 502。
     private void validatePolicyStatusForMaintenance(String policyId, MaintenanceType maintenanceType, String tenantId) {
-        PolicyServicePort.PolicyStatusSnapshot policyStatus;
-        try {
-            policyStatus = policyServicePort.getPolicyStatus(policyId, tenantId);
-        } catch (Exception e) {
-            throw new PolicyNotFoundException();
-        }
+        PolicyServicePort.PolicyStatusSnapshot policyStatus = policyServicePort.getPolicyStatus(policyId, tenantId);
 
         switch (maintenanceType) {
             case POLICY_REINSTATEMENT:

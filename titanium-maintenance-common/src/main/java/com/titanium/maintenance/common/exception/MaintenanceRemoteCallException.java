@@ -15,4 +15,15 @@ public class MaintenanceRemoteCallException extends BusinessException {
     public MaintenanceRemoteCallException(String message, BaseErrorCode errorCode) {
         super(message, errorCode);
     }
+
+    /**
+     * 携带根因构造：便于定位网络/超时/契约反序列化等真实故障，避免根因在适配器边界丢失。
+     *
+     * @param message   错误消息
+     * @param errorCode 标准错误码枚举
+     * @param cause     根因异常
+     */
+    public MaintenanceRemoteCallException(String message, BaseErrorCode errorCode, Throwable cause) {
+        super(message, errorCode, cause);
+    }
 }
