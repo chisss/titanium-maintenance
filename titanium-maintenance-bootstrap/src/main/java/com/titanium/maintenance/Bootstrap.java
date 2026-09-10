@@ -14,11 +14,13 @@ import org.springframework.scheduling.annotation.EnableScheduling;
  * 写侧为 Axon 事件溯源聚合根，写模型实体位于 {@code infrastructure.entity}；读侧读模型 {@code query.view}
  * 由投影维护。JPA 同时扫描写侧 {@code infrastructure.entity} 与读侧 {@code query.view}， 仓储扫描
  * {@code infrastructure.repository} 与 {@code query.repository}。 {@code @EnableScheduling} 驱动读侧 DLQ 重试。
+ * {@code @ComponentScan} 额外扫 {@code com.titanium.common}：读侧投影发号依赖共享内核的
+ * {@code JdbcBusinessNumberGenerator}（对齐 clause 域样板）。
  * </p>
  */
 @SpringBootApplication
 @EnableScheduling
-@ComponentScan(basePackages = "com.titanium.maintenance")
+@ComponentScan(basePackages = { "com.titanium.maintenance", "com.titanium.common" })
 @EntityScan(basePackages = { "com.titanium.maintenance.infrastructure.entity", "com.titanium.maintenance.query.view" })
 @EnableJpaRepositories(basePackages = { "com.titanium.maintenance.infrastructure.repository",
         "com.titanium.maintenance.query.repository" })

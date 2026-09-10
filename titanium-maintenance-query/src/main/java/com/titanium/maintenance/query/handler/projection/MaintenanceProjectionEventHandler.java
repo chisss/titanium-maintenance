@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -53,6 +54,7 @@ public class MaintenanceProjectionEventHandler {
     private final MaintenanceViewMapper maintenanceViewMapper;
     private final BusinessNumberGenerator businessNumberGenerator;
 
+    @Autowired
     public MaintenanceProjectionEventHandler(MaintenanceViewRepository repository, MaintenanceViewMapper mapper,
                                               BusinessNumberGenerator generator) {
         this.maintenanceViewRepository = repository;
