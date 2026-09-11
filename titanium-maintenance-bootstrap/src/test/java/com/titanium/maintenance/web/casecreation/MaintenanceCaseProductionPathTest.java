@@ -237,8 +237,10 @@ class MaintenanceCaseProductionPathTest {
     }
 
     private PolicyFieldCatalogResponse fieldCatalog() {
+        // 🔴 手机号在 Policy 真实目录中为 executable（PolicyFieldCatalog.java:75）：本用例走的是「成功受理」路径，
+        // 夹具须与真实目录一致，否则会被受理环节的可执行性预检拦下、异步不会启动。
         PolicyFieldCapabilityResponse capability = new PolicyFieldCapabilityResponse(
-                true, true, true, false, false, "POLICY_INFO_CHANGE");
+                true, true, true, true, false, "POLICY_INFO_CHANGE");
         PolicyFieldDescriptorResponse mobile = new PolicyFieldDescriptorResponse(
                 "policy.holder.mobile", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
                 "policy.field.holder.mobile", false, null, capability,

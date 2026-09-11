@@ -2,6 +2,7 @@ package com.titanium.maintenance.application.orchestration.casecreation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -117,6 +118,24 @@ class MaintenanceFieldDraftApplicationServiceTest {
     }
 
     @Test
+    void shouldRejectFieldWithoutExecutorBeforeSendingCommand() {
+        when(policySnapshotPort.capture(any())).thenReturn(policySnapshot());
+        when(fieldCatalogPort.getCatalog(any())).thenReturn(fieldCatalog());
+        // 邮箱字段可提案但无执行器，改造前会被受理、直到「生效」环节才失败
+        MaintenanceFieldDraftRequest notExecutable = new MaintenanceFieldDraftRequest(
+                "maintenance-1", "POLICY_INFO_CHANGE",
+                List.of(new FieldProposalInput(
+                        null, "policy.holder.email", PolicyFieldDataType.TEXT, "holder@example.com")),
+                "operator-1", "tenant-1");
+
+        MaintenanceValidationException exception = assertThrows(
+                MaintenanceValidationException.class, () -> service.record(notExecutable));
+
+        assertTrue(exception.getMessage().contains("字段尚未开放真实执行: policy.holder.email"));
+        verifyNoInteractions(commandGateway);
+    }
+
+    @Test
     void shouldRejectMissingOrUninitializedCaseBeforeReadingPolicy() {
         when(maintenanceViewRepository
                 .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
@@ -162,11 +181,14 @@ class MaintenanceFieldDraftApplicationServiceTest {
     }
 
     private PolicyFieldCatalogEvidence fieldCatalog() {
+        // 🔴 手机号在 Policy 真实目录中为 executable（PolicyFieldCatalog.java:75），夹具须与之一致，
+        // 否则用例断言的是「提案一个永不具执行能力的字段仍被受理」这一线上不存在的场景。
         PolicyFieldDescriptorEvidence mobile = new PolicyFieldDescriptorEvidence(
                 "policy.holder.mobile", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
                 "policy.field.holder.mobile", false, null,
-                new PolicyFieldCapabilityEvidence(true, true, true, false, false, "POLICY_INFO_CHANGE"),
+                new PolicyFieldCapabilityEvidence(true, true, true, true, false, "POLICY_INFO_CHANGE"),
                 PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null);
+        // 邮箱在真实目录中为 proposal(...)（PolicyFieldCatalog.java:78），即「可提案、无执行器」。
         PolicyFieldDescriptorEvidence email = new PolicyFieldDescriptorEvidence(
                 "policy.holder.email", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
                 "policy.field.holder.email", false, null,

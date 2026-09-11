@@ -55,12 +55,40 @@ public class MaintenanceFieldDraftApplicationService {
                 new PolicyFieldCatalogRequest(
                         request.tenantId(), null, null,
                         currentSnapshot.businessEffectiveAt().toLocalDate()));
+        requireExecutableFields(proposals, catalog);
         MaintenanceFieldCatalogSnapshot catalogSnapshot = catalogSnapshot(
                 request, currentSnapshot, proposals, catalog);
         ProposeMaintenanceFieldChangesCommand command = new ProposeMaintenanceFieldChangesCommand(
                 MaintenanceId.of(request.maintenanceId()), request.itemCode(), currentSnapshot,
                 proposals, catalogSnapshot, request.operatorId(), request.tenantId());
         return commandGateway.send(command).thenApply(ignored -> null);
+    }
+
+    /**
+     * 受理环节预检字段可执行性：目录中 {@code executionSupported=false} 的字段在本域没有落地执行器。
+     * <p>
+     * 这类字段此前「受理放行、生效必败」——{@code MaintenanceEffectApplicationService} 的
+     * {@code validateExecutionCapabilities} 是唯一拦截点，用户须走完审核流程才拿到必然的失败。
+     * 此处提前到受理环节拒绝，失败点与失败原因同时前移。
+     * </p>
+     * <p>
+     * 🔴 判据取<b>实时目录证据</b>（{@link PolicyFieldCatalogEvidence}），而非本次冻结的
+     * {@code MaintenanceFieldCatalogSnapshot}：后者不携带 {@code executionSupported}（缺口登记 G3 未解），
+     * 且为其补字段会改变 {@code sameAuthorityAs} 所依赖的 {@code fields.equals()} 语义，使历史事件
+     * 反序列化出的旧快照与新采快照永不相等。取值口径因此与生效环节保持同源（同为实时目录），不引入第二套权威。
+     * </p>
+     * <p>
+     * 与生效环节的差异仅在<b>时机</b>：本预检对「同一字段多次提案」按字段码去重，失败信息与错误码两处一致。
+     * </p>
+     */
+    private void requireExecutableFields(
+            List<MaintenanceFieldProposal> proposals,
+            PolicyFieldCatalogEvidence catalog) {
+        proposals.forEach(proposal -> {
+            if (!catalog.requireField(proposal.fieldCode()).capability().executionSupported()) {
+                throw validation("fieldCode", "字段尚未开放真实执行: " + proposal.fieldCode());
+            }
+        });
     }
 
     private String resolvePolicyId(MaintenanceFieldDraftRequest request) {
@@ -131,5 +159,10 @@ public class MaintenanceFieldDraftApplicationService {
             PolicyMaintenanceSnapshotFailureReason reason,
             String message) {
         return new PolicyMaintenanceSnapshotException(reason, message);
+    }
+
+    private MaintenanceValidationException validation(String fieldName, String message) {
+        return new MaintenanceValidationException(
+                "MaintenanceFieldDraftApplicationService", fieldName, message);
     }
 }

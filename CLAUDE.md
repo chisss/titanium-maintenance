@@ -192,6 +192,13 @@ mvn spring-boot:run
     - **跟进方向**：优先给「资金类 + 状态终态类」命令补 `tenantId` 并加聚合层 `requireSameTenant`（参照 `BillingAccount.requireSameTenant` 范式：失败关闭 + 用 `*_NOT_EXIST` 码不泄漏资源是否存在）；CMD 契约变更须评估在途消息兼容性。
     - 跨域同批处置见 [docs/当前系统现状评估-2026-09.md](../docs/当前系统现状评估-2026-09.md) C-02（policy 29 处理器已补齐、billing 垫缴命令已补齐，本域为唯一遗留）。
 
+15. ✅ **受理环节预检字段可执行性（m3-901，2026-09-11，缺口登记 G1）**：字段目录中 `executionSupported=false` 的字段在本域没有落地执行器（见 §2.1 三类根因），而**唯一拦截点原在「生效」环节**——`MaintenanceEffectApplicationService:517` 的 `validateExecutionCapabilities`。结果是这类字段**受理放行、生效必败**：用户在受理环节提交提案、走完审核流程，才在生效时拿到必然的失败。
+    - **修复**：`MaintenanceFieldDraftApplicationService.record` 在取得实时目录证据后新增 `requireExecutableFields(proposals, catalog)`，对不可执行字段在**派发提案命令之前**即以 `MaintenanceValidationException` 拒绝（字段码 `fieldCode`，文案与生效环节逐字一致：`"字段尚未开放真实执行: " + fieldCode`）。
+    - 🔴 **判据取实时目录证据 `PolicyFieldCatalogEvidence`，不改事件快照 `MaintenanceFieldCatalogSnapshot`**：后者不携带 `executionSupported`（即缺口登记 G3 未解），且为其补字段会改变 `sameAuthorityAs` 所依赖的 `fields.equals()` 语义——`Maintenance.java:1350` 用它比对「存量快照 vs 新采快照」，历史事件反序列化出的旧快照（缺字段 ⇒ `false`）将与新快照**永不相等**。故本任务刻意不走 G3 路线，取值口径与生效环节保持同源（同为实时目录），不引入第二套权威。
+    - **测试**：`MaintenanceFieldDraftApplicationServiceTest` 新增 `shouldRejectFieldWithoutExecutorBeforeSendingCommand`（提案 `policy.holder.email` —— 真实目录中为 `proposal(...)`，即「可提案、无执行器」——断言抛 `MaintenanceValidationException` 且 `verifyNoInteractions(commandGateway)`，**锁死「拒绝发生在派发之前」**）。
+    - 🔴 **连带修正两处过期测试夹具**：`MaintenanceFieldDraftApplicationServiceTest.fieldCatalog()` 与 `MaintenanceCaseProductionPathTest.fieldCatalog()` 均把 `policy.holder.mobile` 的 `executionSupported` 标为 `false`，而**真实目录 `PolicyFieldCatalog.java:75` 早已是 `executable(...)`**。夹具与目录不一致使「提案手机号」这条成功路径的用例实际断言的是线上不存在的场景；预检上线后二者立即转红（后者表现为 `Async not started`——校验失败走同步异常响应，HTTP 路径不再进入异步）。已将两处夹具对齐真实目录。
+    - **判据（可复用）**：**测试夹具承载的是「目录/契约快照」，一旦生产侧目录演进，夹具不会自动跟随**——新增「依据目录权威做前置拒绝」的校验时，务必先核对夹具是否仍代表线上现状，否则会把夹具漂移误判为逻辑缺陷。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*
