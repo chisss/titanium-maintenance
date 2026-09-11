@@ -124,16 +124,26 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
                 view.getRetroactiveImpactResultHash(), view.getOriginalCalculationId(),
                 view.getReplacementCalculationId(), view.getRetroactiveImpactScopeFrom(),
                 view.getRetroactiveImpactScopeTo(), periods, productRequestId);
+        // 🔴 读取顺序关键（m1-809）：可复用证据必须在派发 Start 之前读取。
+        // Start 命令的投影（MaintenanceRetroactivePeriodRecalculationStartedEvent）会按
+        // tenantId + maintenanceId 清空本案件的期间调整行，若先派发再读，复用的期间明细将读成空集，
+        // 结果是 `retroactivePeriodCount` 静默归零、期间差异明细丢失。
+        // 当前 Start 处理器在「同操作 + 同请求摘要」时提前返回不发事件，掩盖了该顺序问题；
+        // 此处显式固定顺序，使正确性不再依赖远端聚合的早返回守卫。
+        // 与上方 affectedPeriods 同属「为本次重算取证」的只读步骤：读取失败即前置取证失败，
+        // 此时尚无检查点可标记失败，故直接抛出而不派发 Fail 命令。
+        MaintenanceRetroactiveProductRecalculationEvidence reusableProductEvidence =
+                reusableProductEvidence(view, input, recalculationId);
+
         commandGateway.sendAndWait(new StartMaintenanceRetroactivePeriodRecalculationCommand(
                 MaintenanceId.of(input.maintenanceId()), recalculationId, input.operationId(),
                 productRequest.payloadHash(), view.getRetroactiveImpactAnalysisId(),
                 view.getRetroactiveImpactAnalysisVersion(), view.getRetroactiveImpactResultHash(),
                 LocalDateTime.now(), input.operatorId()));
 
-        MaintenanceRetroactiveProductRecalculationEvidence productEvidence = null;
+        MaintenanceRetroactiveProductRecalculationEvidence productEvidence = reusableProductEvidence;
         String failureCode = PRODUCT_FAILURE_CODE;
         try {
-            productEvidence = reusableProductEvidence(view, input, recalculationId);
             if (productEvidence == null) {
                 productEvidence = toEvidence(productPort.recalculate(productRequest));
                 commandGateway.sendAndWait(new RecordMaintenanceRetroactiveProductRecalculationCommand(

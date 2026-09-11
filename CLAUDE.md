@@ -180,6 +180,11 @@ mvn spring-boot:run
     **判据**：分区键的选取必须与**消费端的聚合/回写维度**一致，而非与「本域聚合 ID」想当然一致；同一业务键的事件数 >1 时，键选错即等于放弃保序。
     **测试**：新增 `MaintenanceKafkaEventPublisherTest` 3 例——① 核心：执行事件按 `policyId` 分区；② `policyId` 缺失退化为保全 ID 且不抛异常；③ 其余无消费方主题仍按保全 ID 分区（防顺手改动其语义）。
 
+13. ✅ **回溯期间重算的复用证据读取顺序（m1-809，2026-09-11，D14 全域排查命中）**：`MaintenanceRetroactivePeriodRecalculationApplicationService#recalculate` 原先在 `sendAndWait(StartMaintenanceRetroactivePeriodRecalculationCommand)` **之后**才调 `reusableProductEvidence(...)`，而该方法读的是读模型 `t_maintenance_retroactive_period_adjustment_view`；`Start` 事件（`MaintenanceRetroactivePeriodRecalculationStartedEvent`）的投影按 `tenantId + maintenanceId` **清空**同一批期间行（`MaintenanceRetroactivePeriodRecalculationProjectionEventHandler:40`）——即「先删后读」。
+    **实际影响**：当前**不触发**。`reusableProductEvidence` 仅在 `sameOperation(view, operationId)` 为真时读库，而此时 `Maintenance` 聚合的 `Start` 处理器会走 `sameRequest(operationId, requestHash)` 早返回、**不发事件**（`Maintenance.java:786-788`），投影因而不会执行清空。故这是**设计脆弱点而非在逃缺陷**——正确性依赖「应用层读序 + 聚合早返回 + 投影删除」三者跨模块咬合，任一环节演进而无人复核即静默丢失期间差异明细（`retroactivePeriodCount` 归零）。
+    **修复**：把 `reusableProductEvidence(view, input, recalculationId)` 提到 `Start` 派发**之前**，与 `affectedPeriods(...)` 同属「为本次重算取证」的只读步骤；读取失败即前置取证失败，此时尚无检查点可标记失败，故直接抛出而不派发 `Fail` 命令（与 `Fail` 处理器的 `requireRetroactivePeriodRecalculation` 前置守卫一致）。
+    **测试**：`MaintenanceRetroactivePeriodRecalculationApplicationServiceTest#shouldReuseProductCheckpointWhenRetryingBillingFailure` 补 `InOrder` 顺序断言——`periodAdjustmentViewRepository.findBy...` 必须先于 `commandGateway.sendAndWait(Start...)`，顺序一旦回退即红。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*

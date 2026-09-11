@@ -3,6 +3,7 @@ package com.titanium.maintenance.application.orchestration.workflow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -17,6 +18,7 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactivePeriodRecalculationInput;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodRecalculationCommand;
@@ -123,6 +125,17 @@ class MaintenanceRetroactivePeriodRecalculationApplicationServiceTest {
                 captor.getAllValues().getFirst().getClass());
         assertEquals(CompleteMaintenanceRetroactivePeriodRecalculationCommand.class,
                 captor.getAllValues().get(1).getClass());
+
+        // 🔴 顺序断言（m1-809）：复用证据必须**先于** Start 命令派发读取。
+        // Start 的投影（MaintenanceRetroactivePeriodRecalculationStartedEvent）会按
+        // tenantId + maintenanceId 清空本案件的期间调整行；先派发再读必然读成空集，
+        // 期间差异明细与 retroactivePeriodCount 将被静默清零。
+        InOrder readBeforeDispatch = inOrder(periodRepository, commandGateway);
+        readBeforeDispatch.verify(periodRepository)
+                .findByTenantIdAndMaintenanceIdAndPeriodRecalculationIdOrderByPeriodStartAscPeriodIdAsc(
+                        "tenant-1", "case-1", "period-recalculation-1");
+        readBeforeDispatch.verify(commandGateway)
+                .sendAndWait(any(StartMaintenanceRetroactivePeriodRecalculationCommand.class));
     }
 
     @Test
