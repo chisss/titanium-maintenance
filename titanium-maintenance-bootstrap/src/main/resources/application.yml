@@ -12,7 +12,7 @@ spring:
   datasource:
     url: jdbc:mysql://localhost:8066/titanium_maintenance?useSSL=false&serverTimezone=UTC&useUnicode=true&characterEncoding=utf8
     username: root
-    password: 123456
+    password: ${DB_PASSWORD:123456}
     driver-class-name: com.mysql.cj.jdbc.Driver
   # Redis配置
   data:
@@ -40,7 +40,7 @@ spring:
       naming:
         physical-strategy: com.titanium.common.jpa.AxonTablePrefixPhysicalNamingStrategy
       ddl-auto: none
-    show-sql: true
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect

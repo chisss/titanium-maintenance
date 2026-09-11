@@ -15,6 +15,10 @@
 
     <dependencies>
         <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+        <dependency>
             <groupId>com.titanium</groupId>
             <artifactId>titanium-maintenance-web</artifactId>
             <version>1.0.0-SNAPSHOT</version>
