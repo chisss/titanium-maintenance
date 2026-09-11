@@ -107,7 +107,11 @@ titanium-maintenance/
 
 ### 4.3 事件（5个）
 
-`MaintenanceCreatedEvent`、`MaintenanceStatusChangedEvent`、`MaintenanceChangeAddedEvent`、`MaintenancePremiumCalculatedEvent`、`MaintenanceExecutedEvent`。全部经 `MaintenanceKafkaEventPublisher` 转发到对应 Kafka Topic（`MaintenanceConstants.KafkaTopic.*`），消息 Key 为保全 ID；读模型投影另由 query 侧 `MaintenanceProjectionEventHandler` 维护。
+`MaintenanceCreatedEvent`、`MaintenanceStatusChangedEvent`、`MaintenanceChangeAddedEvent`、`MaintenancePremiumCalculatedEvent`、`MaintenanceExecutedEvent`。全部经 `MaintenanceKafkaEventPublisher` 转发到对应 Kafka Topic（`MaintenanceConstants.KafkaTopic.*`），读模型投影另由 query 侧 `MaintenanceProjectionEventHandler` 维护。
+
+> 🔴 **分区键不统一，判据是「消费端的保序维度」而非「本域聚合 ID」**（见 §7.12）：
+> - `MAINTENANCE_EXECUTED` → **`policyId`**（唯一消费方 policy 域按保单回写，须按保单保序）；
+> - 其余四个主题 → `maintenanceId`（全仓无消费方，待出现消费方时再按同一判据评估）。
 
 ### 4.4 枚举
 
@@ -170,6 +174,11 @@ mvn spring-boot:run
 
     **原先的缺口**：旧入口只校验 `status = APPROVED`，而该状态可经 `ChangeMaintenanceStatusCommand` 任意设置，独立建案因此也能进旧入口 → 同一保单被两条通道重复施加。**收敛手段**：`MaintenanceApplicationService.executeMaintenance` 在 `requireMaintenanceExists` 之后、状态校验之前拒绝 `independentCase=true` 的案件（`MaintenanceLegacyExecutionIndependentCaseForbiddenException`，错误码 `71003003`，Web 层映射 HTTP 409）。`ExecuteMaintenanceCommand` 生产侧唯一发送点即该方法，**无旁路**。
     **为何不删旧通道**：新版通道 `requireContext` 强制 `independentCase=true 且 initializationCompleted=true`（`MaintenanceViewRepository.findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue`），对历史案件抛 `MaintenanceNotFoundException`，**无法替代旧通道**；旧入口的 `legacy-execution-enabled` 开关默认值保持 `true` 以兼容在途旧案。
+12. ✅ **保全执行事件分区键改按保单（m0-718，2026-09-11）**：`MaintenanceKafkaEventPublisher` 原对 5 个主题一律用 `maintenanceId` 作分区键，但 `MAINTENANCE_EXECUTED` 的唯一消费方是 policy 域 `MaintenanceExecutedEventListener`，它按 `message.policyId()` 回写保单状态与要素。
+    **原缺陷**：同一保单的多次保全执行（退保前先改受益人、多次批改等）散落不同分区被**并行**消费，Kafka「同分区内保序」落空 → policy 侧 m0-707 建立的「字段级 version + 快照哈希」过期写保护失效，**旧版本回写可能后到并覆盖新版本**。
+    **修复**：仅 `MAINTENANCE_EXECUTED` 的分区键改为 `policyId`（缺失时退化为 `maintenanceId` 并 `log.warn` 暴露数据异常，与 underwriting `underwriting-decided` 先例同构）；其余四个主题全仓无消费方，**保持按保全 ID 不动**（YAGNI，待出现消费方时再按同一判据评估）。
+    **判据**：分区键的选取必须与**消费端的聚合/回写维度**一致，而非与「本域聚合 ID」想当然一致；同一业务键的事件数 >1 时，键选错即等于放弃保序。
+    **测试**：新增 `MaintenanceKafkaEventPublisherTest` 3 例——① 核心：执行事件按 `policyId` 分区；② `policyId` 缺失退化为保全 ID 且不抛异常；③ 其余无消费方主题仍按保全 ID 分区（防顺手改动其语义）。
 
 ---
 

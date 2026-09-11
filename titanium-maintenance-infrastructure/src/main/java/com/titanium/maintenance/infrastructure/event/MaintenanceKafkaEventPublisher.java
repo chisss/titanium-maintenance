@@ -56,6 +56,31 @@ public class MaintenanceKafkaEventPublisher {
     @EventHandler
     public void handle(MaintenanceExecutedEvent event) {
         log.info("Handling MaintenanceExecutedEvent: {}", event);
-        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_EXECUTED, event.maintenanceId().id(), event);
+        kafkaTemplate.send(MaintenanceConstants.KafkaTopic.MAINTENANCE_EXECUTED, executionPartitionKey(event), event);
+    }
+
+    /**
+     * 保全执行事件的分区键取**保单ID**，而非本聚合标识保全ID。
+     * <p>
+     * 🔴 分区键的判据是「下游消费的保序维度」，不是「事件的产生者」。本主题的唯一消费方是 policy 域
+     * {@code MaintenanceExecutedEventListener}，它按 {@code message.policyId()} 回写保单状态与要素。
+     * 若按 maintenanceId 分区，同一保单的多次保全执行会散落不同分区、被并行消费，policy 侧「字段级
+     * version + 快照哈希」的过期写保护随之失效（旧版本回写可能后到并覆盖新版本）。故必须按保单分区。
+     * </p>
+     * <p>
+     * 其余四个主题（created/status-changed/change-added/premium-calculated）全仓无消费方，其分区键
+     * 保持按保全ID（见各 {@code handle} 方法），待出现消费方时再按同样的判据评估。
+     * </p>
+     */
+    private String executionPartitionKey(MaintenanceExecutedEvent event) {
+        if (event.policyId() != null) {
+            return event.policyId();
+        }
+        // 理论不可达：CreateMaintenanceCommand 强制 policyId 非空（Maintenance#on(MaintenanceCreatedEvent) 回放填充），
+        // 仅旧事件流可能缺字段。此时无法按保单分区，退化为按保全ID分区——各保全案件天然独立，单案件内仍保序——
+        // 并告警暴露数据异常。
+        log.warn("保全执行事件缺少 policyId，退化按 maintenanceId 分区，同一保单的多次保全回写无法保证有序: "
+                + "maintenanceId={}", event.maintenanceId().id());
+        return event.maintenanceId().id();
     }
 }
