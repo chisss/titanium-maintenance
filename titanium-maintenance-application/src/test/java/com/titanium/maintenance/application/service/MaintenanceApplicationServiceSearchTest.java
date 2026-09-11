@@ -26,6 +26,7 @@ import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyCreationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionDisabledException;
+import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionIndependentCaseForbiddenException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyPremiumCalculationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.port.customer.CustomerServicePort;
@@ -128,6 +129,22 @@ class MaintenanceApplicationServiceSearchTest {
 
         assertEquals("maintenance-1", maintenanceId);
         verify(commandGateway).send(any(ExecuteMaintenanceCommand.class));
+    }
+
+    @Test
+    void shouldRejectLegacyExecutionForIndependentCase() {
+        when(legacyExecutionFeaturePort.isEnabled("tenant-1")).thenReturn(true);
+        MaintenanceView independent = independentView("maintenance-1", true);
+        independent.setStatus(MaintenanceStatus.APPROVED);
+        when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "tenant-1"))
+                .thenReturn(Optional.of(independent));
+
+        assertThrows(MaintenanceLegacyExecutionIndependentCaseForbiddenException.class,
+                () -> service.executeMaintenance(
+                        "maintenance-1", LocalDateTime.parse("2026-08-26T15:30:00"),
+                        "旧版整案执行", "operator-1", "tenant-1"));
+
+        verifyNoInteractions(commandGateway);
     }
 
     @Test

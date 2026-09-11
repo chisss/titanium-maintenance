@@ -164,6 +164,12 @@ mvn spring-boot:run
 8. **🟡 缺测试**：domain/application/infrastructure 三层均缺单元测试，违反根规约第九章；补测试为交付前必做项。
 9. **🟡 缺 README**：本模块尚无符合规约第十二章的 README.md。
 10. ✅ **单任务点命令已清理（m0-705，2026-09-11）**：删除 5 个已被案件级命令取代的命令——`InitializeMaintenanceWorkflowCommand`（回填职责并入 `CompleteMaintenanceCaseInitializationCommand`）、`RequestMaintenanceEffectCommand`/`RecordMaintenancePolicyApplicationCommand`/`FailMaintenanceEffectCommand`（案件级 `RequestMaintenanceCaseEffectCommand`/`RecordMaintenanceCasePolicyApplicationCommand`/`FailMaintenanceCaseEffectCommand` 调用同一值对象方法，功能全覆盖且强制全部生效任务原子处理，约束更紧）、`RecordMaintenanceFieldChangesCommand`（字段提案唯一入口为 `ProposeMaintenanceFieldChangesCommand`，经 `MaintenanceFieldProposalPlanner` 做目录权威校验）。同步删除 `MaintenanceConstants.KafkaTopic` 中零引用的 `POLICY_UPDATED`/`CUSTOMER_UPDATED`，并更新 `DESIGN.md` 四处叙述。
+11. ✅ **双回写通道按案件代数互斥（m0-707，2026-09-11，缺陷 D9）**：保全域并存两代案件与两条回写通道——
+    - **独立建案**（`t_maintenance_view.independent_case = true`）：案件平台任务级生效，经 `MaintenanceEffectApplicationService` → `PolicyMaintenanceApplicationPort` → policy `ApplyPolicyMaintenanceCommand`（字段级 + 版本 + 快照哈希）同步回写；
+    - **历史案件**（`independent_case = false`）：旧版整案执行 `POST /web|api/v1/maintenances/{id}/execute`，经 `maintenance-executed` Kafka 主题 → policy `MaintenanceExecutedEventListener` → `MaintenanceWriteBackStrategy` 异步回写。
+
+    **原先的缺口**：旧入口只校验 `status = APPROVED`，而该状态可经 `ChangeMaintenanceStatusCommand` 任意设置，独立建案因此也能进旧入口 → 同一保单被两条通道重复施加。**收敛手段**：`MaintenanceApplicationService.executeMaintenance` 在 `requireMaintenanceExists` 之后、状态校验之前拒绝 `independentCase=true` 的案件（`MaintenanceLegacyExecutionIndependentCaseForbiddenException`，错误码 `71003003`，Web 层映射 HTTP 409）。`ExecuteMaintenanceCommand` 生产侧唯一发送点即该方法，**无旁路**。
+    **为何不删旧通道**：新版通道 `requireContext` 强制 `independentCase=true 且 initializationCompleted=true`（`MaintenanceViewRepository.findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue`），对历史案件抛 `MaintenanceNotFoundException`，**无法替代旧通道**；旧入口的 `legacy-execution-enabled` 开关默认值保持 `true` 以兼容在途旧案。
 
 ---
 

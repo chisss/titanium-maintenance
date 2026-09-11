@@ -25,6 +25,7 @@ import com.titanium.maintenance.common.exception.CustomerNotFoundException;
 import com.titanium.maintenance.common.exception.InvalidMaintenanceStatusException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyCreationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionDisabledException;
+import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionIndependentCaseForbiddenException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyPremiumCalculationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceTypeExcludedException;
@@ -138,6 +139,10 @@ public class MaintenanceApplicationService {
             throw new MaintenanceLegacyExecutionDisabledException();
         }
         MaintenanceView view = requireMaintenanceExists(maintenanceId, tenantId);
+        // 通道互斥（缺陷 D9）：独立建案只能走案件平台任务级生效链，旧入口放行会使同一保单被两条通道重复施加
+        if (view.isIndependentCase()) {
+            throw new MaintenanceLegacyExecutionIndependentCaseForbiddenException();
+        }
         // 验证保全状态（读模型最终一致）
         if (view.getStatus() != MaintenanceStatus.APPROVED) {
             throw new InvalidMaintenanceStatusException();

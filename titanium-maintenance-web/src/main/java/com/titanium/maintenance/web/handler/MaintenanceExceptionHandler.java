@@ -26,6 +26,7 @@ import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceForbiddenException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyCreationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionDisabledException;
+import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionIndependentCaseForbiddenException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyPremiumCalculationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
@@ -125,6 +126,13 @@ public class MaintenanceExceptionHandler {
     public ResponseEntity<MaintenanceErrorVO> handleUnavailableException(
             BusinessException exception, HttpServletRequest request) {
         return respond(exception, HttpStatus.SERVICE_UNAVAILABLE, request);
+    }
+
+    /** 独立建案误用旧版整案执行入口：两代案件通道互斥（D9），客户端应改走案件任务级生效链。 */
+    @ExceptionHandler(MaintenanceLegacyExecutionIndependentCaseForbiddenException.class)
+    public ResponseEntity<MaintenanceErrorVO> handleLegacyExecutionIndependentCaseForbidden(
+            BusinessException exception, HttpServletRequest request) {
+        return respond(exception, HttpStatus.CONFLICT, request);
     }
 
     @ExceptionHandler(MaintenanceAuthenticationException.class)
