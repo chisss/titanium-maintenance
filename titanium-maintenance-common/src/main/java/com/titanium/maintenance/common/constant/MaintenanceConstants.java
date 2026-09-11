@@ -54,7 +54,9 @@ public class MaintenanceConstants {
     // Kafka主题常量
     public static class KafkaTopic {
         public static final String MAINTENANCE_CREATED            = "maintenance-created";
-        public static final String MAINTENANCE_UPDATED            = "maintenance-updated";
+        // 原 MAINTENANCE_UPDATED（maintenance-updated）自声明起从无发布点，已删除（m5-903）。
+        // 保全变更的对外出口是 MAINTENANCE_CHANGE_ADDED / MAINTENANCE_STATUS_CHANGED / MAINTENANCE_EXECUTED
+        // 三个更细粒度的主题，粗粒度的 "updated" 早被其取代。
         public static final String MAINTENANCE_STATUS_CHANGED     = "maintenance-status-changed";
         public static final String MAINTENANCE_CHANGE_ADDED       = "maintenance-change-added";
         public static final String MAINTENANCE_PREMIUM_CALCULATED = "maintenance-premium-calculated";
