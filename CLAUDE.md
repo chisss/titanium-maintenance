@@ -185,6 +185,13 @@ mvn spring-boot:run
     **修复**：把 `reusableProductEvidence(view, input, recalculationId)` 提到 `Start` 派发**之前**，与 `affectedPeriods(...)` 同属「为本次重算取证」的只读步骤；读取失败即前置取证失败，此时尚无检查点可标记失败，故直接抛出而不派发 `Fail` 命令（与 `Fail` 处理器的 `requireRetroactivePeriodRecalculation` 前置守卫一致）。
     **测试**：`MaintenanceRetroactivePeriodRecalculationApplicationServiceTest#shouldReuseProductCheckpointWhenRetryingBillingFailure` 补 `InOrder` 顺序断言——`periodAdjustmentViewRepository.findBy...` 必须先于 `commandGateway.sendAndWait(Start...)`，顺序一旦回退即红。
 
+14. **🟠 租户拒绝面：防线在应用层、聚合层无兜底（m2-908 实读登记，2026-09-11）**：
+    - **实况**：`Maintenance` 是**全域唯一聚合根，含 50 个 `@CommandHandler`**，其中**仅 5 处**内联租户校验（`Maintenance.java:1188/1234/1334/1381/1752`）。租户防线实际落在**应用层**——31 个命令派发点分布于 11 个文件，且**三种形态混用**：`findBy*AndTenantId` 租户维度读模型查询（3 文件）、`tenantId()` 与 fact/snapshot 比对（8 文件）、`requireMaintenanceExists(maintenanceId, tenantId)`（`MaintenanceApplicationService` 6 处，内部即 `findByMaintenanceIdAndTenantId`）。
+    - **为何无法照搬 policy/billing 模式**：50 个命令 record 中**仅 7 个带 `tenantId` 字段**（`CreateMaintenanceCommand`/`CreateMaintenanceCaseCommand`/`StartMaintenanceItemWithdrawalCommand`/`ConfigureMaintenanceItemWithdrawalRecoveryCommand`/`ProposeMaintenanceFieldChangesCommand`/`ResolveMaintenanceFieldConflictCommand`/`RefreshMaintenanceFieldConflictsCommand`），其余 **43 个命令契约上就没有租户**——「没有租户可比」而非「忘了比」，聚合层无从校验。批量补字段属**跨域契约破坏性变更**（命令经 Kafka/Feign 序列化），须先盘点存量在途消息，故本任务**只登记不实施**。
+    - **风险敞口**：当前 11 个派发文件**均已带某种租户防线**，且全域**无 `@Saga`、无 `@EventHandler` 发命令**（投影发命令已被 ArchUnit `queryShouldNotDependOnCommandGateway` 禁令覆盖），故**未失守**；但一旦新增绕过应用层的派发路径（Saga、事件直发、新的编排器直接 `sendAndWait`），聚合层无任何兜底。
+    - **跟进方向**：优先给「资金类 + 状态终态类」命令补 `tenantId` 并加聚合层 `requireSameTenant`（参照 `BillingAccount.requireSameTenant` 范式：失败关闭 + 用 `*_NOT_EXIST` 码不泄漏资源是否存在）；CMD 契约变更须评估在途消息兼容性。
+    - 跨域同批处置见 [docs/当前系统现状评估-2026-09.md](../docs/当前系统现状评估-2026-09.md) C-02（policy 29 处理器已补齐、billing 垫缴命令已补齐，本域为唯一遗留）。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*
