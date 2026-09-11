@@ -23,17 +23,15 @@ import com.titanium.maintenance.command.CompleteMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
 import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
 import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionCommand;
-import com.titanium.maintenance.command.FailMaintenanceEffectCommand;
+import com.titanium.maintenance.command.FailMaintenanceCaseEffectCommand;
 import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleFailureCommand;
-import com.titanium.maintenance.command.RecordMaintenancePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumQuoteCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumSettlementCommand;
 import com.titanium.maintenance.command.RequestMaintenanceCaseEffectCommand;
-import com.titanium.maintenance.command.RequestMaintenanceEffectCommand;
 import com.titanium.maintenance.command.ResumeMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ScheduleMaintenanceEffectCommand;
 import com.titanium.maintenance.command.StartMaintenanceWorkflowTaskCommand;
@@ -418,8 +416,8 @@ class MaintenanceWorkflowTransitionAggregateTest {
         MaintenanceEffectRequestEvidence request = effectRequest();
 
         fixture.given(createdEvent(), initializedEvent(), effectWorkflowInitializedEvent())
-                .when(new RequestMaintenanceEffectCommand(
-                        ID, EFFECT_TASK_ID, "effect-request-operation", request, "operator-1"))
+                .when(new RequestMaintenanceCaseEffectCommand(
+                        ID, List.of(EFFECT_TASK_ID), "effect-request-operation", request, "operator-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -445,8 +443,8 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(ready, waiting, null, null, requestOperation),
                         effectStatusChanged(MaintenanceEffectStatus.NOT_STARTED,
                                 MaintenanceEffectStatus.EFFECTING))
-                .when(new RecordMaintenancePolicyApplicationCommand(
-                        ID, EFFECT_TASK_ID, "effect-receipt-operation", receipt, "policy-service"))
+                .when(new RecordMaintenanceCasePolicyApplicationCommand(
+                        ID, List.of(EFFECT_TASK_ID), "effect-receipt-operation", receipt, "policy-service"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -547,8 +545,8 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(ready, waiting, null, null, requestOperation),
                         effectStatusChanged(MaintenanceEffectStatus.NOT_STARTED,
                                 MaintenanceEffectStatus.EFFECTING))
-                .when(new RecordMaintenancePolicyApplicationCommand(
-                        ID, EFFECT_TASK_ID, "mismatched-receipt-operation", mismatched, "policy-service"))
+                .when(new RecordMaintenanceCasePolicyApplicationCommand(
+                        ID, List.of(EFFECT_TASK_ID), "mismatched-receipt-operation", mismatched, "policy-service"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -563,8 +561,8 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(ready, waiting, null, null, requestOperation),
                         effectStatusChanged(MaintenanceEffectStatus.NOT_STARTED,
                                 MaintenanceEffectStatus.EFFECTING))
-                .when(new FailMaintenanceEffectCommand(
-                        ID, EFFECT_TASK_ID, "effect-failure-operation",
+                .when(new FailMaintenanceCaseEffectCommand(
+                        ID, List.of(EFFECT_TASK_ID), "effect-failure-operation",
                         "POLICY_UNAVAILABLE", "Policy 服务不可用", "effect-service"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {

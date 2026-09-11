@@ -534,7 +534,7 @@ public record MaintenanceWorkflowTask(
                 || !evidence.requestPayloadHash().equals(operation.evidenceHash())
                 || !"EFFECTING".equals(operation.resultCode())) {
             throw new MaintenanceValidationException(
-                    "RequestMaintenanceEffectCommand", "effectRequestEvidence", "生效请求证据与操作载荷不一致");
+                    "RequestMaintenanceCaseEffectCommand", "effectRequestEvidence", "生效请求证据与操作载荷不一致");
         }
         return new MaintenanceWorkflowTask(
                 taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
@@ -558,7 +558,7 @@ public record MaintenanceWorkflowTask(
                 || !"APPLIED".equals(operation.resultCode())
                 || !evidence.endorsementNo().equals(operation.reason())) {
             throw new MaintenanceValidationException(
-                    "RecordMaintenancePolicyApplicationCommand", "policyApplicationEvidence",
+                    "RecordMaintenanceCasePolicyApplicationCommand", "policyApplicationEvidence",
                     "Policy 回执与操作载荷不一致");
         }
         return new MaintenanceWorkflowTask(
@@ -578,7 +578,7 @@ public record MaintenanceWorkflowTask(
         requireStatus(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL, "记录生效失败");
         if (operation.resultCode() == null || operation.reason() == null) {
             throw new MaintenanceValidationException(
-                    "FailMaintenanceEffectCommand", "failure", "失败码和原因不能为空");
+                    "FailMaintenanceCaseEffectCommand", "failure", "失败码和原因不能为空");
         }
         return new MaintenanceWorkflowTask(
                 taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,

@@ -163,6 +163,7 @@ mvn spring-boot:run
 7. ~~**🟡 异常吞噬**：`validatePolicyStatusForMaintenance` 的 `catch (Exception)` 会把所有异常归并为 `PolicyNotFoundException`，易掩盖真实错误。~~ ✅ **已修复（D13）**：`PolicyServiceAdapter` 现严格区分「不可达」与「不存在」——保单域**正常应答**但业务码失败/数据缺失 → 返回 `false`/`null`（业务语义）；调用**抛异常**（连接失败、超时、5xx、契约反序列化）→ 抛 `MaintenanceRemoteCallException`（错误码 `MAINTENANCE_POLICY_REMOTE_ERROR` 71006012，Web 层映射 HTTP 502）。应用层 `validatePolicyStatusForMaintenance` 的 catch-all 已删除，技术故障不再被伪装成「保单不存在」。
 8. **🟡 缺测试**：domain/application/infrastructure 三层均缺单元测试，违反根规约第九章；补测试为交付前必做项。
 9. **🟡 缺 README**：本模块尚无符合规约第十二章的 README.md。
+10. ✅ **单任务点命令已清理（m0-705，2026-09-11）**：删除 5 个已被案件级命令取代的命令——`InitializeMaintenanceWorkflowCommand`（回填职责并入 `CompleteMaintenanceCaseInitializationCommand`）、`RequestMaintenanceEffectCommand`/`RecordMaintenancePolicyApplicationCommand`/`FailMaintenanceEffectCommand`（案件级 `RequestMaintenanceCaseEffectCommand`/`RecordMaintenanceCasePolicyApplicationCommand`/`FailMaintenanceCaseEffectCommand` 调用同一值对象方法，功能全覆盖且强制全部生效任务原子处理，约束更紧）、`RecordMaintenanceFieldChangesCommand`（字段提案唯一入口为 `ProposeMaintenanceFieldChangesCommand`，经 `MaintenanceFieldProposalPlanner` 做目录权威校验）。同步删除 `MaintenanceConstants.KafkaTopic` 中零引用的 `POLICY_UPDATED`/`CUSTOMER_UPDATED`，并更新 `DESIGN.md` 四处叙述。
 
 ---
 

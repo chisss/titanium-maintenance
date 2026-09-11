@@ -59,7 +59,5 @@ public class MaintenanceConstants {
         public static final String MAINTENANCE_CHANGE_ADDED       = "maintenance-change-added";
         public static final String MAINTENANCE_PREMIUM_CALCULATED = "maintenance-premium-calculated";
         public static final String MAINTENANCE_EXECUTED           = "maintenance-executed";
-        public static final String POLICY_UPDATED                 = "policy-updated";
-        public static final String CUSTOMER_UPDATED               = "customer-updated";
     }
 }

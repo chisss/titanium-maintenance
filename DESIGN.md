@@ -78,7 +78,6 @@ Product 以请求 ID 幂等，Billing 以 `tenantId + adjustmentId` 幂等。Mai
 | 类型 | 作用 |
 |---|---|
 | `AddMaintenanceItemCommand` / `MaintenanceItemAddedEvent` | 将已校验的保全项配置版本冻结到案件 |
-| `RecordMaintenanceFieldChangesCommand` / `MaintenanceFieldChangesRecordedEvent` | 保存某保全项的完整字段提案 |
 | `ProposeMaintenanceFieldChangesCommand` / `MaintenanceProposedSnapshotRecordedEvent` | 使用当前 Policy 和字段目录权威证据生成拟变更快照 |
 
 项目和字段提案只允许在 `PENDING/PROCESSING` 阶段修改。聚合拒绝重复项目、配置互斥项目、非白名单字段、禁止清空字段和重复业务对象字段。
@@ -154,7 +153,7 @@ before snapshot + current Policy snapshot
 
 标量字段以 Policy ID 作为差异对象标识，快照键仍为 `fieldCode`。集合字段要求调用方提交稳定 `objectId`，差异对象键和快照键统一为 `objectId:fieldCode`，禁止使用数组下标。两个项目修改同一对象字段时失败关闭；当前值已偏离 before 且不等于 proposed 时记录 `DETECTED`，后续未解决前不得生效。
 
-每个项目冻结实际使用的目录版本、摘要、字段类型、对象类型、能力、敏感级别、掩码策略和变更类别。完整 proposed 结构随 Axon 事件保存；在接入外部快照对象存储前，引用采用 `axon-event://maintenance/...`。同一逐字段差异、完整 proposed 值及目录权威事实重试不追加事件。独立案件禁止调用旧 `RecordMaintenanceFieldChangesCommand` 绕过权威校验，历史案件与旧事件保持可重放。
+每个项目冻结实际使用的目录版本、摘要、字段类型、对象类型、能力、敏感级别、掩码策略和变更类别。完整 proposed 结构随 Axon 事件保存；在接入外部快照对象存储前，引用采用 `axon-event://maintenance/...`。同一逐字段差异、完整 proposed 值及目录权威事实重试不追加事件。字段提案唯一入口为 `ProposeMaintenanceFieldChangesCommand`（旧 `RecordMaintenanceFieldChangesCommand` 已删除），历史案件与旧事件保持可重放。
 
 ### M3-06 案件查询投影
 
@@ -189,8 +188,8 @@ before snapshot + current Policy snapshot
 必需步骤为 `READY`，首个条件步骤为 `WAITING_CONDITION`，其他可执行任务为 `PENDING`。
 
 新案件在 `MaintenanceCaseInitializationCompletedEvent` 后追加 `MaintenanceWorkflowInitializedEvent`，不修改
-Phase 1-3 已发布事件。`InitializeMaintenanceWorkflowCommand` 为已完成项目冻结但没有工作流事件的案件提供显式、
-幂等回填；已有相同任务集合时不追加事件，任何差异失败关闭。只有旧事件的案件可继续重放并返回空任务列表，
+Phase 1-3 已发布事件。`CompleteMaintenanceCaseInitializationCommand` 为已完成项目冻结但没有工作流事件的案件提供显式、
+幂等回填（任务已存在时直接返回，不追加事件）；只有旧事件的案件可继续重放并返回空任务列表，
 禁止查询侧用当前配置伪造历史任务。
 
 查询侧以 `t_maintenance_workflow_task_view` 保存 `tenantId + caseId + itemCode + stepType` 唯一任务投影。
@@ -421,10 +420,10 @@ Adapter 读取 `titanium.maintenance.legacy-premium-calculation-enabled`，默�
 任务、字段差异和 proposed 快照，要求案件为 `IMMEDIATE`、恰有一个非跳过 `EFFECT` 任务、没有字段冲突，并实时
 校验全部字段 `executionSupported=true`。当前首批只开放 `policy.holder.mobile`。
 
-编排严格分为三个可重放事实：先发送 `RequestMaintenanceEffectCommand` 冻结稳定请求 ID、载荷 SHA-256、期望 Policy
+编排严格分为三个可重放事实：先发送 `RequestMaintenanceCaseEffectCommand` 冻结案件全部生效任务的稳定请求 ID、载荷 SHA-256、期望 Policy
 版本和 proposed 快照摘要；再通过 Domain 定义的 `PolicyMaintenanceApplicationPort` 调用 Infrastructure Feign Adapter；
-最后发送 `RecordMaintenancePolicyApplicationCommand` 保存 Policy 权威回执。远端异常发送
-`FailMaintenanceEffectCommand`，不生成伪批单或伪 applied 值。
+最后发送 `RecordMaintenanceCasePolicyApplicationCommand` 保存 Policy 权威回执。远端异常发送
+`FailMaintenanceCaseEffectCommand`，不生成伪批单或伪 applied 值。
 
 请求 ID 由租户、案件和任务稳定派生，完整载荷摘要由 Maintenance 与 Policy 按相同规范化算法独立计算。Policy 回执
 必须勾稽请求 ID、期望/实际版本、应用摘要、applied 快照版本和结构化实际字段。响应丢失后，重试复用冻结请求事实并

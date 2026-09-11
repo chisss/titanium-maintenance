@@ -42,24 +42,20 @@ import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
 import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionCommand;
 import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
 import com.titanium.maintenance.command.FailMaintenanceCaseEffectCommand;
-import com.titanium.maintenance.command.FailMaintenanceEffectCommand;
 import com.titanium.maintenance.command.FailMaintenanceItemWithdrawalCommand;
 import com.titanium.maintenance.command.FailMaintenancePremiumSettlementCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactiveImpactAnalysisCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodRecalculationCommand;
 import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodResolutionCommand;
 import com.titanium.maintenance.command.FailMaintenanceWorkflowTaskCommand;
-import com.titanium.maintenance.command.InitializeMaintenanceWorkflowCommand;
 import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleFailureCommand;
-import com.titanium.maintenance.command.RecordMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.command.RecordMaintenanceFinancialSettlementCommand;
 import com.titanium.maintenance.command.RecordMaintenanceItemWithdrawalCompensationCommand;
-import com.titanium.maintenance.command.RecordMaintenancePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumAdjustmentCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumPostingCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumQuoteCommand;
@@ -68,7 +64,6 @@ import com.titanium.maintenance.command.RecordMaintenanceRetroactiveProductRecal
 import com.titanium.maintenance.command.RecordMaintenanceSurrenderValueCommand;
 import com.titanium.maintenance.command.RefreshMaintenanceFieldConflictsCommand;
 import com.titanium.maintenance.command.RequestMaintenanceCaseEffectCommand;
-import com.titanium.maintenance.command.RequestMaintenanceEffectCommand;
 import com.titanium.maintenance.command.ResolveMaintenanceFieldConflictCommand;
 import com.titanium.maintenance.command.ResumeMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.RetryMaintenanceWorkflowTaskCommand;
@@ -424,15 +419,6 @@ public class Maintenance extends BaseAggregate {
                     LocalDateTime.now(), command.completedBy(), tenantId));
         }
         initializeWorkflow(command.completedBy());
-    }
-
-    /** 为已完成项目冻结的历史案件幂等补录流程任务。 */
-    @CommandHandler
-    public void handle(InitializeMaintenanceWorkflowCommand command) {
-        if (!initializationCompleted) {
-            throw new MaintenanceValidationException("InitializeMaintenanceWorkflowCommand", "id", "案件初始化完成后才能创建流程任务");
-        }
-        initializeWorkflow(command.initializedBy());
     }
 
     @EventSourcingHandler
@@ -934,25 +920,6 @@ public class Maintenance extends BaseAggregate {
                 id, resolution, command.operatorId(), tenantId));
     }
 
-    /** 冻结 Policy 应用请求，只有专用生效命令可以处理 EFFECT 任务。 */
-    @CommandHandler
-    public void handle(RequestMaintenanceEffectCommand command) {
-        requireSingleEffectTask();
-        MaintenanceEffectRequestEvidence evidence = command.evidence();
-        if (evidence == null) {
-            throw new MaintenanceValidationException("RequestMaintenanceEffectCommand", "evidence", "生效请求证据不能为空");
-        }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.REQUEST_EFFECT, command.taskId(), evidence.evidenceVersion(),
-                evidence.requestPayloadHash(), MaintenanceEffectStatus.EFFECTING.getCode(), null, command.operatorId());
-        boolean applied = transition(command.taskId(), operation, task -> task.requestEffect(evidence, operation),
-                false);
-        if (applied) {
-            changeEffectStatus(command.taskId(), MaintenanceEffectStatus.EFFECTING, "Policy 应用请求已冻结",
-                    command.operatorId());
-        }
-    }
-
     /** 在一个聚合命令事务中冻结案件全部生效任务。 */
     @CommandHandler
     public void handle(RequestMaintenanceCaseEffectCommand command) {
@@ -972,28 +939,6 @@ public class Maintenance extends BaseAggregate {
         if (applied) {
             changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.EFFECTING, "案件级 Policy 应用请求已冻结",
                     command.operatorId());
-        }
-    }
-
-    /** 勾稽 Policy 权威回执，全部生效任务完成后才结束案件。 */
-    @CommandHandler
-    public void handle(RecordMaintenancePolicyApplicationCommand command) {
-        requireSingleEffectTask();
-        MaintenancePolicyApplicationEvidence evidence = command.evidence();
-        if (evidence == null) {
-            throw new MaintenanceValidationException("RecordMaintenancePolicyApplicationCommand", "evidence",
-                    "Policy 应用回执不能为空");
-        }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.RECORD_POLICY_APPLICATION, command.taskId(), evidence.evidenceVersion(),
-                evidence.applicationHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.endorsementNo(),
-                command.operatorId());
-        boolean applied = transition(command.taskId(), operation,
-                task -> task.recordPolicyApplication(evidence, operation), false);
-        if (applied) {
-            MaintenanceEffectStatus next = allEffectTasksApplied() ? MaintenanceEffectStatus.APPLIED
-                    : MaintenanceEffectStatus.EFFECTING;
-            changeEffectStatus(command.taskId(), next, "Policy 权威回执已记录", command.operatorId());
         }
     }
 
@@ -1027,20 +972,6 @@ public class Maintenance extends BaseAggregate {
                         new MaintenanceEffectCompensationResolvedEvent(id, effectCompensationEvidence.compensationId(),
                                 evidence.endorsementNo(), LocalDateTime.now(), command.operatorId(), tenantId));
             }
-        }
-    }
-
-    /** Policy 调用或回执校验失败时形成可恢复失败。 */
-    @CommandHandler
-    public void handle(FailMaintenanceEffectCommand command) {
-        requireSingleEffectTask();
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.FAIL_EFFECT, command.taskId(), null, null, command.failureCode(),
-                command.failureReason(), command.operatorId());
-        boolean applied = transition(command.taskId(), operation, task -> task.failEffect(operation), false);
-        if (applied) {
-            changeEffectStatus(command.taskId(), MaintenanceEffectStatus.FAILED, command.failureReason(),
-                    command.operatorId());
         }
     }
 
@@ -1394,20 +1325,6 @@ public class Maintenance extends BaseAggregate {
         }
         itemWithdrawals.put(event.withdrawal().itemCode(), event.withdrawal());
         updateWithdrawalAudit(event.withdrawal(), event.operatedBy());
-    }
-
-    /** 保存一个保全项的完整字段变化草稿。 */
-    @CommandHandler
-    public void handle(RecordMaintenanceFieldChangesCommand command) {
-        requireItemEditingAllowed("RECORD_MAINTENANCE_FIELD_CHANGES");
-        if (source != null) {
-            throw new MaintenanceValidationException("RecordMaintenanceFieldChangesCommand", "changes",
-                    "独立建案必须通过权威字段目录提案命令保存字段草稿");
-        }
-        MaintenanceItemInstance item = findItem(command.itemCode());
-        item.withFieldChanges(command.changes());
-        AggregateLifecycle.apply(new MaintenanceFieldChangesRecordedEvent(command.id(), command.itemCode(),
-                command.changes(), LocalDateTime.now(), command.updatedBy(), tenantId));
     }
 
     /** 使用当前 Policy 与目录权威证据生成并保存完整字段草稿。 */
@@ -2338,15 +2255,6 @@ public class Maintenance extends BaseAggregate {
         return !effectTasks.isEmpty()
                 && effectTasks.stream().allMatch(task -> task.status() == MaintenanceWorkflowTaskStatus.COMPLETED
                         || task.status() == MaintenanceWorkflowTaskStatus.SKIPPED);
-    }
-
-    private void requireSingleEffectTask() {
-        long effectTaskCount = workflowTasks == null ? 0
-                : workflowTasks.stream().filter(task -> task.stepType() == MaintenanceStepType.EFFECT)
-                        .filter(task -> task.status() != MaintenanceWorkflowTaskStatus.SKIPPED).count();
-        if (effectTaskCount != 1) {
-            throw new MaintenanceValidationException("MaintenanceEffect", "taskIds", "多项目案件必须使用案件级原子生效命令");
-        }
     }
 
     private List<String> requireAllEffectTaskIds(List<String> taskIds) {

@@ -23,9 +23,7 @@ import org.junit.jupiter.api.Test;
 import com.titanium.maintenance.command.AddMaintenanceItemCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceCaseInitializationCommand;
 import com.titanium.maintenance.command.ConfigureMaintenanceItemWithdrawalRecoveryCommand;
-import com.titanium.maintenance.command.InitializeMaintenanceWorkflowCommand;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
-import com.titanium.maintenance.command.RecordMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.command.RecordMaintenanceItemWithdrawalCompensationCommand;
 import com.titanium.maintenance.command.RefreshMaintenanceFieldConflictsCommand;
 import com.titanium.maintenance.command.ResolveMaintenanceFieldConflictCommand;
@@ -193,7 +191,8 @@ class MaintenanceItemAggregateTest {
                         new MaintenanceItemAddedEvent(ID, item, NOW, "operator-1", "1"),
                         new MaintenanceCaseInitializationCompletedEvent(
                                 ID, List.of("POLICY_INFO_CHANGE"), NOW, "operator-1", "1"))
-                .when(new InitializeMaintenanceWorkflowCommand(ID, "operator-2"))
+                .when(new CompleteMaintenanceCaseInitializationCommand(
+                        ID, List.of("POLICY_INFO_CHANGE"), "operator-2"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowInitializedEvent.class))))
@@ -310,34 +309,23 @@ class MaintenanceItemAggregateTest {
                         new MaintenanceCaseInitializationCompletedEvent(
                                 ID, List.of("POLICY_INFO_CHANGE"), NOW, "operator-1", "1"),
                         new MaintenanceWorkflowInitializedEvent(ID, tasks, NOW, "operator-1", "1"))
-                .when(new InitializeMaintenanceWorkflowCommand(ID, "operator-2"))
+                .when(new CompleteMaintenanceCaseInitializationCommand(
+                        ID, List.of("POLICY_INFO_CHANGE"), "operator-2"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
 
     @Test
-    void shouldRecordConfiguredFieldChanges() {
-        MaintenanceItemInstance item = MaintenanceItemInstance.from(
-                definition("CONTACT_CHANGE", Set.of()), NOW);
-        MaintenanceFieldChange change = contactChange("policy.contact.mobile");
-
-        fixture.given(createdEvent(), new MaintenanceItemAddedEvent(ID, item, NOW, "operator-1", "1"))
-                .when(new RecordMaintenanceFieldChangesCommand(
-                        ID, "CONTACT_CHANGE", List.of(change), "operator-1"))
-                .expectSuccessfulHandlerExecution()
-                .expectState(aggregate -> assertEquals(
-                        List.of(change), aggregate.getItemInstances().getFirst().fieldChanges()));
-    }
-
-    @Test
     void shouldRejectFieldOutsideConfiguredWhitelist() {
-        MaintenanceItemInstance item = MaintenanceItemInstance.from(
-                definition("CONTACT_CHANGE", Set.of()), NOW);
-        MaintenanceFieldChange change = contactChange("policy.coverage.sumInsured");
+        MaintenanceItemInstance item = proposalItem("POLICY_INFO_CHANGE", List.of());
+        PolicyMaintenanceSnapshot snapshot = policySnapshot(7, "13800000000");
 
-        fixture.given(createdEvent(), new MaintenanceItemAddedEvent(ID, item, NOW, "operator-1", "1"))
-                .when(new RecordMaintenanceFieldChangesCommand(
-                        ID, "CONTACT_CHANGE", List.of(change), "operator-1"))
+        fixture.given(initializedEvents(List.of(item), snapshot))
+                .when(new ProposeMaintenanceFieldChangesCommand(
+                        ID, "POLICY_INFO_CHANGE", snapshot,
+                        List.of(new MaintenanceFieldProposal(
+                                null, "policy.holder.mobile", PolicyFieldDataType.TEXT, "13900000000")),
+                        fieldCatalog(), "operator-1", "1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -571,23 +559,6 @@ class MaintenanceItemAggregateTest {
                         fieldCatalog(), "operator-1", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
-    }
-
-    @Test
-    void shouldRejectLegacyFieldCommandForIndependentCase() {
-        MaintenanceItemInstance item = proposalItem(
-                "POLICY_INFO_CHANGE",
-                List.of(MaintenanceFieldRule.editable(
-                        "policy.holder.mobile", true, true, PolicyFieldValueType.TEXT)));
-        PolicyMaintenanceSnapshot snapshot = policySnapshot(7, "13800000000");
-        MaintenanceFieldChange change = MaintenanceFieldChange.propose(
-                "POLICY_INFO_CHANGE", "policy-1", "policy.holder.mobile",
-                MaintenanceFieldValue.text("13800000000"), MaintenanceFieldValue.text("13900000000"));
-
-        fixture.given(initializedEvents(List.of(item), snapshot))
-                .when(new RecordMaintenanceFieldChangesCommand(
-                        ID, "POLICY_INFO_CHANGE", List.of(change), "operator-1"))
-                .expectException(MaintenanceValidationException.class);
     }
 
     @Test
