@@ -11,9 +11,9 @@ import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
-import com.titanium.underwriting.api.request.AssessMaintenanceUnderwritingRequest;
-import com.titanium.underwriting.api.request.AssessMaintenanceUnderwritingRequest.RiskFieldChangeRequest;
-import com.titanium.underwriting.api.response.MaintenanceUnderwritingResponse;
+import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest;
+import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest.RiskFieldChangeRequest;
+import com.titanium.underwriting.api.response.maintenance.MaintenanceUnderwritingResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

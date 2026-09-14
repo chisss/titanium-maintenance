@@ -20,7 +20,7 @@ import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.Ass
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentRequest;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.RiskFieldChange;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
-import com.titanium.underwriting.api.response.MaintenanceUnderwritingResponse;
+import com.titanium.underwriting.api.response.maintenance.MaintenanceUnderwritingResponse;
 
 class MaintenanceUnderwritingAdapterTest {
 
