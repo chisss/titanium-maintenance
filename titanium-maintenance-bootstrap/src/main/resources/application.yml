@@ -69,12 +69,28 @@ axon:
     messages: jackson
   eventhandling:
     processors:
-      # ⚠️ 死配置（m6-909 实读登记，未改）：全仓无任何处理器声明组名 maintenance，本段不生效。
+      # ⚠️ 死配置（m6-909 实读登记，m6-916 复核维持）：全仓无任何处理器声明组名 maintenance，本段不生效。
       #    真实的读侧组名是 maintenance-query-group（见 MaintenanceProjectionEventHandler 等 8 处的
-      #    @ProcessingGroup），该组当前**未配置任何 axon.eventhandling.processors 键**。
+      #    @ProcessingGroup），其配置见下方 maintenance-query-group 段。
       maintenance:
         mode: subscribing
         threadCount: 4
+      # 读侧投影组（MaintenanceProjectionEventHandler / MaintenanceCaseProjectionEventHandler 等 8 处
+      # 投影与查询处理器的 @ProcessingGroup）。
+      # 🔴 m6-916：本组此前**零配置声明** —— Axon 对未声明组按**隐式 tracking** 装配（本项目 eventBus 为
+      #    流式 EmbeddedEventStore），故它本来就是异步的、并非同步投影，但**拿不到 DLQ**；而
+      #    DeadLetterQueueService 的重投清单里早已含该组 → sequencedDeadLetterProcessor 恒空、每次扫描
+      #    静默跳过（空转），读侧投影失败因而无重投（不丢事件，但读模型永久停在旧值）。
+      #    显式声明 + dlq.enabled 只是把既有的 tracking 形态落到配置上并补上重投能力，**不改变任何读写
+      #    一致性语义**（与 claim-query-group m6-915 同型）。
+      # ⚠️ 不登记进 titanium.axon.outbound-relay.groups：该机制是给出站组首启位点取事件流**末端**，
+      #    而读侧投影组在全新部署时**需要**从头部重放以重建读模型（见 AxonOutboundRelayAutoConfiguration）。
+      maintenance-query-group:
+        mode: tracking
+        dlq:
+          enabled: true
+          max-size: 1000
+        batchSize: 10
       # 跨域出站处理组（处理者是 MaintenanceKafkaEventPublisher）：tracking + DLQ，发布失败的事件由
       # DeadLetterQueueService 定时重投。组名须与 MaintenanceKafkaEventPublisher.PROCESSING_GROUP 一致。
       maintenance-kafka-group:
