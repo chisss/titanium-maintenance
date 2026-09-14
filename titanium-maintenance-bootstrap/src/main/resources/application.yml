@@ -19,12 +19,15 @@ spring:
     redis:
       host: localhost
       port: 6379
-      password: 
+      password:
       database: 0
   # Kafka配置
   kafka:
     bootstrap-servers: localhost:9092
     producer:
+      # ⚠️ 本段不被 Spring 消费：本仓未引入 spring-boot-kafka（KafkaProperties 所在模块），
+      #    Boot 的 Kafka 自动配置不激活，这里的 serializer 一律不生效。生产者参数的唯一事实来源是
+      #    infrastructure 的 KafkaConfig#producerFactory（已显式置 acks=all / enable.idempotence / retries）。
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
@@ -66,9 +69,20 @@ axon:
     messages: jackson
   eventhandling:
     processors:
+      # ⚠️ 死配置（m6-909 实读登记，未改）：全仓无任何处理器声明组名 maintenance，本段不生效。
+      #    真实的读侧组名是 maintenance-query-group（见 MaintenanceProjectionEventHandler 等 8 处的
+      #    @ProcessingGroup），该组当前**未配置任何 axon.eventhandling.processors 键**。
       maintenance:
         mode: subscribing
         threadCount: 4
+      # 跨域出站处理组（处理者是 MaintenanceKafkaEventPublisher）：tracking + DLQ，发布失败的事件由
+      # DeadLetterQueueService 定时重投。组名须与 MaintenanceKafkaEventPublisher.PROCESSING_GROUP 一致。
+      maintenance-kafka-group:
+        mode: tracking
+        dlq:
+          enabled: true
+          max-size: 1000
+        batchSize: 1
   eventstore:
     event-serializer: jackson
     snapshot-serializer: jackson
@@ -106,6 +120,11 @@ management:
       application: ${spring.application.name}
 
 titanium:
+  axon:
+    # 跨域出站中继：声明哪些处理组按「事件存储即 Outbox」形态装配为 tracking + DLQ，
+    # 并令其首启位点取事件流末端（避免首次部署重放全量历史保全事件）。
+    outbound-relay:
+      groups: [maintenance-kafka-group]
   maintenance:
     # 旧版 POST /web|api/v1/maintenances 建案兼容开关；关闭后查询和案件后续操作仍可用
     legacy-creation-enabled: true
