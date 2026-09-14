@@ -11,5 +11,6 @@ public record FailMaintenanceWorkflowTaskCommand(
         String operationId,
         String failureCode,
         String failureReason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

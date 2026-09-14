@@ -115,7 +115,7 @@ public class MaintenanceApplicationService {
                                                           String tenantId) {
         requireMaintenanceExists(maintenanceId, tenantId);
         AddMaintenanceChangeCommand command = new AddMaintenanceChangeCommand(MaintenanceId.of(maintenanceId),
-                MaintenanceChangeType.fromCode(changeType), fieldName, oldValue, newValue, createdBy);
+                MaintenanceChangeType.fromCode(changeType), fieldName, oldValue, newValue, createdBy, tenantId);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
@@ -128,7 +128,7 @@ public class MaintenanceApplicationService {
         }
         requireMaintenanceExists(maintenanceId, tenantId);
         CalculateMaintenancePremiumCommand command = new CalculateMaintenancePremiumCommand(
-                MaintenanceId.of(maintenanceId), totalAmount, refundAmount, calculationDetails, updatedBy);
+                MaintenanceId.of(maintenanceId), totalAmount, refundAmount, calculationDetails, updatedBy, tenantId);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
@@ -148,7 +148,7 @@ public class MaintenanceApplicationService {
             throw new InvalidMaintenanceStatusException();
         }
         ExecuteMaintenanceCommand command = new ExecuteMaintenanceCommand(MaintenanceId.of(maintenanceId),
-                effectiveTime, executionDetails, updatedBy);
+                effectiveTime, executionDetails, updatedBy, tenantId);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 
@@ -157,7 +157,7 @@ public class MaintenanceApplicationService {
                                                              String changeReason, String changedBy, String tenantId) {
         requireMaintenanceExists(maintenanceId, tenantId);
         ChangeMaintenanceStatusCommand command = ChangeMaintenanceStatusCommand.of(maintenanceId, newStatus,
-                changeReason, changedBy);
+                changeReason, changedBy, tenantId);
         return commandGateway.send(command).thenApply(result -> maintenanceId);
     }
 

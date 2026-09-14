@@ -10,5 +10,6 @@ public record RecordMaintenanceEffectCompensationCommand(
         @TargetAggregateIdentifier MaintenanceId id,
         String taskId,
         MaintenanceEffectCompensationEvidence evidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

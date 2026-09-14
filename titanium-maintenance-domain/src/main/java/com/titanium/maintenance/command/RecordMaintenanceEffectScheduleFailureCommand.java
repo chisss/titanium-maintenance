@@ -15,5 +15,6 @@ public record RecordMaintenanceEffectScheduleFailureCommand(
         String errorMessage,
         LocalDateTime retryAt,
         boolean terminal,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

@@ -13,5 +13,6 @@ public record CompleteMaintenanceWorkflowTaskCommand(
         String evidenceHash,
         String resultCode,
         String reason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

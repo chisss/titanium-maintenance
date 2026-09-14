@@ -11,5 +11,6 @@ public record RecordMaintenancePremiumPostingCommand(
         String adjustmentResultHash,
         String postingId,
         String postingStatus,
-        String updatedBy) {
+        String updatedBy,
+        String tenantId) {
 }

@@ -12,5 +12,6 @@ public record RecordMaintenanceFinancialSettlementCommand(
         String refundOrderId,
         String refundStatus,
         Integer commissionAdjustmentCount,
-        String updatedBy) {
+        String updatedBy,
+        String tenantId) {
 }

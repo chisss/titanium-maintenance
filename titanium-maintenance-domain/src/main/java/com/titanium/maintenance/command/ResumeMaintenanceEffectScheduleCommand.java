@@ -13,5 +13,6 @@ public record ResumeMaintenanceEffectScheduleCommand(
         String operationId,
         LocalDateTime nextExecutionAt,
         String reason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

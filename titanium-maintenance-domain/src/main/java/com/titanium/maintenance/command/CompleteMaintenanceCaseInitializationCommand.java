@@ -11,7 +11,8 @@ import com.titanium.maintenance.valueobject.MaintenanceId;
 public record CompleteMaintenanceCaseInitializationCommand(
         @TargetAggregateIdentifier MaintenanceId id,
         List<String> itemCodes,
-        String completedBy) {
+        String completedBy,
+        String tenantId) {
 
     public CompleteMaintenanceCaseInitializationCommand {
         if (id == null || itemCodes == null || itemCodes.isEmpty()

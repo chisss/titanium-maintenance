@@ -94,7 +94,7 @@ public class MaintenanceEffectScheduleApplicationService {
         LocalDateTime nextExecutionAt = toUtc(tenantExecutionAt, zoneId);
         ScheduleMaintenanceEffectCommand command = new ScheduleMaintenanceEffectCommand(
                 MaintenanceId.of(input.maintenanceId()), scheduleId(input.maintenanceId()),
-                zoneId, nextExecutionAt, input.operatorId());
+                zoneId, nextExecutionAt, input.operatorId(), input.tenantId());
         return send(command).thenApply(ignored -> new MaintenanceEffectScheduleResult(
                 command.scheduleId(), view.getEffectiveTimeType(), MaintenanceEffectScheduleStatus.ACTIVE,
                 zoneId, nextExecutionAt, 0, null, null, null, null));
@@ -105,7 +105,7 @@ public class MaintenanceEffectScheduleApplicationService {
         MaintenanceView view = requireSchedule(input);
         return send(new PauseMaintenanceEffectScheduleCommand(
                 MaintenanceId.of(input.maintenanceId()), view.getEffectScheduleId(),
-                requireReason(input), input.operatorId()))
+                requireReason(input), input.operatorId(), input.tenantId()))
                 .thenApply(ignored -> result(view, MaintenanceEffectScheduleStatus.PAUSED,
                         view.getEffectScheduleNextExecutionAt(), view.getEffectScheduleLastErrorCode(),
                         view.getEffectScheduleLastErrorMessage()));
@@ -119,7 +119,7 @@ public class MaintenanceEffectScheduleApplicationService {
                 ? view.getEffectScheduleNextExecutionAt() : now;
         return send(new ResumeMaintenanceEffectScheduleCommand(
                 MaintenanceId.of(input.maintenanceId()), view.getEffectScheduleId(), input.operationId(),
-                nextExecutionAt, requireReason(input), input.operatorId()))
+                nextExecutionAt, requireReason(input), input.operatorId(), input.tenantId()))
                 .thenApply(ignored -> result(
                         view, MaintenanceEffectScheduleStatus.ACTIVE, nextExecutionAt, null, null));
     }
@@ -172,7 +172,7 @@ public class MaintenanceEffectScheduleApplicationService {
             }
             send(new RecordMaintenanceEffectScheduleAttemptCommand(
                     MaintenanceId.of(lease.maintenanceId()), lease.scheduleId(), attemptId,
-                    attemptedAt, operatorId)).join();
+                    attemptedAt, operatorId, lease.tenantId())).join();
             attemptRecorded = true;
             LocalDateTime tenantEffectiveAt = fromUtc(lease.nextExecutionAt(), lease.tenantZoneId());
             revalidate(lease, operatorId, fromUtc(attemptedAt, lease.tenantZoneId()));
@@ -184,7 +184,7 @@ public class MaintenanceEffectScheduleApplicationService {
             effectApplied = true;
             send(new CompleteMaintenanceEffectScheduleCommand(
                     MaintenanceId.of(lease.maintenanceId()), lease.scheduleId(), attemptId,
-                    utcNow(), operatorId)).join();
+                    utcNow(), operatorId, lease.tenantId())).join();
             return result;
         } catch (RuntimeException exception) {
             Throwable cause = rootCause(exception);
@@ -220,7 +220,7 @@ public class MaintenanceEffectScheduleApplicationService {
                 .orElseThrow(() -> validation("policyApplication", "已生效案件缺少 Policy 权威回执投影"));
         send(new CompleteMaintenanceEffectScheduleCommand(
                 MaintenanceId.of(lease.maintenanceId()), lease.scheduleId(),
-                view.getEffectScheduleLastAttemptId(), utcNow(), operatorId)).join();
+                view.getEffectScheduleLastAttemptId(), utcNow(), operatorId, lease.tenantId())).join();
         return applicationResult(appliedTask);
     }
 
@@ -268,7 +268,7 @@ public class MaintenanceEffectScheduleApplicationService {
         try {
             send(new RecordMaintenanceEffectScheduleFailureCommand(
                     MaintenanceId.of(lease.maintenanceId()), lease.scheduleId(), attemptId,
-                    errorCode(cause), safeMessage(cause), retryAt, terminal, operatorId)).join();
+                    errorCode(cause), safeMessage(cause), retryAt, terminal, operatorId, lease.tenantId())).join();
         } catch (RuntimeException failureException) {
             Throwable failureCause = rootCause(failureException);
             if (failureCause != cause) {

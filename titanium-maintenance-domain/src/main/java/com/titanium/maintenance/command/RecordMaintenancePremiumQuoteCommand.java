@@ -11,5 +11,6 @@ public record RecordMaintenancePremiumQuoteCommand(
         String taskId,
         String operationId,
         MaintenancePremiumQuoteEvidence evidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

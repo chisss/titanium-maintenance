@@ -15,5 +15,6 @@ public record StartMaintenanceRetroactiveImpactAnalysisCommand(
         LocalDateTime scopeFrom,
         LocalDateTime scopeTo,
         LocalDateTime startedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

@@ -13,7 +13,8 @@ public record FailMaintenanceCaseEffectCommand(
         String operationId,
         String failureCode,
         String failureReason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 
     public FailMaintenanceCaseEffectCommand {
         taskIds = taskIds == null ? List.of() : List.copyOf(taskIds);

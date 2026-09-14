@@ -318,7 +318,7 @@ public class MaintenanceItemWithdrawalApplicationService {
         RecordMaintenanceItemWithdrawalCompensationCommand command =
                 new RecordMaintenanceItemWithdrawalCompensationCommand(
                         MaintenanceId.of(input.maintenanceId()), input.itemCode(),
-                        withdrawal.operationId(), withdrawal.requestHash(), compensation, input.operatorId());
+                        withdrawal.operationId(), withdrawal.requestHash(), compensation, input.operatorId(), input.tenantId());
         return commandGateway.<MaintenanceItemWithdrawal>send(command).thenApply(this::result);
     }
 
@@ -330,7 +330,7 @@ public class MaintenanceItemWithdrawalApplicationService {
         FailMaintenanceItemWithdrawalCommand command = new FailMaintenanceItemWithdrawalCommand(
                 MaintenanceId.of(input.maintenanceId()), input.itemCode(), withdrawal.operationId(),
                 withdrawal.requestHash(), defaultText(failureCode, MaintenanceErrorCode.MAINTENANCE_ITEM_WITHDRAWAL_ERROR.getCode()),
-                safeMessage(failureMessage), input.operatorId());
+                safeMessage(failureMessage), input.operatorId(), input.tenantId());
         return commandGateway.<MaintenanceItemWithdrawal>send(command).thenApply(this::result);
     }
 

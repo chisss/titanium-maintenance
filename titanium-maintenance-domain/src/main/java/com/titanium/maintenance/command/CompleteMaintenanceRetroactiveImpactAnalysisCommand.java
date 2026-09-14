@@ -19,5 +19,6 @@ public record CompleteMaintenanceRetroactiveImpactAnalysisCommand(
         String evidenceVersion,
         String resultHash,
         LocalDateTime completedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

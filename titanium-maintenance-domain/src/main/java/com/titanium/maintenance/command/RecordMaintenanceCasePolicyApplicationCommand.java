@@ -13,7 +13,8 @@ public record RecordMaintenanceCasePolicyApplicationCommand(
         List<String> taskIds,
         String operationId,
         MaintenancePolicyApplicationEvidence evidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 
     public RecordMaintenanceCasePolicyApplicationCommand {
         taskIds = taskIds == null ? List.of() : List.copyOf(taskIds);

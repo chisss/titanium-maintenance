@@ -139,7 +139,7 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
                 MaintenanceId.of(input.maintenanceId()), recalculationId, input.operationId(),
                 productRequest.payloadHash(), view.getRetroactiveImpactAnalysisId(),
                 view.getRetroactiveImpactAnalysisVersion(), view.getRetroactiveImpactResultHash(),
-                LocalDateTime.now(), input.operatorId()));
+                LocalDateTime.now(), input.operatorId(), input.tenantId()));
 
         MaintenanceRetroactiveProductRecalculationEvidence productEvidence = reusableProductEvidence;
         String failureCode = PRODUCT_FAILURE_CODE;
@@ -148,7 +148,7 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
                 productEvidence = toEvidence(productPort.recalculate(productRequest));
                 commandGateway.sendAndWait(new RecordMaintenanceRetroactiveProductRecalculationCommand(
                         MaintenanceId.of(input.maintenanceId()), recalculationId, input.operationId(),
-                        productEvidence, LocalDateTime.now(), input.operatorId()));
+                        productEvidence, LocalDateTime.now(), input.operatorId(), input.tenantId()));
             }
             failureCode = BILLING_FAILURE_CODE;
             AdjustmentFact billingFact = billingPort.adjust(new AdjustmentRequest(
@@ -159,7 +159,7 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
             MaintenanceRetroactiveBillingAdjustmentEvidence billingEvidence = toEvidence(billingFact);
             commandGateway.sendAndWait(new CompleteMaintenanceRetroactivePeriodRecalculationCommand(
                     MaintenanceId.of(input.maintenanceId()), recalculationId, input.operationId(),
-                    billingEvidence, LocalDateTime.now(), input.operatorId()));
+                    billingEvidence, LocalDateTime.now(), input.operatorId(), input.tenantId()));
             return completedResult(
                     recalculationId, recalculationVersion, input.operationId(), view,
                     productEvidence, billingEvidence);
@@ -167,7 +167,7 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
             String message = safeMessage(exception);
             commandGateway.sendAndWait(new FailMaintenanceRetroactivePeriodRecalculationCommand(
                     MaintenanceId.of(input.maintenanceId()), recalculationId, input.operationId(),
-                    failureCode, message, LocalDateTime.now(), input.operatorId()));
+                    failureCode, message, LocalDateTime.now(), input.operatorId(), input.tenantId()));
             return failedResult(
                     recalculationId, recalculationVersion, input.operationId(), view,
                     productEvidence, failureCode, message);
@@ -196,7 +196,7 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
         commandGateway.sendAndWait(new StartMaintenanceRetroactivePeriodRecalculationCommand(
                 MaintenanceId.of(input.maintenanceId()), id, input.operationId(), requestHash,
                 view.getRetroactiveImpactAnalysisId(), view.getRetroactiveImpactAnalysisVersion(),
-                view.getRetroactiveImpactResultHash(), now, input.operatorId()));
+                view.getRetroactiveImpactResultHash(), now, input.operatorId(), input.tenantId()));
         String originalId = NO_FEE_ORIGINAL_ID_PREFIX + input.maintenanceId();
         String replacementId = NO_FEE_REPLACEMENT_ID_PREFIX + input.maintenanceId();
         String originalHash = MaintenanceRetroactiveImpactSourcePort.itemHash(originalId, HASH_SALT_ORIGINAL);
@@ -210,14 +210,14 @@ public class MaintenanceRetroactivePeriodRecalculationApplicationService {
                         originalHash, replacementId, replacementHash, MaintenanceBalanceDirection.NONE,
                         BigDecimal.ZERO, NO_FEE_CURRENCY, productInputHash, productResultHash, now, List.of());
         commandGateway.sendAndWait(new RecordMaintenanceRetroactiveProductRecalculationCommand(
-                MaintenanceId.of(input.maintenanceId()), id, input.operationId(), product, now, input.operatorId()));
+                MaintenanceId.of(input.maintenanceId()), id, input.operationId(), product, now, input.operatorId(), input.tenantId()));
         String billingResultHash = MaintenanceRetroactiveImpactSourcePort.itemHash(
                 NO_FEE_BILLING_MARKER, id, productResultHash);
         MaintenanceRetroactiveBillingAdjustmentEvidence billing = new MaintenanceRetroactiveBillingAdjustmentEvidence(
                 NO_FEE_BILLING_ID_PREFIX + input.maintenanceId(), NO_FEE_BILLING_STATUS, 0, 0,
                 requestHash, billingResultHash, now, List.of());
         commandGateway.sendAndWait(new CompleteMaintenanceRetroactivePeriodRecalculationCommand(
-                MaintenanceId.of(input.maintenanceId()), id, input.operationId(), billing, now, input.operatorId()));
+                MaintenanceId.of(input.maintenanceId()), id, input.operationId(), billing, now, input.operatorId(), input.tenantId()));
         return result(id, version, input.operationId(), view,
                 MaintenanceRetroactivePeriodRecalculationStatus.COMPLETED, product, billing, null, null, now);
     }

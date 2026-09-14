@@ -11,5 +11,6 @@ public record DecideMaintenanceReviewCommand(
         String taskId,
         String operationId,
         MaintenanceWorkflowReviewEvidence evidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

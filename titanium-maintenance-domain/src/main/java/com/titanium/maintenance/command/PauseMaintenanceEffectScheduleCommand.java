@@ -9,5 +9,6 @@ public record PauseMaintenanceEffectScheduleCommand(
         @TargetAggregateIdentifier MaintenanceId id,
         String scheduleId,
         String reason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

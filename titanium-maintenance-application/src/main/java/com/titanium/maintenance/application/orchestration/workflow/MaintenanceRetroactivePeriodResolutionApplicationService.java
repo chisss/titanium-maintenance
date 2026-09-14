@@ -71,7 +71,7 @@ public class MaintenanceRetroactivePeriodResolutionApplicationService {
         commandGateway.sendAndWait(new StartMaintenanceRetroactivePeriodResolutionCommand(
                 MaintenanceId.of(input.maintenanceId()), resolutionId, input.operationId(), request.payloadHash(),
                 view.getRetroactiveBillingBatchId(), view.getRetroactiveBillingResultHash(),
-                targetPeriod.toString(), input.reason(), LocalDateTime.now(), input.operatorId()));
+                targetPeriod.toString(), input.reason(), LocalDateTime.now(), input.operatorId(), input.tenantId()));
 
         MaintenanceRetroactivePeriodResolutionEvidence evidence;
         try {
@@ -80,7 +80,7 @@ public class MaintenanceRetroactivePeriodResolutionApplicationService {
             String message = safeMessage(exception);
             commandGateway.sendAndWait(new FailMaintenanceRetroactivePeriodResolutionCommand(
                     MaintenanceId.of(input.maintenanceId()), resolutionId, input.operationId(),
-                    FAILURE_CODE, message, LocalDateTime.now(), input.operatorId()));
+                    FAILURE_CODE, message, LocalDateTime.now(), input.operatorId(), input.tenantId()));
             return new MaintenanceRetroactivePeriodResolutionResult(
                     resolutionId, input.operationId(), MaintenanceRetroactivePeriodResolutionStatus.FAILED,
                     null, view.getRetroactiveBillingBatchId(), view.getRetroactiveBillingResultHash(),
@@ -88,7 +88,7 @@ public class MaintenanceRetroactivePeriodResolutionApplicationService {
         }
         commandGateway.sendAndWait(new CompleteMaintenanceRetroactivePeriodResolutionCommand(
                 MaintenanceId.of(input.maintenanceId()), resolutionId, input.operationId(), evidence,
-                LocalDateTime.now(), input.operatorId()));
+                LocalDateTime.now(), input.operatorId(), input.tenantId()));
         return completedResult(resolutionId, input.operationId(), evidence);
     }
 

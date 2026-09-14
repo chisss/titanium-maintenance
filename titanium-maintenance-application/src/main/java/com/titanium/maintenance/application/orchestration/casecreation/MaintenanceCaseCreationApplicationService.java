@@ -68,11 +68,11 @@ public class MaintenanceCaseCreationApplicationService {
         CompletableFuture<Object> flow = sendCreateOrRecover(command);
         for (ResolvedMaintenanceItem item : resolvedItems) {
             flow = flow.thenCompose(ignored -> commandGateway.send(new AddMaintenanceItemCommand(
-                    command.id(), item.definition(), item.evidence(), request.createdBy())));
+                    command.id(), item.definition(), item.evidence(), request.createdBy(), request.tenantId())));
         }
         return flow.thenCompose(ignored -> commandGateway.send(
                         new CompleteMaintenanceCaseInitializationCommand(
-                                command.id(), request.itemCodes(), request.createdBy())))
+                                command.id(), request.itemCodes(), request.createdBy(), request.tenantId())))
                 .thenCompose(ignored -> scheduleIfRequired(request, snapshot, command))
                 .thenApply(ignored -> command.id().id());
     }
@@ -93,7 +93,7 @@ public class MaintenanceCaseCreationApplicationService {
         LocalDateTime nextExecutionAt = tenantExecutionAt.atZone(ZoneId.of(zoneId))
                 .withZoneSameInstant(ZoneOffset.UTC).toLocalDateTime();
         return commandGateway.send(new ScheduleMaintenanceEffectCommand(
-                command.id(), scheduleId(command.id().id()), zoneId, nextExecutionAt, request.createdBy()));
+                command.id(), scheduleId(command.id().id()), zoneId, nextExecutionAt, request.createdBy(), request.tenantId()));
     }
 
     private LocalDateTime resolveNextExecutionAt(

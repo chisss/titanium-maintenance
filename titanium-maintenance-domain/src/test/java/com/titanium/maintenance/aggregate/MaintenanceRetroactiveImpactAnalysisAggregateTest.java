@@ -59,7 +59,7 @@ class MaintenanceRetroactiveImpactAnalysisAggregateTest {
                 .when(new CompleteMaintenanceRetroactiveImpactAnalysisCommand(
                         ID, "analysis-1", "operation-1",
                         MaintenanceRetroactiveImpactAnalysis.requiredDomains(), List.of(claimItem()),
-                        "impact-evidence-v1", "b".repeat(64), NOW.plusMinutes(1), "operator-1"))
+                        "impact-evidence-v1", "b".repeat(64), NOW.plusMinutes(1), "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceRetroactiveImpactAnalysisCompletedEvent.class))))
@@ -102,7 +102,7 @@ class MaintenanceRetroactiveImpactAnalysisAggregateTest {
                                 ID, analyzing, "operator-1", "tenant-1"))
                 .when(new FailMaintenanceRetroactiveImpactAnalysisCommand(
                         ID, "analysis-1", "operation-1", "BILLING_UNAVAILABLE",
-                        "账务取证失败", NOW.plusMinutes(1), "operator-1"))
+                        "账务取证失败", NOW.plusMinutes(1), "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceRetroactiveImpactAnalysisFailedEvent.class))))
@@ -115,7 +115,7 @@ class MaintenanceRetroactiveImpactAnalysisAggregateTest {
             String operationId,
             String analysisId) {
         return new StartMaintenanceRetroactiveImpactAnalysisCommand(
-                ID, analysisId, operationId, "a".repeat(64), EFFECTIVE_AT, NOW, NOW, "operator-1");
+                ID, analysisId, operationId, "a".repeat(64), EFFECTIVE_AT, NOW, NOW, "operator-1", "tenant-1");
     }
 
     private MaintenanceRetroactiveImpactAnalysis analysis(String operationId, String analysisId, int version) {

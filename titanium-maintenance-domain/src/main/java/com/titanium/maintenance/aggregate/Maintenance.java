@@ -94,6 +94,7 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceConflictException;
+import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceStatusException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.event.MaintenanceCaseInitializationCompletedEvent;
@@ -256,6 +257,7 @@ public class Maintenance extends BaseAggregate {
     @CreationPolicy(AggregateCreationPolicy.CREATE_IF_MISSING)
     public void handle(CreateMaintenanceCaseCommand command) {
         if (this.id != null) {
+            requireSameTenant(command.tenantId());
             assertSameCreationRequest(command);
             LocalDateTime retriedAt = LocalDateTime.now();
             capturePolicySnapshot(command, retriedAt);
@@ -343,6 +345,7 @@ public class Maintenance extends BaseAggregate {
     // 处理变更状态命令
     @CommandHandler
     public void handle(ChangeMaintenanceStatusCommand command) {
+        requireSameTenant(command.tenantId());
         if (this.status == MaintenanceStatus.COMPLETED || this.status == MaintenanceStatus.REJECTED) {
             throw new MaintenanceStatusException(this.id.id(), this.status.name(), command.newStatus().name(),
                     "已完成或已拒绝的保全不允许变更状态");
@@ -359,6 +362,7 @@ public class Maintenance extends BaseAggregate {
     // 处理添加变更记录命令
     @CommandHandler
     public void handle(AddMaintenanceChangeCommand command) {
+        requireSameTenant(command.tenantId());
         AggregateLifecycle.apply(new MaintenanceChangeAddedEvent(command.id(), command.changeType(),
                 command.fieldName(), command.oldValue(), command.newValue(), LocalDateTime.now(), command.createdBy(),
                 this.tenantId));
@@ -367,6 +371,7 @@ public class Maintenance extends BaseAggregate {
     /** 向草稿案件添加配置版本已冻结的保全项。 */
     @CommandHandler
     public void handle(AddMaintenanceItemCommand command) {
+        requireSameTenant(command.tenantId());
         requireItemStatusMutable("ADD_MAINTENANCE_ITEM");
         LocalDateTime addedAt = LocalDateTime.now();
         MaintenanceItemSelectionEvidence evidence = command.selectionEvidence();
@@ -403,6 +408,7 @@ public class Maintenance extends BaseAggregate {
     /** 全部计划项目已冻结后才允许独立案件进入信息录入。 */
     @CommandHandler
     public void handle(CompleteMaintenanceCaseInitializationCommand command) {
+        requireSameTenant(command.tenantId());
         requireItemStatusMutable("COMPLETE_CASE_INITIALIZATION");
         if (!plannedItemCodes.equals(command.itemCodes())) {
             throw new MaintenanceValidationException("CompleteMaintenanceCaseInitializationCommand", "itemCodes",
@@ -434,6 +440,7 @@ public class Maintenance extends BaseAggregate {
     /** 领取可处理任务。 */
     @CommandHandler
     public void handle(ClaimMaintenanceWorkflowTaskCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.CLAIM, command.taskId(), null, null, null, null, command.operatorId());
         transition(command.taskId(), operation, task -> {
@@ -445,6 +452,7 @@ public class Maintenance extends BaseAggregate {
     /** 开始处理已领取任务。 */
     @CommandHandler
     public void handle(StartMaintenanceWorkflowTaskCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.START, command.taskId(), null, null, null, null, command.operatorId());
         transition(command.taskId(), operation, task -> task.start(operation), false);
@@ -453,6 +461,7 @@ public class Maintenance extends BaseAggregate {
     /** 完成信息录入或业务校验任务。 */
     @CommandHandler
     public void handle(CompleteMaintenanceWorkflowTaskCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowTask task = findWorkflowTask(command.taskId());
         if (task.stepType() == MaintenanceStepType.DATA_ENTRY
                 && findItem(task.itemCode()).fieldChanges().isEmpty()) {
@@ -468,6 +477,7 @@ public class Maintenance extends BaseAggregate {
     /** 将处理中任务记为失败。 */
     @CommandHandler
     public void handle(FailMaintenanceWorkflowTaskCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.FAIL, command.taskId(), null, null, command.failureCode(),
                 command.failureReason(), command.operatorId());
@@ -477,6 +487,7 @@ public class Maintenance extends BaseAggregate {
     /** 将失败任务恢复为可领取状态。 */
     @CommandHandler
     public void handle(RetryMaintenanceWorkflowTaskCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.RETRY, command.taskId(), null, null, null, command.reason(),
                 command.operatorId());
@@ -486,6 +497,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录条件规则结论。 */
     @CommandHandler
     public void handle(DecideMaintenanceWorkflowConditionCommand command) {
+        requireSameTenant(command.tenantId());
         String resultCode = command.decision() == null ? null : command.decision().getCode();
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.DECIDE_CONDITION, command.taskId(), command.ruleVersion(),
@@ -498,6 +510,7 @@ public class Maintenance extends BaseAggregate {
     /** 使用人工或自动审核专用证据决定审核任务。 */
     @CommandHandler
     public void handle(DecideMaintenanceReviewCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowReviewEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("DecideMaintenanceReviewCommand", "evidence", "审核证据不能为空");
@@ -522,6 +535,7 @@ public class Maintenance extends BaseAggregate {
     /** 使用 Underwriting 权威证据决定核保任务，不接受调用方自报结论。 */
     @CommandHandler
     public void handle(DecideMaintenanceUnderwritingCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceUnderwritingEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("DecideMaintenanceUnderwritingCommand", "evidence", "核保证据不能为空");
@@ -544,6 +558,7 @@ public class Maintenance extends BaseAggregate {
     /** 使用 Product 权威报价或配置无需报价结论更新费用任务，不提前激活生效步骤。 */
     @CommandHandler
     public void handle(RecordMaintenancePremiumQuoteCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenancePremiumQuoteEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenancePremiumQuoteCommand", "evidence", "报价证据不能为空");
@@ -560,6 +575,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录 Billing 与 Payment 双重门禁，资金成功后才激活后继生效任务。 */
     @CommandHandler
     public void handle(RecordMaintenancePremiumSettlementCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceBillingPostingEvidence posting = command.postingEvidence();
         MaintenanceFundSettlementEvidence funds = command.fundEvidence();
         if (posting == null || funds == null) {
@@ -579,6 +595,7 @@ public class Maintenance extends BaseAggregate {
     /** 外部结算调用失败时记录可恢复失败，不激活后继任务。 */
     @CommandHandler
     public void handle(FailMaintenancePremiumSettlementCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.FAIL_PREMIUM_SETTLEMENT, command.taskId(), null, null, command.failureCode(),
                 command.failureReason(), command.operatorId());
@@ -588,6 +605,7 @@ public class Maintenance extends BaseAggregate {
     /** 为案件建立未来生效计划；此时不冻结 Policy 请求证据。 */
     @CommandHandler
     public void handle(ScheduleMaintenanceEffectCommand command) {
+        requireSameTenant(command.tenantId());
         if (!initializationCompleted || workflowTasks == null || activeEffectTaskIds().isEmpty()) {
             throw new MaintenanceValidationException(
                     "ScheduleMaintenanceEffectCommand", "workflow", "案件流程尚未完成初始化或缺少生效任务");
@@ -612,6 +630,7 @@ public class Maintenance extends BaseAggregate {
     /** 暂停尚未完成的未来生效计划。 */
     @CommandHandler
     public void handle(PauseMaintenanceEffectScheduleCommand command) {
+        requireSameTenant(command.tenantId());
         requireSchedule(command.scheduleId());
         if (command.reason() == null || command.reason().isBlank()) {
             throw new MaintenanceValidationException(
@@ -630,6 +649,7 @@ public class Maintenance extends BaseAggregate {
     /** 恢复暂停或失败计划，并将可重试的生效任务恢复到 READY。 */
     @CommandHandler
     public void handle(ResumeMaintenanceEffectScheduleCommand command) {
+        requireSameTenant(command.tenantId());
         requireSchedule(command.scheduleId());
         if (command.nextExecutionAt() == null || command.reason() == null || command.reason().isBlank()) {
             throw new MaintenanceValidationException(
@@ -651,6 +671,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录一次持有租约的计划执行尝试。 */
     @CommandHandler
     public void handle(RecordMaintenanceEffectScheduleAttemptCommand command) {
+        requireSameTenant(command.tenantId());
         requireSchedule(command.scheduleId());
         if (command.attemptId() != null && command.attemptId().equals(effectSchedule.lastAttemptId())) {
             return;
@@ -665,6 +686,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录计划失败；可重试失败同时恢复生效任务并继续保持计划状态。 */
     @CommandHandler
     public void handle(RecordMaintenanceEffectScheduleFailureCommand command) {
+        requireSameTenant(command.tenantId());
         requireSchedule(command.scheduleId());
         if (currentEffectStatus() == MaintenanceEffectStatus.APPLIED) {
             return;
@@ -688,6 +710,7 @@ public class Maintenance extends BaseAggregate {
     /** Policy 权威回执已记录后关闭计划。 */
     @CommandHandler
     public void handle(CompleteMaintenanceEffectScheduleCommand command) {
+        requireSameTenant(command.tenantId());
         requireSchedule(command.scheduleId());
         if (effectSchedule.status() == MaintenanceEffectScheduleStatus.COMPLETED) {
             if (effectSchedule.lastAttemptId().equals(command.attemptId())) {
@@ -709,6 +732,7 @@ public class Maintenance extends BaseAggregate {
     /** 冻结一次追溯影响分析范围；新操作会形成递增版本。 */
     @CommandHandler
     public void handle(StartMaintenanceRetroactiveImpactAnalysisCommand command) {
+        requireSameTenant(command.tenantId());
         if (!initializationCompleted || effectiveTimeType != EffectiveTimeType.RETROACTIVE
                 || specificEffectiveDate == null) {
             throw new MaintenanceValidationException(
@@ -742,6 +766,7 @@ public class Maintenance extends BaseAggregate {
     /** 保存全部权威域的结构化影响清单；完成分析不改变案件生效状态。 */
     @CommandHandler
     public void handle(CompleteMaintenanceRetroactiveImpactAnalysisCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactiveImpactAnalysis(command.analysisId(), command.operationId());
         MaintenanceRetroactiveImpactAnalysis completed = retroactiveImpactAnalysis.complete(
                 command.coveredDomains(), command.items(), command.evidenceVersion(),
@@ -756,6 +781,7 @@ public class Maintenance extends BaseAggregate {
     /** 权威取证失败时记录可重试失败事实。 */
     @CommandHandler
     public void handle(FailMaintenanceRetroactiveImpactAnalysisCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactiveImpactAnalysis(command.analysisId(), command.operationId());
         MaintenanceRetroactiveImpactAnalysis failed = retroactiveImpactAnalysis.fail(
                 command.failureCode(), command.failureMessage(), command.failedAt());
@@ -769,6 +795,7 @@ public class Maintenance extends BaseAggregate {
     /** 冻结影响分析版本及本次 Product/Billing 期间重算请求。 */
     @CommandHandler
     public void handle(StartMaintenanceRetroactivePeriodRecalculationCommand command) {
+        requireSameTenant(command.tenantId());
         if (!initializationCompleted || effectiveTimeType != EffectiveTimeType.RETROACTIVE
                 || retroactiveImpactAnalysis == null
                 || retroactiveImpactAnalysis.status() != MaintenanceRetroactiveImpactAnalysisStatus.COMPLETED) {
@@ -810,6 +837,7 @@ public class Maintenance extends BaseAggregate {
     /** 保存 Product 期间重算权威检查点，Billing 失败后重试可复用。 */
     @CommandHandler
     public void handle(RecordMaintenanceRetroactiveProductRecalculationCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactivePeriodRecalculation(command.periodRecalculationId(), command.operationId());
         MaintenanceRetroactivePeriodRecalculation recalculation = retroactivePeriodRecalculation.recordProduct(
                 command.evidence(), command.recordedAt());
@@ -823,6 +851,7 @@ public class Maintenance extends BaseAggregate {
     /** 保存 Billing 期间调整或关闭期间复核事实。 */
     @CommandHandler
     public void handle(CompleteMaintenanceRetroactivePeriodRecalculationCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactivePeriodRecalculation(command.periodRecalculationId(), command.operationId());
         MaintenanceRetroactivePeriodRecalculation recalculation = retroactivePeriodRecalculation.completeBilling(
                 command.evidence(), command.completedAt());
@@ -836,6 +865,7 @@ public class Maintenance extends BaseAggregate {
     /** 保存重算失败事实，同时保留已经成功的 Product 检查点。 */
     @CommandHandler
     public void handle(FailMaintenanceRetroactivePeriodRecalculationCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactivePeriodRecalculation(command.periodRecalculationId(), command.operationId());
         MaintenanceRetroactivePeriodRecalculation recalculation = retroactivePeriodRecalculation.fail(
                 command.failureCode(), command.failureMessage(), command.failedAt());
@@ -849,6 +879,7 @@ public class Maintenance extends BaseAggregate {
     /** 冻结关闭会计期间处理请求，只允许处理当前 Billing 复核批次。 */
     @CommandHandler
     public void handle(StartMaintenanceRetroactivePeriodResolutionCommand command) {
+        requireSameTenant(command.tenantId());
         if (retroactivePeriodRecalculation == null
                 || retroactivePeriodRecalculation.status()
                         != MaintenanceRetroactivePeriodRecalculationStatus.REVIEW_REQUIRED
@@ -892,6 +923,7 @@ public class Maintenance extends BaseAggregate {
     /** 保存 Billing 关闭期间处理权威结论。 */
     @CommandHandler
     public void handle(CompleteMaintenanceRetroactivePeriodResolutionCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactivePeriodResolution(command.periodResolutionId(), command.operationId());
         if (command.evidence() == null) {
             throw new MaintenanceValidationException(
@@ -910,6 +942,7 @@ public class Maintenance extends BaseAggregate {
     /** 保存关闭期间处理失败事实，允许同一请求幂等续跑。 */
     @CommandHandler
     public void handle(FailMaintenanceRetroactivePeriodResolutionCommand command) {
+        requireSameTenant(command.tenantId());
         requireRetroactivePeriodResolution(command.periodResolutionId(), command.operationId());
         MaintenanceRetroactivePeriodResolution resolution = retroactivePeriodResolution.fail(
                 command.failureCode(), command.failureMessage(), command.failedAt());
@@ -923,6 +956,7 @@ public class Maintenance extends BaseAggregate {
     /** 在一个聚合命令事务中冻结案件全部生效任务。 */
     @CommandHandler
     public void handle(RequestMaintenanceCaseEffectCommand command) {
+        requireSameTenant(command.tenantId());
         List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
         MaintenanceEffectRequestEvidence evidence = command.evidence();
         if (evidence == null) {
@@ -945,6 +979,7 @@ public class Maintenance extends BaseAggregate {
     /** 在一个聚合命令事务中为案件全部生效任务记录同一权威回执。 */
     @CommandHandler
     public void handle(RecordMaintenanceCasePolicyApplicationCommand command) {
+        requireSameTenant(command.tenantId());
         List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
         MaintenancePolicyApplicationEvidence evidence = command.evidence();
         if (evidence == null) {
@@ -978,6 +1013,7 @@ public class Maintenance extends BaseAggregate {
     /** 在一个聚合命令事务中将案件全部已发起生效任务置为失败。 */
     @CommandHandler
     public void handle(FailMaintenanceCaseEffectCommand command) {
+        requireSameTenant(command.tenantId());
         List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
         boolean applied = false;
         for (String taskId : taskIds) {
@@ -995,6 +1031,7 @@ public class Maintenance extends BaseAggregate {
     /** Policy 已成功而案件回执写入失败时，记录独立人工补偿事实。 */
     @CommandHandler
     public void handle(RecordMaintenanceEffectCompensationCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceEffectCompensationEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "evidence",
@@ -1184,10 +1221,11 @@ public class Maintenance extends BaseAggregate {
     /** 冻结项目撤销请求；已发起或已完成 Policy 生效的项目必须改走反向保全。 */
     @CommandHandler
     public MaintenanceItemWithdrawal handle(StartMaintenanceItemWithdrawalCommand command) {
+        requireSameTenant(command.tenantId());
         requireItemStatusMutable("WITHDRAW_MAINTENANCE_ITEM");
-        if (!initializationCompleted || !Objects.equals(tenantId, command.tenantId())) {
+        if (!initializationCompleted) {
             throw new MaintenanceValidationException(
-                    "StartMaintenanceItemWithdrawalCommand", "tenantId", "案件未初始化完成或租户不一致");
+                    "StartMaintenanceItemWithdrawalCommand", "initializationCompleted", "案件未初始化完成");
         }
         if (command.reason() == null || command.reason().isBlank()) {
             throw new MaintenanceValidationException(
@@ -1231,10 +1269,7 @@ public class Maintenance extends BaseAggregate {
     /** 冻结自动恢复所需的支付渠道；空渠道的退款补偿不需要额外恢复上下文。 */
     @CommandHandler
     public void handle(ConfigureMaintenanceItemWithdrawalRecoveryCommand command) {
-        if (!Objects.equals(tenantId, command.tenantId())) {
-            throw new MaintenanceValidationException(
-                    "ConfigureMaintenanceItemWithdrawalRecoveryCommand", "tenantId", "恢复上下文租户与案件不一致");
-        }
+        requireSameTenant(command.tenantId());
         requireWithdrawal(command.itemCode(), command.operationId(), command.requestHash());
         MaintenanceItemWithdrawalRecoveryContext context = new MaintenanceItemWithdrawalRecoveryContext(
                 command.itemCode(), command.operationId(), command.requestHash(), command.paymentMethod(),
@@ -1255,6 +1290,7 @@ public class Maintenance extends BaseAggregate {
     /** 财务补偿完成后撤销当前项目提案，并将该项目未完成任务显式置为已跳过。 */
     @CommandHandler
     public MaintenanceItemWithdrawal handle(RecordMaintenanceItemWithdrawalCompensationCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceItemWithdrawal withdrawal = requireWithdrawal(
                 command.itemCode(), command.operationId(), command.requestHash());
         MaintenanceItemWithdrawal after = withdrawal.recordCompensation(command.compensation());
@@ -1275,6 +1311,7 @@ public class Maintenance extends BaseAggregate {
     /** Billing 或 Payment 不可用时记录失败，不把外部失败伪装为项目已撤销。 */
     @CommandHandler
     public MaintenanceItemWithdrawal handle(FailMaintenanceItemWithdrawalCommand command) {
+        requireSameTenant(command.tenantId());
         MaintenanceItemWithdrawal withdrawal = requireWithdrawal(
                 command.itemCode(), command.operationId(), command.requestHash());
         MaintenanceItemWithdrawal failed = withdrawal.fail(
@@ -1330,11 +1367,8 @@ public class Maintenance extends BaseAggregate {
     /** 使用当前 Policy 与目录权威证据生成并保存完整字段草稿。 */
     @CommandHandler
     public void handle(ProposeMaintenanceFieldChangesCommand command) {
+        requireSameTenant(command.tenantId());
         requireItemEditingAllowed("PROPOSE_MAINTENANCE_FIELD_CHANGES");
-        if (!Objects.equals(tenantId, command.tenantId())) {
-            throw new MaintenanceValidationException("ProposeMaintenanceFieldChangesCommand", "tenantId",
-                    "字段提案租户与案件不一致");
-        }
         if (policySnapshot == null) {
             throw new MaintenanceValidationException("ProposeMaintenanceFieldChangesCommand", "currentPolicySnapshot",
                     "案件缺少 Policy 基准快照");
@@ -1360,8 +1394,9 @@ public class Maintenance extends BaseAggregate {
     /** 使用 Policy 最新结构化快照刷新案件字段冲突。 */
     @CommandHandler
     public MaintenanceFieldConflictPlan handle(RefreshMaintenanceFieldConflictsCommand command) {
+        requireSameTenant(command.tenantId());
         requireConflictMutable("REFRESH_MAINTENANCE_FIELD_CONFLICTS");
-        validateConflictContext(command.currentPolicySnapshot(), command.tenantId());
+        validateConflictContext(command.currentPolicySnapshot());
         if (conflictOperationAlreadyApplied(command.operationId(), command.requestHash())) {
             return currentConflictPlan();
         }
@@ -1377,11 +1412,8 @@ public class Maintenance extends BaseAggregate {
     /** 显式解决一个字段冲突并重建案件拟快照。 */
     @CommandHandler
     public MaintenanceFieldConflictPlan handle(ResolveMaintenanceFieldConflictCommand command) {
+        requireSameTenant(command.tenantId());
         requireConflictMutable("RESOLVE_MAINTENANCE_FIELD_CONFLICT");
-        if (!Objects.equals(tenantId, command.tenantId())) {
-            throw new MaintenanceValidationException(
-                    "ResolveMaintenanceFieldConflictCommand", "tenantId", "冲突解决租户与案件不一致");
-        }
         if (command.reason() == null || command.reason().isBlank()) {
             throw new MaintenanceValidationException(
                     "ResolveMaintenanceFieldConflictCommand", "reason", "冲突解决原因不能为空");
@@ -1410,6 +1442,7 @@ public class Maintenance extends BaseAggregate {
     // 处理计算保费命令
     @CommandHandler
     public void handle(CalculateMaintenancePremiumCommand command) {
+        requireSameTenant(command.tenantId());
         if (premiumAdjustmentId != null) {
             throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(),
                     "CALCULATE_MAINTENANCE_PREMIUM", "已进入结构化生命周期计价后不能再写入人工金额");
@@ -1422,6 +1455,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录 Product 差额检查点；同一事实重放为幂等，不允许一个案件绑定不同差额。 */
     @CommandHandler
     public void handle(RecordMaintenancePremiumAdjustmentCommand command) {
+        requireSameTenant(command.tenantId());
         if (premiumAdjustmentId != null) {
             if (sameAdjustment(command)) {
                 return;
@@ -1440,6 +1474,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录退保价值策略证据；只允许保单终止案件绑定已记录的 Product 差额。 */
     @CommandHandler
     public void handle(RecordMaintenanceSurrenderValueCommand command) {
+        requireSameTenant(command.tenantId());
         if (surrenderPolicyContentHash != null) {
             if (sameSurrenderValue(command)) {
                 return;
@@ -1466,6 +1501,7 @@ public class Maintenance extends BaseAggregate {
     /** 记录 Billing 入账检查点；POSTED 仅表示余额事实登记成功，不表示资金已结算。 */
     @CommandHandler
     public void handle(RecordMaintenancePremiumPostingCommand command) {
+        requireSameTenant(command.tenantId());
         if (billingPostingId != null) {
             if (samePosting(command)) {
                 return;
@@ -1498,6 +1534,7 @@ public class Maintenance extends BaseAggregate {
      */
     @CommandHandler
     public void handle(RecordMaintenanceFinancialSettlementCommand command) {
+        requireSameTenant(command.tenantId());
         validateFinancialSettlement(command);
         MaintenancePremiumSettlementStatus targetStatus = financialSettlementStatus(command.refundStatus());
         if (sameFinancialSettlement(command, targetStatus)) {
@@ -1515,6 +1552,7 @@ public class Maintenance extends BaseAggregate {
     // 处理执行保全命令
     @CommandHandler
     public void handle(ExecuteMaintenanceCommand command) {
+        requireSameTenant(command.tenantId());
         if (requiresPremiumSettlement() && !hasRecordedBalanceFact()) {
             throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "EXECUTE_MAINTENANCE",
                     "价格影响型保全必须先完成 Product 差额和 Billing 余额事实登记");
@@ -1932,11 +1970,7 @@ public class Maintenance extends BaseAggregate {
         }
     }
 
-    private void validateConflictContext(PolicyMaintenanceSnapshot snapshot, String commandTenantId) {
-        if (!Objects.equals(tenantId, commandTenantId)) {
-            throw new MaintenanceValidationException(
-                    "RefreshMaintenanceFieldConflictsCommand", "tenantId", "冲突刷新租户与案件不一致");
-        }
+    private void validateConflictContext(PolicyMaintenanceSnapshot snapshot) {
         if (snapshot == null || !policyId.equals(snapshot.policyId())) {
             throw new MaintenanceValidationException(
                     "RefreshMaintenanceFieldConflictsCommand", "currentPolicySnapshot", "Policy 当前快照与案件不匹配");
@@ -2557,5 +2591,21 @@ public class Maintenance extends BaseAggregate {
                 true;
             default -> false;
         };
+    }
+
+    /**
+     * 校验命令携带的租户与案件归属租户一致。
+     * <p>
+     * 租户缺失、空白或不符一律以「保全不存在」拒绝——不区分「不存在」与「不属于本租户」，避免跨租户探测。
+     * 这是应用层读模型校验之外的<b>纵深防线</b>：不依赖最终一致的读模型，且对新增派发路径（Saga、编排器
+     * 直发命令）自动生效——只要命令经本聚合处理，归属校验就必然发生。
+     * </p>
+     *
+     * @param commandTenantId 命令携带的租户ID
+     */
+    private void requireSameTenant(String commandTenantId) {
+        if (commandTenantId == null || commandTenantId.isBlank() || !Objects.equals(commandTenantId, tenantId)) {
+            throw new MaintenanceNotFoundException();
+        }
     }
 }

@@ -185,12 +185,15 @@ mvn spring-boot:run
     **修复**：把 `reusableProductEvidence(view, input, recalculationId)` 提到 `Start` 派发**之前**，与 `affectedPeriods(...)` 同属「为本次重算取证」的只读步骤；读取失败即前置取证失败，此时尚无检查点可标记失败，故直接抛出而不派发 `Fail` 命令（与 `Fail` 处理器的 `requireRetroactivePeriodRecalculation` 前置守卫一致）。
     **测试**：`MaintenanceRetroactivePeriodRecalculationApplicationServiceTest#shouldReuseProductCheckpointWhenRetryingBillingFailure` 补 `InOrder` 顺序断言——`periodAdjustmentViewRepository.findBy...` 必须先于 `commandGateway.sendAndWait(Start...)`，顺序一旦回退即红。
 
-14. **🟠 租户拒绝面：防线在应用层、聚合层无兜底（m2-908 实读登记，2026-09-11）**：
-    - **实况**：`Maintenance` 是**全域唯一聚合根，含 50 个 `@CommandHandler`**，其中**仅 5 处**内联租户校验（`Maintenance.java:1188/1234/1334/1381/1752`）。租户防线实际落在**应用层**——31 个命令派发点分布于 11 个文件，且**三种形态混用**：`findBy*AndTenantId` 租户维度读模型查询（3 文件）、`tenantId()` 与 fact/snapshot 比对（8 文件）、`requireMaintenanceExists(maintenanceId, tenantId)`（`MaintenanceApplicationService` 6 处，内部即 `findByMaintenanceIdAndTenantId`）。
-    - **为何无法照搬 policy/billing 模式**：50 个命令 record 中**仅 7 个带 `tenantId` 字段**（`CreateMaintenanceCommand`/`CreateMaintenanceCaseCommand`/`StartMaintenanceItemWithdrawalCommand`/`ConfigureMaintenanceItemWithdrawalRecoveryCommand`/`ProposeMaintenanceFieldChangesCommand`/`ResolveMaintenanceFieldConflictCommand`/`RefreshMaintenanceFieldConflictsCommand`），其余 **43 个命令契约上就没有租户**——「没有租户可比」而非「忘了比」，聚合层无从校验。批量补字段属**跨域契约破坏性变更**（命令经 Kafka/Feign 序列化），须先盘点存量在途消息，故本任务**只登记不实施**。
-    - **风险敞口**：当前 11 个派发文件**均已带某种租户防线**，且全域**无 `@Saga`、无 `@EventHandler` 发命令**（投影发命令已被 ArchUnit `queryShouldNotDependOnCommandGateway` 禁令覆盖），故**未失守**；但一旦新增绕过应用层的派发路径（Saga、事件直发、新的编排器直接 `sendAndWait`），聚合层无任何兜底。
-    - **跟进方向**：优先给「资金类 + 状态终态类」命令补 `tenantId` 并加聚合层 `requireSameTenant`（参照 `BillingAccount.requireSameTenant` 范式：失败关闭 + 用 `*_NOT_EXIST` 码不泄漏资源是否存在）；CMD 契约变更须评估在途消息兼容性。
-    - 跨域同批处置见 [docs/当前系统现状评估-2026-09.md](../docs/当前系统现状评估-2026-09.md) C-02（policy 29 处理器已补齐、billing 垫缴命令已补齐，本域为唯一遗留）。
+14. ✅ **租户拒绝面：聚合层纵深防线已补（m2-908 登记 → m8-1102 实施，2026-09-14）**：
+    - **原判定与其前提被推翻**：m2-908 判断「43 个命令补 `tenantId` 属**跨域契约破坏性变更**（命令经 Kafka/Feign 序列化），须先盘点存量在途消息」，故**只登记不实施**。m8-1102 实读证明该前提不成立——本域**无 `axon.axonserver` 配置**，`AxonConfig` javadoc 明示「单体应用模式下，命令总线/命令网关/事件存储均由 axon-spring-boot-starter 自动装配」⇒ 命令总线是**进程内 `SimpleCommandBus`**，命令**从不序列化、不跨进程**，不存在在途消息；给命令 record 加字段是**域内重构**，非契约变更。
+    - 🔴 **可复用判据**：给命令/事件加字段前，先确认**该消息是否真的跨进程**——判据是**命令总线拓扑**（`SimpleCommandBus` vs `AxonServerCommandBus`/`KafkaCommandBus`），不是「record 长得像 DTO」。命名相似 ≠ 契约相同；把进程内命令当跨域契约，会凭空造出「在途消息兼容性」这个不存在的阻塞前提。
+    - **实施内容**：① 43 个状态推进命令 record 末尾补 `String tenantId`（连同原有 7 个，50 个命令全覆盖）；② 聚合根新增私有 `requireSameTenant(String)`，**48 个处理器首条语句**加守卫，另 1 个幂等建案处理器（`CreateMaintenanceCaseCommand` 兼作创建路径）守卫置于重试分支内，**创建构造器豁免**（创建时尚无「聚合既有租户」可比对，其租户由创建事件落库，后续命令回放后即受守护）；③ 原 5 处内联校验（用 `MaintenanceValidationException` 且明示「租户不一致」，会**泄漏资源存在性**）统一收敛到 `requireSameTenant`；④ application 层 50 个派发点补租户实参。
+    - **守卫语义（失败关闭）**：租户缺失、空白或不符**一律以「保全不存在」拒绝**（`MaintenanceNotFoundException`）——不区分「不存在」与「不属于本租户」，避免跨租户探测。
+    - **纵深防御定位**：原防线只在应用层，且 `MaintenanceApplicationService.requireMaintenanceExists` 依赖**最终一致的读模型**（投影滞后时误拒而非放行，fail-safe 但可用性脆弱），orchestration 的 26 个派发点原本**无任何租户校验**。聚合层守卫**不依赖读模型**，且对新增派发路径（Saga、编排器直发命令）**自动生效**——只要命令经本聚合处理，归属校验就必然发生。
+    - **测试**：`CrossTenantCommandGuardTest` 5 例（domain），两条互补判据——**行为判据**（错租户/空租户派发须拒绝且 `expectNoEvents()`；同租户不得误伤）+ **结构判据**（扫描聚合根源码，逐 `@CommandHandler` 断言首条语句 == `requireSameTenant(command.tenantId());`，并计数 48 首条 / 1 构造器 / 1 幂等建案 / 共 50 处理器，**防静默失效**）。新增处理器漏写守卫即红。
+    - **门禁**：`mvn -B clean install` 全域 **554 例**（0 失败 0 错误 6 跳过）。
+    - 跨域同批处置见 [docs/当前系统现状评估-2026-09.md](../docs/当前系统现状评估-2026-09.md) C-02（policy 29 处理器已补齐、billing 垫缴命令已补齐，本域为**最后一块**）。
 
 15. ✅ **受理环节预检字段可执行性（m3-901，2026-09-11，缺口登记 G1）**：字段目录中 `executionSupported=false` 的字段在本域没有落地执行器（见 §2.1 三类根因），而**唯一拦截点原在「生效」环节**——`MaintenanceEffectApplicationService:517` 的 `validateExecutionCapabilities`。结果是这类字段**受理放行、生效必败**：用户在受理环节提交提案、走完审核流程，才在生效时拿到必然的失败。
     - **修复**：`MaintenanceFieldDraftApplicationService.record` 在取得实时目录证据后新增 `requireExecutableFields(proposals, catalog)`，对不可执行字段在**派发提案命令之前**即以 `MaintenanceValidationException` 拒绝（字段码 `fieldCode`，文案与生效环节逐字一致：`"字段尚未开放真实执行: " + fieldCode`）。

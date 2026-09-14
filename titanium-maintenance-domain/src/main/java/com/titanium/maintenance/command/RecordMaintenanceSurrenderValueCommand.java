@@ -20,5 +20,6 @@ public record RecordMaintenanceSurrenderValueCommand(
         BigDecimal cashValueRate,
         BigDecimal retainedCustomerAmount,
         BigDecimal internalCostRetentionRate,
-        String updatedBy) {
+        String updatedBy,
+        String tenantId) {
 }

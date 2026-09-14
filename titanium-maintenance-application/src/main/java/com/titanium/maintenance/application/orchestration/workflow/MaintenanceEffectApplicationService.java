@@ -147,7 +147,7 @@ public class MaintenanceEffectApplicationService {
                 input.operationId(), "receipt", context.retryCount());
         return send(new RecordMaintenanceCasePolicyApplicationCommand(
                 MaintenanceId.of(input.maintenanceId()), context.taskIds(), operationId,
-                evidence, input.operatorId()))
+                evidence, input.operatorId(), input.tenantId()))
                 .thenApply(ignored -> new MaintenanceEffectApplicationResult(
                         fact.requestId(), fact.endorsementNo(), fact.actualPolicyVersion(),
                         fact.applicationHash(), fact.appliedAt()))
@@ -169,7 +169,7 @@ public class MaintenanceEffectApplicationService {
                 fact.applicationHash(), failureReason(cause), LocalDateTime.now(), input.operatorId());
         return send(new RecordMaintenanceEffectCompensationCommand(
                 MaintenanceId.of(input.maintenanceId()), context.taskIds().getFirst(), evidence,
-                input.operatorId()))
+                input.operatorId(), input.tenantId()))
                 .thenCompose(ignored -> CompletableFuture.failedFuture(cause));
     }
 
@@ -182,7 +182,7 @@ public class MaintenanceEffectApplicationService {
         String reason = failureReason(exception);
         return send(new FailMaintenanceCaseEffectCommand(
                 MaintenanceId.of(input.maintenanceId()), context.taskIds(), operationId,
-                "POLICY_APPLICATION_FAILED", reason, input.operatorId()))
+                "POLICY_APPLICATION_FAILED", reason, input.operatorId(), input.tenantId()))
                 .thenCompose(ignored -> CompletableFuture.failedFuture(exception));
     }
 
@@ -203,7 +203,7 @@ public class MaintenanceEffectApplicationService {
                 input.operationId(), "request", context.retryCount());
         return send(new RequestMaintenanceCaseEffectCommand(
                 MaintenanceId.of(input.maintenanceId()), context.taskIds(), operationId,
-                evidence, input.operatorId()));
+                evidence, input.operatorId(), input.tenantId()));
     }
 
     private ApplicationRequest buildRequest(

@@ -69,7 +69,7 @@ class MaintenanceRetroactivePeriodResolutionAggregateTest {
                         ID, resolving, "operator-1", "tenant-1")))
                 .when(new CompleteMaintenanceRetroactivePeriodResolutionCommand(
                         ID, "resolution-1", "operation-1", resolutionEvidence(),
-                        NOW.plusMinutes(1), "operator-1"))
+                        NOW.plusMinutes(1), "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceRetroactivePeriodResolutionCompletedEvent.class))))
@@ -83,7 +83,7 @@ class MaintenanceRetroactivePeriodResolutionAggregateTest {
         StartMaintenanceRetroactivePeriodResolutionCommand invalid =
                 new StartMaintenanceRetroactivePeriodResolutionCommand(
                         ID, "resolution-1", "operation-1", hash('q'), "billing-batch-other",
-                        hash('b'), "2026-08", "结转至当前开放期间", NOW, "operator-1");
+                        hash('b'), "2026-08", "结转至当前开放期间", NOW, "operator-1", "tenant-1");
 
         fixture.given(baseEvents())
                 .when(invalid)
@@ -116,7 +116,7 @@ class MaintenanceRetroactivePeriodResolutionAggregateTest {
     private StartMaintenanceRetroactivePeriodResolutionCommand startCommand() {
         return new StartMaintenanceRetroactivePeriodResolutionCommand(
                 ID, "resolution-1", "operation-1", hash('q'), "billing-batch-1", hash('b'),
-                "2026-08", "结转至当前开放期间", NOW, "operator-1");
+                "2026-08", "结转至当前开放期间", NOW, "operator-1", "tenant-1");
     }
 
     private MaintenanceRetroactiveImpactAnalysis impactAnalysis() {

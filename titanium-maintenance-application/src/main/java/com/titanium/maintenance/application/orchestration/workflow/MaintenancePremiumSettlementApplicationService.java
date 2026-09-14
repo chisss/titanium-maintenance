@@ -91,7 +91,7 @@ public class MaintenancePremiumSettlementApplicationService {
         RecordMaintenancePremiumSettlementCommand command =
                 new RecordMaintenancePremiumSettlementCommand(
                         MaintenanceId.of(input.maintenanceId()), input.taskId(), operationId,
-                        posting, funds, input.operatorId());
+                        posting, funds, input.operatorId(), input.tenantId());
         return send(command).thenApply(ignored -> result(posting, funds));
     }
 
@@ -348,7 +348,7 @@ public class MaintenancePremiumSettlementApplicationService {
         String reason = safeReason(exception.getMessage());
         FailMaintenancePremiumSettlementCommand command = new FailMaintenancePremiumSettlementCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                exception.getErrorCode(), reason, input.operatorId());
+                exception.getErrorCode(), reason, input.operatorId(), input.tenantId());
         return send(command).thenApply(ignored -> new MaintenancePremiumSettlementGateResult(
                 MaintenanceWorkflowTaskStatus.FAILED, null, null, null, null, null,
                 null, MaintenanceFundSettlementStatus.FAILED, null, null, null,

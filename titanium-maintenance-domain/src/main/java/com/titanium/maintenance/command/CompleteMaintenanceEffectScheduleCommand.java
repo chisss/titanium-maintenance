@@ -12,5 +12,6 @@ public record CompleteMaintenanceEffectScheduleCommand(
         String scheduleId,
         String attemptId,
         LocalDateTime completedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

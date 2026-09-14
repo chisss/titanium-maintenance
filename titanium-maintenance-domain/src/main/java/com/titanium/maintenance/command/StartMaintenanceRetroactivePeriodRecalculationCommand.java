@@ -16,5 +16,6 @@ public record StartMaintenanceRetroactivePeriodRecalculationCommand(
         int analysisVersion,
         String analysisResultHash,
         LocalDateTime startedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

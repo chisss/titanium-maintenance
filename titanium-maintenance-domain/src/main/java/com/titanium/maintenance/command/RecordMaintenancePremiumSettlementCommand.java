@@ -13,5 +13,6 @@ public record RecordMaintenancePremiumSettlementCommand(
         String operationId,
         MaintenanceBillingPostingEvidence postingEvidence,
         MaintenanceFundSettlementEvidence fundEvidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

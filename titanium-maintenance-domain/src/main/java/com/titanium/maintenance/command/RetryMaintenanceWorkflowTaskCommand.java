@@ -10,5 +10,6 @@ public record RetryMaintenanceWorkflowTaskCommand(
         String taskId,
         String operationId,
         String reason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

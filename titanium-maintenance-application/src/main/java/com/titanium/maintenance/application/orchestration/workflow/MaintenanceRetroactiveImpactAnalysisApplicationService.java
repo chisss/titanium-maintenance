@@ -72,7 +72,7 @@ public class MaintenanceRetroactiveImpactAnalysisApplicationService {
                 input.tenantId(), input.maintenanceId(), view.getPolicyId(), scopeFrom, scopeTo);
         commandGateway.sendAndWait(new StartMaintenanceRetroactiveImpactAnalysisCommand(
                 MaintenanceId.of(input.maintenanceId()), analysisId, input.operationId(), request.requestHash(),
-                scopeFrom, scopeTo, LocalDateTime.now(), input.operatorId()));
+                scopeFrom, scopeTo, LocalDateTime.now(), input.operatorId(), input.tenantId()));
 
         try {
             List<SourceEvidence> evidence = collect(request);
@@ -93,7 +93,7 @@ public class MaintenanceRetroactiveImpactAnalysisApplicationService {
             LocalDateTime completedAt = LocalDateTime.now();
             commandGateway.sendAndWait(new CompleteMaintenanceRetroactiveImpactAnalysisCommand(
                     MaintenanceId.of(input.maintenanceId()), analysisId, input.operationId(), domains, items,
-                    evidenceVersion, resultHash, completedAt, input.operatorId()));
+                    evidenceVersion, resultHash, completedAt, input.operatorId(), input.tenantId()));
             return completedResult(
                     analysisId, analysisVersion, input.operationId(), request, items, resultHash, completedAt);
         } catch (RuntimeException exception) {
@@ -101,7 +101,7 @@ public class MaintenanceRetroactiveImpactAnalysisApplicationService {
             LocalDateTime failedAt = LocalDateTime.now();
             commandGateway.sendAndWait(new FailMaintenanceRetroactiveImpactAnalysisCommand(
                     MaintenanceId.of(input.maintenanceId()), analysisId, input.operationId(),
-                    FAILURE_CODE, message, failedAt, input.operatorId()));
+                    FAILURE_CODE, message, failedAt, input.operatorId(), input.tenantId()));
             return new MaintenanceRetroactiveImpactAnalysisResult(
                     analysisId, analysisVersion, input.operationId(),
                     MaintenanceRetroactiveImpactAnalysisStatus.FAILED, scopeFrom, scopeTo,

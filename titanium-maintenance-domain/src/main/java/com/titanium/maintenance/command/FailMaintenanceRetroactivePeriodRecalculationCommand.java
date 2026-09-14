@@ -14,5 +14,6 @@ public record FailMaintenanceRetroactivePeriodRecalculationCommand(
         String failureCode,
         String failureMessage,
         LocalDateTime failedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

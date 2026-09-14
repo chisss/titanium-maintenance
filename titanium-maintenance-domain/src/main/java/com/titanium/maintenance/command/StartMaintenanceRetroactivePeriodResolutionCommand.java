@@ -17,5 +17,6 @@ public record StartMaintenanceRetroactivePeriodResolutionCommand(
         String targetAccountingPeriod,
         String reason,
         LocalDateTime startedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

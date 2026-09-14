@@ -12,5 +12,6 @@ public record FailMaintenanceItemWithdrawalCommand(
         String requestHash,
         String failureCode,
         String failureMessage,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

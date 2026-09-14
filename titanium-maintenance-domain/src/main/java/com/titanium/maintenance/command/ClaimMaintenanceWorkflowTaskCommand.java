@@ -9,5 +9,6 @@ public record ClaimMaintenanceWorkflowTaskCommand(
         @TargetAggregateIdentifier MaintenanceId id,
         String taskId,
         String operationId,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

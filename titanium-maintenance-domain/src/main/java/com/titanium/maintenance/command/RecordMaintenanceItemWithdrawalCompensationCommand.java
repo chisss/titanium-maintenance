@@ -12,5 +12,6 @@ public record RecordMaintenanceItemWithdrawalCompensationCommand(
         String operationId,
         String requestHash,
         MaintenanceItemWithdrawalCompensation compensation,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

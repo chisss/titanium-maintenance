@@ -14,5 +14,6 @@ public record CompleteMaintenanceRetroactivePeriodRecalculationCommand(
         String operationId,
         MaintenanceRetroactiveBillingAdjustmentEvidence evidence,
         LocalDateTime completedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

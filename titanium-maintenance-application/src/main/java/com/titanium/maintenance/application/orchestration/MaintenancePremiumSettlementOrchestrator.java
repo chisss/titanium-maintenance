@@ -172,13 +172,13 @@ public class MaintenancePremiumSettlementOrchestrator {
         validatePosting(adjustment, posting);
         commandGateway.sendAndWait(new RecordMaintenancePremiumPostingCommand(
                 MaintenanceId.of(view.getMaintenanceId()), adjustment.adjustmentId(), adjustment.resultHash(),
-                posting.postingId(), posting.status(), updatedBy));
+                posting.postingId(), posting.status(), updatedBy, tenantId));
         validateFinancialFacts(adjustment, posting);
         MaintenancePremiumSettlementStatus targetStatus = financialSettlementStatus(
                 adjustment.direction(), posting.refundStatus());
         commandGateway.sendAndWait(new RecordMaintenanceFinancialSettlementCommand(
                 MaintenanceId.of(view.getMaintenanceId()), posting.postingId(), posting.refundInstructionId(),
-                posting.refundOrderId(), posting.refundStatus(), posting.commissionAdjustmentCount(), updatedBy));
+                posting.refundOrderId(), posting.refundStatus(), posting.commissionAdjustmentCount(), updatedBy, tenantId));
         return fromAdjustment(view.getMaintenanceId(), adjustment, posting, targetStatus);
     }
 
@@ -211,7 +211,7 @@ public class MaintenancePremiumSettlementOrchestrator {
         commandGateway.sendAndWait(new RecordMaintenancePremiumAdjustmentCommand(
                 MaintenanceId.of(view.getMaintenanceId()), adjustment.originalCalculationId(),
                 adjustment.replacementCalculationId(), adjustment.adjustmentId(), adjustment.resultHash(),
-                adjustment.direction(), adjustment.customerAmount(), adjustment.currency(), updatedBy));
+                adjustment.direction(), adjustment.customerAmount(), adjustment.currency(), updatedBy, view.getTenantId()));
     }
 
     private void recordSurrenderValue(
@@ -222,7 +222,7 @@ public class MaintenancePremiumSettlementOrchestrator {
                 MaintenanceId.of(view.getMaintenanceId()), fact.adjustmentId(), fact.policyCode(),
                 fact.policyVersion(), fact.policyContentHash(), fact.policyYear(), fact.coolingOffDays(),
                 fact.refundType(), fact.withinCoolingOff(), fact.cashValueRate(), fact.retainedCustomerAmount(),
-                fact.internalCostRetentionRate(), updatedBy));
+                fact.internalCostRetentionRate(), updatedBy, view.getTenantId()));
     }
 
     private ProductPremiumLifecyclePort.AdjustmentFact toAdjustmentFact(

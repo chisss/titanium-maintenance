@@ -107,13 +107,13 @@ public class MaintenanceWorkflowApplicationService {
     public CompletableFuture<Void> claim(MaintenanceWorkflowTaskOperationInput input) {
         requireTask(input);
         return send(new ClaimMaintenanceWorkflowTaskCommand(
-                id(input), input.taskId(), input.operationId(), input.operatorId()));
+                id(input), input.taskId(), input.operationId(), input.operatorId(), input.tenantId()));
     }
 
     public CompletableFuture<Void> start(MaintenanceWorkflowTaskOperationInput input) {
         requireTask(input);
         return send(new StartMaintenanceWorkflowTaskCommand(
-                id(input), input.taskId(), input.operationId(), input.operatorId()));
+                id(input), input.taskId(), input.operationId(), input.operatorId(), input.tenantId()));
     }
 
     public CompletableFuture<Void> complete(MaintenanceWorkflowTaskOperationInput input) {
@@ -126,20 +126,20 @@ public class MaintenanceWorkflowApplicationService {
         }
         return send(new CompleteMaintenanceWorkflowTaskCommand(
                 id(input), input.taskId(), input.operationId(), input.evidenceVersion(),
-                input.evidenceHash(), input.resultCode(), input.reason(), input.operatorId()));
+                input.evidenceHash(), input.resultCode(), input.reason(), input.operatorId(), input.tenantId()));
     }
 
     public CompletableFuture<Void> fail(MaintenanceWorkflowTaskOperationInput input) {
         requireTask(input);
         return send(new FailMaintenanceWorkflowTaskCommand(
                 id(input), input.taskId(), input.operationId(),
-                input.resultCode(), input.reason(), input.operatorId()));
+                input.resultCode(), input.reason(), input.operatorId(), input.tenantId()));
     }
 
     public CompletableFuture<Void> retry(MaintenanceWorkflowTaskOperationInput input) {
         requireTask(input);
         return send(new RetryMaintenanceWorkflowTaskCommand(
-                id(input), input.taskId(), input.operationId(), input.reason(), input.operatorId()));
+                id(input), input.taskId(), input.operationId(), input.reason(), input.operatorId(), input.tenantId()));
     }
 
     public CompletableFuture<Void> decideCondition(MaintenanceWorkflowTaskOperationInput input) {
@@ -151,7 +151,7 @@ public class MaintenanceWorkflowApplicationService {
         }
         return send(new DecideMaintenanceWorkflowConditionCommand(
                 id(input), input.taskId(), input.operationId(), input.evidenceVersion(),
-                input.evidenceHash(), input.conditionDecision(), input.reason(), input.operatorId()));
+                input.evidenceHash(), input.conditionDecision(), input.reason(), input.operatorId(), input.tenantId()));
     }
 
     /** 人工审核必须由当前领取人决定，并与建案人保持职责分离。 */
@@ -178,7 +178,7 @@ public class MaintenanceWorkflowApplicationService {
                 input.operatorId());
         return send(new DecideMaintenanceReviewCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                evidence, input.operatorId()));
+                evidence, input.operatorId(), input.tenantId()));
     }
 
     /** 自动审核只有在七类门禁全部通过时写入通过事实，否则原任务留给人工接管。 */
@@ -200,7 +200,7 @@ public class MaintenanceWorkflowApplicationService {
                 evaluation.approvalComment(), LocalDateTime.now(), input.operatorId());
         return send(new DecideMaintenanceReviewCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                evidence, input.operatorId()))
+                evidence, input.operatorId(), input.tenantId()))
                 .thenApply(ignored -> new MaintenanceAutomaticReviewResult(
                         MaintenanceAutomaticReviewOutcome.APPROVED,
                         evaluation.policyCode(), evaluation.policyVersion(), List.of()));
@@ -243,7 +243,7 @@ public class MaintenanceWorkflowApplicationService {
                 fact.conclusion(), fact.additionalConditions(), fact.summary(), fact.completedAt());
         DecideMaintenanceUnderwritingCommand command = new DecideMaintenanceUnderwritingCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                evidence, input.operatorId());
+                evidence, input.operatorId(), input.tenantId());
         return send(command).thenApply(ignored -> new MaintenanceUnderwritingAssessmentResult(
                 fact.underwritingCaseId(), fact.conclusion(), fact.ruleVersion(), fact.modelVersion(),
                 fact.additionalConditions(), fact.summary(), fact.completedAt()));
@@ -376,7 +376,7 @@ public class MaintenanceWorkflowApplicationService {
             MaintenancePremiumQuoteEvidence evidence) {
         RecordMaintenancePremiumQuoteCommand command = new RecordMaintenancePremiumQuoteCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                evidence, input.operatorId());
+                evidence, input.operatorId(), input.tenantId());
         return send(command).thenApply(ignored -> result(evidence));
     }
 
@@ -390,7 +390,7 @@ public class MaintenanceWorkflowApplicationService {
         MaintenancePremiumQuoteEvidence evidence = MaintenancePremiumQuoteEvidence.notRequired(reason, decidedAt);
         return send(new RecordMaintenancePremiumQuoteCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                evidence, input.operatorId())).thenApply(ignored -> result(evidence));
+                evidence, input.operatorId(), input.tenantId())).thenApply(ignored -> result(evidence));
     }
 
     private PremiumQuoteContext requirePremiumQuoteContext(MaintenancePremiumQuoteInput input) {

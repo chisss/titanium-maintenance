@@ -119,7 +119,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
     void shouldClaimReadyTask() {
         fixture.given(baseEvents())
                 .when(new ClaimMaintenanceWorkflowTaskCommand(
-                        ID, DATA_TASK_ID, "operation-claim", "operator-1"))
+                        ID, DATA_TASK_ID, "operation-claim", "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(instanceOf(
                         MaintenanceWorkflowTaskTransitionedEvent.class))))
@@ -149,7 +149,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(claimed, started, null, null, start))
                 .when(new CompleteMaintenanceWorkflowTaskCommand(
                         ID, DATA_TASK_ID, "operation-complete",
-                        null, null, "DATA_RECORDED", "录入完成", "operator-1"))
+                        null, null, "DATA_RECORDED", "录入完成", "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(instanceOf(
                         MaintenanceWorkflowTaskTransitionedEvent.class))))
@@ -179,7 +179,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(claimed, started, null, null, start))
                 .when(new CompleteMaintenanceWorkflowTaskCommand(
                         ID, DATA_TASK_ID, "operation-complete-empty",
-                        null, null, "DATA_RECORDED", "录入完成", "operator-1"))
+                        null, null, "DATA_RECORDED", "录入完成", "operator-1", "tenant-1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -198,7 +198,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         ID, List.of(condition, next), NOW, "operator-1", "tenant-1"))
                 .when(new DecideMaintenanceWorkflowConditionCommand(
                         ID, condition.taskId(), "operation-condition", "rule-v2", "a".repeat(64),
-                        MaintenanceWorkflowConditionDecision.SKIP, "低风险无需审核", "rule-engine"))
+                        MaintenanceWorkflowConditionDecision.SKIP, "低风险无需审核", "rule-engine", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceWorkflowTaskStatus.SKIPPED,
@@ -227,7 +227,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(createdEvent(), initializedEvent(), new MaintenanceWorkflowInitializedEvent(
                 ID, List.of(feeTask, effectTask), NOW, "operator-1", "tenant-1"))
                 .when(new RecordMaintenancePremiumQuoteCommand(
-                        ID, FEE_TASK_ID, "operation-quote", evidence, "pricing-service"))
+                        ID, FEE_TASK_ID, "operation-quote", evidence, "pricing-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceWorkflowTaskStatus.QUOTED,
@@ -245,7 +245,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(quotedFeeWorkflowEvents())
                 .when(new RecordMaintenancePremiumSettlementCommand(
                         ID, FEE_TASK_ID, "operation-settlement-success", posting, funds,
-                        "settlement-service"))
+                        "settlement-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED,
@@ -267,25 +267,25 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         initializedEvent(), phaseFourWorkflowInitializedEvent())
                 .andGivenCommands(
                         new ClaimMaintenanceWorkflowTaskCommand(
-                                ID, DATA_TASK_ID, "phase4-claim-data", "operator-1"),
+                                ID, DATA_TASK_ID, "phase4-claim-data", "operator-1", "tenant-1"),
                         new StartMaintenanceWorkflowTaskCommand(
-                                ID, DATA_TASK_ID, "phase4-start-data", "operator-1"),
+                                ID, DATA_TASK_ID, "phase4-start-data", "operator-1", "tenant-1"),
                         new CompleteMaintenanceWorkflowTaskCommand(
                                 ID, DATA_TASK_ID, "phase4-complete-data",
-                                null, null, "DATA_RECORDED", "信息录入完成", "operator-1"),
+                                null, null, "DATA_RECORDED", "信息录入完成", "operator-1", "tenant-1"),
                         new DecideMaintenanceWorkflowConditionCommand(
                                 ID, REVIEW_TASK_ID, "phase4-review-condition", "rule-v1", "a".repeat(64),
-                                MaintenanceWorkflowConditionDecision.EXECUTE, "案件需要自动审核", "rule-engine"),
+                                MaintenanceWorkflowConditionDecision.EXECUTE, "案件需要自动审核", "rule-engine", "tenant-1"),
                         new DecideMaintenanceReviewCommand(
-                                ID, REVIEW_TASK_ID, "phase4-auto-review", reviewEvidence, "review-engine"),
+                                ID, REVIEW_TASK_ID, "phase4-auto-review", reviewEvidence, "review-engine", "tenant-1"),
                         new DecideMaintenanceUnderwritingCommand(
                                 ID, UNDERWRITING_TASK_ID, "phase4-underwriting",
-                                underwritingEvidence, "underwriting-service"),
+                                underwritingEvidence, "underwriting-service", "tenant-1"),
                         new RecordMaintenancePremiumQuoteCommand(
-                                ID, FEE_TASK_ID, "phase4-premium-quote", quoteEvidence(), "pricing-service"))
+                                ID, FEE_TASK_ID, "phase4-premium-quote", quoteEvidence(), "pricing-service", "tenant-1"))
                 .when(new RecordMaintenancePremiumSettlementCommand(
                         ID, FEE_TASK_ID, "phase4-premium-settlement", posting, funds,
-                        "settlement-service"))
+                        "settlement-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     List<MaintenanceWorkflowTask> tasks = aggregate.getWorkflowTasks();
@@ -334,19 +334,19 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         ID, tasks, NOW, "operator-1", "tenant-1"))
                 .andGivenCommands(
                         new ClaimMaintenanceWorkflowTaskCommand(
-                                ID, DATA_TASK_ID, "interleaved-claim-first", "operator-1"),
+                                ID, DATA_TASK_ID, "interleaved-claim-first", "operator-1", "tenant-1"),
                         new ClaimMaintenanceWorkflowTaskCommand(
-                                ID, secondDataTaskId, "interleaved-claim-second", "operator-2"),
+                                ID, secondDataTaskId, "interleaved-claim-second", "operator-2", "tenant-1"),
                         new StartMaintenanceWorkflowTaskCommand(
-                                ID, DATA_TASK_ID, "interleaved-start-first", "operator-1"),
+                                ID, DATA_TASK_ID, "interleaved-start-first", "operator-1", "tenant-1"),
                         new StartMaintenanceWorkflowTaskCommand(
-                                ID, secondDataTaskId, "interleaved-start-second", "operator-2"),
+                                ID, secondDataTaskId, "interleaved-start-second", "operator-2", "tenant-1"),
                         new CompleteMaintenanceWorkflowTaskCommand(
                                 ID, DATA_TASK_ID, "interleaved-complete-first",
-                                null, null, "DATA_RECORDED", "第一保全项录入完成", "operator-1"))
+                                null, null, "DATA_RECORDED", "第一保全项录入完成", "operator-1", "tenant-1"))
                 .when(new CompleteMaintenanceWorkflowTaskCommand(
                         ID, secondDataTaskId, "interleaved-complete-second",
-                        null, null, "DATA_RECORDED", "第二保全项录入完成", "operator-2"))
+                        null, null, "DATA_RECORDED", "第二保全项录入完成", "operator-2", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     List<MaintenanceWorkflowTask> current = aggregate.getWorkflowTasks();
@@ -365,7 +365,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(quotedFeeWorkflowEvents())
                 .when(new RecordMaintenancePremiumSettlementCommand(
                         ID, FEE_TASK_ID, "operation-settlement-pending", posting, funds,
-                        "settlement-service"))
+                        "settlement-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL,
@@ -383,7 +383,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(quotedFeeWorkflowEvents())
                 .when(new RecordMaintenancePremiumSettlementCommand(
                         ID, FEE_TASK_ID, "operation-settlement-failed", posting, funds,
-                        "settlement-service"))
+                        "settlement-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceWorkflowTaskStatus.FAILED,
@@ -401,7 +401,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(quotedFeeWorkflowEvents())
                 .when(new RecordMaintenancePremiumSettlementCommand(
                         ID, FEE_TASK_ID, "operation-settlement-reversed", posting, funds,
-                        "settlement-service"))
+                        "settlement-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceWorkflowTaskStatus.FAILED,
@@ -417,7 +417,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
 
         fixture.given(createdEvent(), initializedEvent(), effectWorkflowInitializedEvent())
                 .when(new RequestMaintenanceCaseEffectCommand(
-                        ID, List.of(EFFECT_TASK_ID), "effect-request-operation", request, "operator-1"))
+                        ID, List.of(EFFECT_TASK_ID), "effect-request-operation", request, "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -444,7 +444,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         effectStatusChanged(MaintenanceEffectStatus.NOT_STARTED,
                                 MaintenanceEffectStatus.EFFECTING))
                 .when(new RecordMaintenanceCasePolicyApplicationCommand(
-                        ID, List.of(EFFECT_TASK_ID), "effect-receipt-operation", receipt, "policy-service"))
+                        ID, List.of(EFFECT_TASK_ID), "effect-receipt-operation", receipt, "policy-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -467,13 +467,13 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         scheduleCommand(),
                         attemptCommand(),
                         new RequestMaintenanceCaseEffectCommand(
-                                ID, List.of(EFFECT_TASK_ID), "scheduled-effect-request", request, "operator-1"),
+                                ID, List.of(EFFECT_TASK_ID), "scheduled-effect-request", request, "operator-1", "tenant-1"),
                         new RecordMaintenanceCasePolicyApplicationCommand(
                                 ID, List.of(EFFECT_TASK_ID), "scheduled-effect-receipt",
-                                policyApplication(request), "policy-service"))
+                                policyApplication(request), "policy-service", "tenant-1"))
                 .when(new RecordMaintenanceEffectScheduleFailureCommand(
                         ID, "workflow-case-1:effect", "attempt-1", "CLOSE_FAILED",
-                        "计划关闭失败", null, true, "scheduler"))
+                        "计划关闭失败", null, true, "scheduler", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents()
                 .expectState(aggregate -> {
@@ -487,17 +487,17 @@ class MaintenanceWorkflowTransitionAggregateTest {
     void shouldTreatRepeatedScheduleCompletionAsIdempotent() {
         MaintenanceEffectRequestEvidence request = scheduledEffectRequest();
         CompleteMaintenanceEffectScheduleCommand complete = new CompleteMaintenanceEffectScheduleCommand(
-                ID, "workflow-case-1:effect", "attempt-1", NOW.plusMinutes(4), "scheduler");
+                ID, "workflow-case-1:effect", "attempt-1", NOW.plusMinutes(4), "scheduler", "tenant-1");
 
         fixture.given(futureCreatedEvent(), initializedEvent(), effectWorkflowInitializedEvent())
                 .andGivenCommands(
                         scheduleCommand(),
                         attemptCommand(),
                         new RequestMaintenanceCaseEffectCommand(
-                                ID, List.of(EFFECT_TASK_ID), "scheduled-effect-request", request, "operator-1"),
+                                ID, List.of(EFFECT_TASK_ID), "scheduled-effect-request", request, "operator-1", "tenant-1"),
                         new RecordMaintenanceCasePolicyApplicationCommand(
                                 ID, List.of(EFFECT_TASK_ID), "scheduled-effect-receipt",
-                                policyApplication(request), "policy-service"),
+                                policyApplication(request), "policy-service", "tenant-1"),
                         complete)
                 .when(complete)
                 .expectSuccessfulHandlerExecution()
@@ -509,10 +509,10 @@ class MaintenanceWorkflowTransitionAggregateTest {
     @Test
     void shouldTreatRepeatedSchedulePauseAndResumeAsIdempotent() {
         PauseMaintenanceEffectScheduleCommand pause = new PauseMaintenanceEffectScheduleCommand(
-                ID, "workflow-case-1:effect", "等待人工确认", "operator-1");
+                ID, "workflow-case-1:effect", "等待人工确认", "operator-1", "tenant-1");
         ResumeMaintenanceEffectScheduleCommand resume = new ResumeMaintenanceEffectScheduleCommand(
                 ID, "workflow-case-1:effect", "resume-operation-1",
-                NOW.plusDays(2), "确认后恢复", "operator-1");
+                NOW.plusDays(2), "确认后恢复", "operator-1", "tenant-1");
 
         fixture.given(futureCreatedEvent(), initializedEvent(), effectWorkflowInitializedEvent())
                 .andGivenCommands(scheduleCommand(), pause)
@@ -546,7 +546,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         effectStatusChanged(MaintenanceEffectStatus.NOT_STARTED,
                                 MaintenanceEffectStatus.EFFECTING))
                 .when(new RecordMaintenanceCasePolicyApplicationCommand(
-                        ID, List.of(EFFECT_TASK_ID), "mismatched-receipt-operation", mismatched, "policy-service"))
+                        ID, List.of(EFFECT_TASK_ID), "mismatched-receipt-operation", mismatched, "policy-service", "tenant-1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -563,7 +563,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                                 MaintenanceEffectStatus.EFFECTING))
                 .when(new FailMaintenanceCaseEffectCommand(
                         ID, List.of(EFFECT_TASK_ID), "effect-failure-operation",
-                        "POLICY_UNAVAILABLE", "Policy 服务不可用", "effect-service"))
+                        "POLICY_UNAVAILABLE", "Policy 服务不可用", "effect-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     MaintenanceWorkflowTask task = aggregate.getWorkflowTasks().getFirst();
@@ -581,9 +581,9 @@ class MaintenanceWorkflowTransitionAggregateTest {
 
         fixture.given(createdEvent(), multiItemInitializedEvent(), multiEffectWorkflowInitializedEvent())
                 .andGivenCommands(new RequestMaintenanceCaseEffectCommand(
-                        ID, taskIds, "case-effect-request", request, "operator-1"))
+                        ID, taskIds, "case-effect-request", request, "operator-1", "tenant-1"))
                 .when(new RecordMaintenanceCasePolicyApplicationCommand(
-                        ID, taskIds, "case-effect-receipt", receipt, "policy-service"))
+                        ID, taskIds, "case-effect-receipt", receipt, "policy-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -602,7 +602,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
     void shouldRejectPartialCaseEffectRequestWithoutAnyEvent() {
         fixture.given(createdEvent(), multiItemInitializedEvent(), multiEffectWorkflowInitializedEvent())
                 .when(new RequestMaintenanceCaseEffectCommand(
-                        ID, List.of(EFFECT_TASK_ID), "case-effect-request", effectRequest(), "operator-1"))
+                        ID, List.of(EFFECT_TASK_ID), "case-effect-request", effectRequest(), "operator-1", "tenant-1"))
                 .expectException(MaintenanceValidationException.class)
                 .expectNoEvents();
     }
@@ -619,11 +619,11 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(createdEvent(), initializedEvent(), effectWorkflowInitializedEvent())
                 .andGivenCommands(
                         new RequestMaintenanceCaseEffectCommand(
-                                ID, List.of(EFFECT_TASK_ID), "case-effect-request", request, "operator-1"),
+                                ID, List.of(EFFECT_TASK_ID), "case-effect-request", request, "operator-1", "tenant-1"),
                         new RecordMaintenanceEffectCompensationCommand(
-                                ID, EFFECT_TASK_ID, compensation, "operator-1"))
+                                ID, EFFECT_TASK_ID, compensation, "operator-1", "tenant-1"))
                 .when(new RecordMaintenanceCasePolicyApplicationCommand(
-                        ID, List.of(EFFECT_TASK_ID), "case-effect-receipt", receipt, "operator-1"))
+                        ID, List.of(EFFECT_TASK_ID), "case-effect-receipt", receipt, "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -647,9 +647,9 @@ class MaintenanceWorkflowTransitionAggregateTest {
 
         fixture.given(createdEvent(), initializedEvent(), effectWorkflowInitializedEvent())
                 .andGivenCommands(new RequestMaintenanceCaseEffectCommand(
-                        ID, List.of(EFFECT_TASK_ID), "case-effect-request", request, "operator-1"))
+                        ID, List.of(EFFECT_TASK_ID), "case-effect-request", request, "operator-1", "tenant-1"))
                 .when(new RecordMaintenanceEffectCompensationCommand(
-                        ID, EFFECT_TASK_ID, compensation, "operator-1"))
+                        ID, EFFECT_TASK_ID, compensation, "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceEffectCompensationRequiredEvent.class),
@@ -672,7 +672,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
 
         fixture.given(createdEvent(), multiItemInitializedEvent(), multiEffectWorkflowInitializedEvent())
                 .when(new RecordMaintenanceEffectCompensationCommand(
-                        ID, EFFECT_TASK_ID, compensation, "operator-1"))
+                        ID, EFFECT_TASK_ID, compensation, "operator-1", "tenant-1"))
                 .expectException(MaintenanceValidationException.class)
                 .expectNoEvents();
     }
@@ -688,9 +688,9 @@ class MaintenanceWorkflowTransitionAggregateTest {
 
         fixture.given(createdEvent(), initializedEvent(), effectWorkflowInitializedEvent())
                 .andGivenCommands(new RequestMaintenanceCaseEffectCommand(
-                        ID, List.of(EFFECT_TASK_ID), "case-effect-request", request, "operator-1"))
+                        ID, List.of(EFFECT_TASK_ID), "case-effect-request", request, "operator-1", "tenant-1"))
                 .when(new RecordMaintenanceEffectCompensationCommand(
-                        ID, EFFECT_TASK_ID, compensation, "operator-1"))
+                        ID, EFFECT_TASK_ID, compensation, "operator-1", "tenant-1"))
                 .expectException(MaintenanceValidationException.class)
                 .expectNoEvents();
     }
@@ -714,7 +714,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(quoted, settled, effectTask, activatedEffect, settlementOperation))
                 .when(new RecordMaintenancePremiumSettlementCommand(
                         ID, FEE_TASK_ID, "operation-settlement-idempotent", posting, funds,
-                        "settlement-service"))
+                        "settlement-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
@@ -740,7 +740,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(quoted, settled, null, null, settlementOperation))
                 .when(new RecordMaintenancePremiumQuoteCommand(
                         ID, FEE_TASK_ID, "operation-quote-replay", quoteEvidence(NOW),
-                        "pricing-service"))
+                        "pricing-service", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
@@ -756,7 +756,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(createdEvent(), initializedEvent(), workflowInitializedEvent(),
                         transition(dataEntry, claimed, null, null, claim))
                 .when(new ClaimMaintenanceWorkflowTaskCommand(
-                        ID, DATA_TASK_ID, "operation-claim", "operator-1"))
+                        ID, DATA_TASK_ID, "operation-claim", "operator-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
@@ -772,7 +772,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(createdEvent(), initializedEvent(), workflowInitializedEvent(),
                         transition(dataEntry, claimed, null, null, claim))
                 .when(new ClaimMaintenanceWorkflowTaskCommand(
-                        ID, DATA_TASK_ID, "operation-claim", "operator-2"))
+                        ID, DATA_TASK_ID, "operation-claim", "operator-2", "tenant-1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -780,7 +780,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
     void shouldRejectOutOfOrderTaskStart() {
         fixture.given(baseEvents())
                 .when(new StartMaintenanceWorkflowTaskCommand(
-                        ID, VALIDATION_TASK_ID, "operation-start", "operator-1"))
+                        ID, VALIDATION_TASK_ID, "operation-start", "operator-1", "tenant-1"))
                 .expectException(MaintenanceConflictException.class);
     }
 
@@ -791,7 +791,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
         fixture.given(createdEvent(), initializedEvent(), new MaintenanceWorkflowInitializedEvent(
                         ID, List.of(review), NOW, "operator-1", "tenant-1"))
                 .when(new ClaimMaintenanceWorkflowTaskCommand(
-                        ID, REVIEW_TASK_ID, "operation-creator-review-claim", "operator-1"))
+                        ID, REVIEW_TASK_ID, "operation-creator-review-claim", "operator-1", "tenant-1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -815,7 +815,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(review, claimed, null, null, claim),
                         transition(claimed, started, null, null, start))
                 .when(new DecideMaintenanceReviewCommand(
-                        ID, REVIEW_TASK_ID, "operation-creator-review", evidence, "operator-1"))
+                        ID, REVIEW_TASK_ID, "operation-creator-review", evidence, "operator-1", "tenant-1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -839,7 +839,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         transition(review, claimed, null, null, claim),
                         transition(claimed, started, null, null, start))
                 .when(new DecideMaintenanceReviewCommand(
-                        ID, REVIEW_TASK_ID, "operation-review", evidence, "reviewer-1"))
+                        ID, REVIEW_TASK_ID, "operation-review", evidence, "reviewer-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
@@ -880,7 +880,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                                 ID, REVIEW_TASK_ID, evidence.contentHash(), evidence.policyCode(),
                                 evidence.policyVersion(), evidence.comment(), NOW, "reviewer-1", "tenant-1"))
                 .when(new DecideMaintenanceReviewCommand(
-                        ID, REVIEW_TASK_ID, "operation-review", evidence, "reviewer-1"))
+                        ID, REVIEW_TASK_ID, "operation-review", evidence, "reviewer-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
@@ -1021,12 +1021,12 @@ class MaintenanceWorkflowTransitionAggregateTest {
 
     private ScheduleMaintenanceEffectCommand scheduleCommand() {
         return new ScheduleMaintenanceEffectCommand(
-                ID, "workflow-case-1:effect", "Asia/Shanghai", NOW.plusDays(1), "scheduler");
+                ID, "workflow-case-1:effect", "Asia/Shanghai", NOW.plusDays(1), "scheduler", "tenant-1");
     }
 
     private RecordMaintenanceEffectScheduleAttemptCommand attemptCommand() {
         return new RecordMaintenanceEffectScheduleAttemptCommand(
-                ID, "workflow-case-1:effect", "attempt-1", NOW.plusMinutes(1), "scheduler");
+                ID, "workflow-case-1:effect", "attempt-1", NOW.plusMinutes(1), "scheduler", "tenant-1");
     }
 
     private MaintenancePolicyApplicationEvidence policyApplication(

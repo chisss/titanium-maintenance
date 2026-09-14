@@ -14,5 +14,6 @@ public record DecideMaintenanceWorkflowConditionCommand(
         String inputHash,
         MaintenanceWorkflowConditionDecision decision,
         String reason,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

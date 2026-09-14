@@ -43,7 +43,7 @@ class MaintenancePremiumSettlementTest {
         fixture.given(createdEvent())
                 .when(new RecordMaintenancePremiumAdjustmentCommand(
                         ID, "calc-original", "calc-replacement", "adjustment-1", "hash-1",
-                        MaintenanceBalanceDirection.DEBIT, new BigDecimal("53.00"), "CNY", "admin"))
+                        MaintenanceBalanceDirection.DEBIT, new BigDecimal("53.00"), "CNY", "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED,
@@ -59,7 +59,7 @@ class MaintenancePremiumSettlementTest {
         fixture.given(createdEvent())
                 .when(new RecordMaintenancePremiumAdjustmentCommand(
                         ID, "calc-original", "calc-replacement", "adjustment-1", "hash-1",
-                        MaintenanceBalanceDirection.NONE, BigDecimal.ZERO, "CNY", "admin"))
+                        MaintenanceBalanceDirection.NONE, BigDecimal.ZERO, "CNY", "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenancePremiumSettlementStatus.NOT_REQUIRED,
@@ -72,7 +72,7 @@ class MaintenancePremiumSettlementTest {
     void shouldRecordBillingPostingWithoutClaimingFundsSettled() {
         fixture.given(createdEvent(), adjustmentEvent(MaintenanceBalanceDirection.CREDIT, new BigDecimal("53.00")))
                 .when(new RecordMaintenancePremiumPostingCommand(
-                        ID, "adjustment-1", "hash-1", "posting-1", "POSTED", "admin"))
+                        ID, "adjustment-1", "hash-1", "posting-1", "POSTED", "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenancePremiumSettlementStatus.POSTED,
@@ -91,7 +91,7 @@ class MaintenancePremiumSettlementTest {
                         new MaintenancePremiumPostingRecordedEvent(
                                 ID, "adjustment-1", "hash-1", "posting-1", "POSTED", NOW, "admin", "1"))
                 .when(new RecordMaintenancePremiumPostingCommand(
-                        ID, "adjustment-1", "hash-1", "posting-1", "POSTED", "admin"))
+                        ID, "adjustment-1", "hash-1", "posting-1", "POSTED", "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
@@ -101,7 +101,7 @@ class MaintenancePremiumSettlementTest {
         fixture.given(createdEvent(), adjustmentEvent(MaintenanceBalanceDirection.CREDIT, new BigDecimal("53.00")),
                         postingEvent(MaintenanceBalanceDirection.CREDIT))
                 .when(new RecordMaintenanceFinancialSettlementCommand(
-                        ID, "posting-1", "refund-instruction-1", "refund-order-1", "PROCESSING", 2, "admin"))
+                        ID, "posting-1", "refund-instruction-1", "refund-order-1", "PROCESSING", 2, "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(MaintenancePremiumSettlementStatus.SETTLEMENT_PENDING,
@@ -119,7 +119,7 @@ class MaintenancePremiumSettlementTest {
                         postingEvent(MaintenanceBalanceDirection.CREDIT),
                         financialEvent("FAILED", MaintenancePremiumSettlementStatus.SETTLEMENT_FAILED))
                 .when(new RecordMaintenanceFinancialSettlementCommand(
-                        ID, "posting-1", "refund-instruction-1", "refund-order-1", "SUCCEEDED", 2, "admin"))
+                        ID, "posting-1", "refund-instruction-1", "refund-order-1", "SUCCEEDED", 2, "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> assertEquals(
                         MaintenancePremiumSettlementStatus.SETTLED, aggregate.getPremiumSettlementStatus()));
@@ -130,7 +130,7 @@ class MaintenancePremiumSettlementTest {
         fixture.given(createdEvent(), adjustmentEvent(MaintenanceBalanceDirection.CREDIT, new BigDecimal("53.00")),
                         postingEvent(MaintenanceBalanceDirection.CREDIT))
                 .when(new RecordMaintenanceFinancialSettlementCommand(
-                        ID, "posting-1", null, "refund-order-1", "PROCESSING", 0, "admin"))
+                        ID, "posting-1", null, "refund-order-1", "PROCESSING", 0, "admin", "1"))
                 .expectException(com.titanium.maintenance.common.exception.MaintenanceValidationException.class);
     }
 
@@ -139,7 +139,7 @@ class MaintenancePremiumSettlementTest {
         fixture.given(createdEvent(), adjustmentEvent(MaintenanceBalanceDirection.DEBIT, new BigDecimal("53.00")),
                         postingEvent(MaintenanceBalanceDirection.DEBIT))
                 .when(new RecordMaintenanceFinancialSettlementCommand(
-                        ID, "posting-1", "refund-instruction-1", null, "PROCESSING", 0, "admin"))
+                        ID, "posting-1", "refund-instruction-1", null, "PROCESSING", 0, "admin", "1"))
                 .expectException(com.titanium.maintenance.common.exception.MaintenanceValidationException.class);
     }
 
@@ -148,7 +148,7 @@ class MaintenancePremiumSettlementTest {
         fixture.given(createdEvent(), adjustmentEvent(MaintenanceBalanceDirection.DEBIT, new BigDecimal("53.00")),
                         postingEvent(MaintenanceBalanceDirection.DEBIT))
                 .when(new RecordMaintenanceFinancialSettlementCommand(
-                        ID, "posting-1", null, null, null, 0, "admin"))
+                        ID, "posting-1", null, null, null, 0, "admin", "1"))
                 .expectException(com.titanium.maintenance.common.exception.MaintenanceValidationException.class);
     }
 
@@ -158,7 +158,7 @@ class MaintenancePremiumSettlementTest {
                         postingEvent(MaintenanceBalanceDirection.CREDIT),
                         financialEvent("PROCESSING", MaintenancePremiumSettlementStatus.SETTLEMENT_PENDING))
                 .when(new RecordMaintenanceFinancialSettlementCommand(
-                        ID, "posting-1", "refund-instruction-1", "refund-order-1", "PROCESSING", 2, "admin"))
+                        ID, "posting-1", "refund-instruction-1", "refund-order-1", "PROCESSING", 2, "admin", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }

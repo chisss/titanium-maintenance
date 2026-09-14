@@ -13,7 +13,8 @@ public record RequestMaintenanceCaseEffectCommand(
         List<String> taskIds,
         String operationId,
         MaintenanceEffectRequestEvidence evidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 
     public RequestMaintenanceCaseEffectCommand {
         taskIds = taskIds == null ? List.of() : List.copyOf(taskIds);

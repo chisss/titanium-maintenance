@@ -17,5 +17,6 @@ public record RecordMaintenancePremiumAdjustmentCommand(
         MaintenanceBalanceDirection direction,
         BigDecimal amount,
         String currency,
-        String updatedBy) {
+        String updatedBy,
+        String tenantId) {
 }

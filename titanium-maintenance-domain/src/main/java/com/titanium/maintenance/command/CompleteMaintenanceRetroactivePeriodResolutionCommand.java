@@ -14,5 +14,6 @@ public record CompleteMaintenanceRetroactivePeriodResolutionCommand(
         String operationId,
         MaintenanceRetroactivePeriodResolutionEvidence evidence,
         LocalDateTime completedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

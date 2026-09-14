@@ -102,7 +102,7 @@ class MaintenanceItemAggregateTest {
     @Test
     void shouldAddCompatibleItemsAndFreezeVersions() {
         fixture.given(createdEvent())
-                .when(new AddMaintenanceItemCommand(ID, definition("CONTACT_CHANGE", Set.of()), "operator-1"))
+                .when(new AddMaintenanceItemCommand(ID, definition("CONTACT_CHANGE", Set.of()), "operator-1", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectState(aggregate -> {
                     assertEquals(1, aggregate.getItemInstances().size());
@@ -116,7 +116,7 @@ class MaintenanceItemAggregateTest {
                 definition("CONTACT_CHANGE", Set.of()), NOW);
 
         fixture.given(createdEvent(), new MaintenanceItemAddedEvent(ID, item, NOW, "operator-1", "1"))
-                .when(new AddMaintenanceItemCommand(ID, definition("CONTACT_CHANGE", Set.of()), "operator-1"))
+                .when(new AddMaintenanceItemCommand(ID, definition("CONTACT_CHANGE", Set.of()), "operator-1", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }
@@ -128,7 +128,7 @@ class MaintenanceItemAggregateTest {
 
         fixture.given(createdEvent(), new MaintenanceItemAddedEvent(ID, item, NOW, "operator-1", "1"))
                 .when(new AddMaintenanceItemCommand(
-                        ID, definition("CONTACT_CHANGE", "2.0.0", Set.of(), false), "operator-1"))
+                        ID, definition("CONTACT_CHANGE", "2.0.0", Set.of(), false), "operator-1", "1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -138,7 +138,7 @@ class MaintenanceItemAggregateTest {
                 definition("SURRENDER", Set.of("CONTACT_CHANGE")), NOW);
 
         fixture.given(createdEvent(), new MaintenanceItemAddedEvent(ID, surrender, NOW, "operator-1", "1"))
-                .when(new AddMaintenanceItemCommand(ID, definition("CONTACT_CHANGE", Set.of()), "operator-1"))
+                .when(new AddMaintenanceItemCommand(ID, definition("CONTACT_CHANGE", Set.of()), "operator-1", "1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -149,7 +149,7 @@ class MaintenanceItemAggregateTest {
 
         fixture.given(createdEvent(), new MaintenanceItemAddedEvent(ID, atomicItem, NOW, "operator-1", "1"))
                 .when(new AddMaintenanceItemCommand(
-                        ID, definition("CONTACT_CHANGE", "1.0.0", Set.of(), false), "operator-1"))
+                        ID, definition("CONTACT_CHANGE", "1.0.0", Set.of(), false), "operator-1", "1"))
                 .expectException(MaintenanceValidationException.class);
     }
 
@@ -165,7 +165,7 @@ class MaintenanceItemAggregateTest {
                                 ID, List.of("POLICY_INFO_CHANGE"), NOW, "operator-1", "1"),
                         new MaintenanceItemAddedEvent(ID, item, NOW, "operator-1", "1"))
                 .when(new CompleteMaintenanceCaseInitializationCommand(
-                        ID, List.of("POLICY_INFO_CHANGE"), "operator-1"))
+                        ID, List.of("POLICY_INFO_CHANGE"), "operator-1", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceCaseInitializationCompletedEvent.class),
@@ -192,7 +192,7 @@ class MaintenanceItemAggregateTest {
                         new MaintenanceCaseInitializationCompletedEvent(
                                 ID, List.of("POLICY_INFO_CHANGE"), NOW, "operator-1", "1"))
                 .when(new CompleteMaintenanceCaseInitializationCommand(
-                        ID, List.of("POLICY_INFO_CHANGE"), "operator-2"))
+                        ID, List.of("POLICY_INFO_CHANGE"), "operator-2", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowInitializedEvent.class))))
@@ -279,7 +279,7 @@ class MaintenanceItemAggregateTest {
                         new MaintenanceItemWithdrawalStartedEvent(ID, withdrawal, "1")))
                 .when(new RecordMaintenanceItemWithdrawalCompensationCommand(
                         ID, "POLICY_INFO_CHANGE", "withdraw-operation-1", "9".repeat(64),
-                        compensation, "operator-1"))
+                        compensation, "operator-1", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceItemWithdrawalCompensationRecordedEvent.class),
@@ -310,7 +310,7 @@ class MaintenanceItemAggregateTest {
                                 ID, List.of("POLICY_INFO_CHANGE"), NOW, "operator-1", "1"),
                         new MaintenanceWorkflowInitializedEvent(ID, tasks, NOW, "operator-1", "1"))
                 .when(new CompleteMaintenanceCaseInitializationCommand(
-                        ID, List.of("POLICY_INFO_CHANGE"), "operator-2"))
+                        ID, List.of("POLICY_INFO_CHANGE"), "operator-2", "1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
     }

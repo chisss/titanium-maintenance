@@ -11,5 +11,6 @@ public record DecideMaintenanceUnderwritingCommand(
         String taskId,
         String operationId,
         MaintenanceUnderwritingEvidence evidence,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

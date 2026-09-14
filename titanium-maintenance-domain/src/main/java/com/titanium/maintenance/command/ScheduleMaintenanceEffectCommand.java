@@ -12,5 +12,6 @@ public record ScheduleMaintenanceEffectCommand(
         String scheduleId,
         String tenantZoneId,
         LocalDateTime nextExecutionAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }

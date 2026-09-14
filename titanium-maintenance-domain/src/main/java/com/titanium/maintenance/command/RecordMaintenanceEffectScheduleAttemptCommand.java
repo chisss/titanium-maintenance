@@ -12,5 +12,6 @@ public record RecordMaintenanceEffectScheduleAttemptCommand(
         String scheduleId,
         String attemptId,
         LocalDateTime attemptedAt,
-        String operatorId) {
+        String operatorId,
+        String tenantId) {
 }
