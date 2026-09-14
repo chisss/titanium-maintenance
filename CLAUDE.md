@@ -197,7 +197,8 @@ mvn spring-boot:run
     - 🔴 **判据取实时目录证据 `PolicyFieldCatalogEvidence`，不改事件快照 `MaintenanceFieldCatalogSnapshot`**：后者不携带 `executionSupported`（即缺口登记 G3 未解），且为其补字段会改变 `sameAuthorityAs` 所依赖的 `fields.equals()` 语义——`Maintenance.java:1350` 用它比对「存量快照 vs 新采快照」，历史事件反序列化出的旧快照（缺字段 ⇒ `false`）将与新快照**永不相等**。故本任务刻意不走 G3 路线，取值口径与生效环节保持同源（同为实时目录），不引入第二套权威。
     - **测试**：`MaintenanceFieldDraftApplicationServiceTest` 新增 `shouldRejectFieldWithoutExecutorBeforeSendingCommand`（提案 `policy.holder.email` —— 真实目录中为 `proposal(...)`，即「可提案、无执行器」——断言抛 `MaintenanceValidationException` 且 `verifyNoInteractions(commandGateway)`，**锁死「拒绝发生在派发之前」**）。
     - 🔴 **连带修正两处过期测试夹具**：`MaintenanceFieldDraftApplicationServiceTest.fieldCatalog()` 与 `MaintenanceCaseProductionPathTest.fieldCatalog()` 均把 `policy.holder.mobile` 的 `executionSupported` 标为 `false`，而**真实目录 `PolicyFieldCatalog.java:75` 早已是 `executable(...)`**。夹具与目录不一致使「提案手机号」这条成功路径的用例实际断言的是线上不存在的场景；预检上线后二者立即转红（后者表现为 `Async not started`——校验失败走同步异常响应，HTTP 路径不再进入异步）。已将两处夹具对齐真实目录。
-    - **判据（可复用）**：**测试夹具承载的是「目录/契约快照」，一旦生产侧目录演进，夹具不会自动跟随**——新增「依据目录权威做前置拒绝」的校验时，务必先核对夹具是否仍代表线上现状，否则会把夹具漂移误判为逻辑缺陷。
+16. ✅ **Kafka 入站：`@EnableKafka` 已就绪但零监听器 · customer 四主题不接入（2026-09-14 m6-908 判定）**：本域 `infrastructure/config/KafkaConfig` 带 `@EnableKafka`，但**零 `@KafkaListener`**（开关空置、无入站消费）。经判定 customer 四主题（`created` / `updated` / `status-changed` / `relationship-added`）**不应接入**：本域对客户的唯一需求是**保全受理时点的同步存在性校验**（`CustomerServicePort.customerExists`，`MaintenanceApplicationService` 单点调用），无状态订阅语义；客户信息变更应经**保全批改**落到保单——而**本域正是该通道的执行方**（有案件、有字段执行器、有留痕、可审核），由客户事件静默改写合同要素属**本末倒置**（且姓名/证件是合同要素、年龄/性别参与费率）。判据见 [跨域事件目录 §六.16](../docs/技术文档/跨域事件目录-2026-09.md)，登记点见 `CustomerServicePort` 类注释。
+    - 🔴 **可复用判据**：「有开关、无监听器」**不等于缺陷**——`@EnableKafka` 是**能力就绪**标志，缺监听器只说明当前无入站需求。判「入站缺失」前必须先确认**本域是否真有对应的领域能力可承接**（本域若无「客户信息同步」命令，订阅了也无处安放）。
 
 ---
 
