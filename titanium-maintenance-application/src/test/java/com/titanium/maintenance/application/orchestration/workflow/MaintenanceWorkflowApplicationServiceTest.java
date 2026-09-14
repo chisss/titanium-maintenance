@@ -39,7 +39,6 @@ import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceAutomaticReviewOutcome;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
@@ -73,6 +72,7 @@ import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 class MaintenanceWorkflowApplicationServiceTest {
 

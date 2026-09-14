@@ -8,8 +8,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 /** 写入案件任务事件的不可变核保证据。 */
 public record MaintenanceUnderwritingEvidence(

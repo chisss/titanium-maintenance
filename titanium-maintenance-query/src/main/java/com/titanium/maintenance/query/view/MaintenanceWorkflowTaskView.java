@@ -14,12 +14,12 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementT
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.query.converter.LocalDateTimeStringConverter;
 import com.titanium.metadata.enums.maintenance.PolicyMaintenanceAction;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;

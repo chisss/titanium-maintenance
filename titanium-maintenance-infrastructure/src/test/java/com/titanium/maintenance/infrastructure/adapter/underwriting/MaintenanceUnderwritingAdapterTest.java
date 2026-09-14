@@ -14,11 +14,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentFact;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentRequest;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.RiskFieldChange;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.response.maintenance.MaintenanceUnderwritingResponse;
 

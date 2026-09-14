@@ -3,7 +3,7 @@ package com.titanium.maintenance.web.response.underwriting;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 /** 触发或刷新保全核保后的权威结果。 */
 public record MaintenanceUnderwritingAssessmentVO(

@@ -89,7 +89,6 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeri
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
@@ -176,6 +175,7 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowOperatio
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowReviewEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowTask;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 import lombok.NoArgsConstructor;
 import lombok.experimental.SuperBuilder;

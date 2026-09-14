@@ -203,6 +203,13 @@ mvn spring-boot:run
 16. ✅ **Kafka 入站：`@EnableKafka` 已就绪但零监听器 · customer 四主题不接入（2026-09-14 m6-908 判定）**：本域 `infrastructure/config/KafkaConfig` 带 `@EnableKafka`，但**零 `@KafkaListener`**（开关空置、无入站消费）。经判定 customer 四主题（`created` / `updated` / `status-changed` / `relationship-added`）**不应接入**：本域对客户的唯一需求是**保全受理时点的同步存在性校验**（`CustomerServicePort.customerExists`，`MaintenanceApplicationService` 单点调用），无状态订阅语义；客户信息变更应经**保全批改**落到保单——而**本域正是该通道的执行方**（有案件、有字段执行器、有留痕、可审核），由客户事件静默改写合同要素属**本末倒置**（且姓名/证件是合同要素、年龄/性别参与费率）。判据见 [跨域事件目录 §六.16](../docs/技术文档/跨域事件目录-2026-09.md)，登记点见 `CustomerServicePort` 类注释。
     - 🔴 **可复用判据**：「有开关、无监听器」**不等于缺陷**——`@EnableKafka` 是**能力就绪**标志，缺监听器只说明当前无入站需求。判「入站缺失」前必须先确认**本域是否真有对应的领域能力可承接**（本域若无「客户信息同步」命令，订阅了也无处安放）。
 
+17. ✅ **保全核保结论枚举跨域重复定义收敛（m8-1103，2026-09-14）**：`MaintenanceUnderwritingConclusion` 原在**本域 `common/enums/workflow`** 与**核保域 `domain/valueobject`** 各存一份同名枚举（后者落 `valueobject` 直接违根规约 §3.4.2），常量虽同而口径方法分散——本域版带 `BaseEnum` 四属性与 `accepted()`，核保域版带 `toUnderwritingStatus()`。
+    - **修复**：按「跨域共享枚举入 metadata」上提至 `com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion`，合并两侧全部口径（四属性 + `completed()` + `accepted()` + `toUnderwritingStatus()` + `fromCode()`），本域 17 个引用点改 import、删除本地定义（核保域同步收敛，两域合计 26 个文件）。
+    - 🔴 **落点为何选 `enums/underwriting` 而非 `enums/maintenance`**：该枚举的**定义方与解释方都是核保域**（`toUnderwritingStatus()` 的映射逻辑、事件 `MaintenanceUnderwritingAssessedEvent` 的生产方），本域是**消费方**（经 Feign 收 `conclusion` 字符串、`fromCode` 承接、用 `completed()`/`accepted()` 判断流程）；且 `toUnderwritingStatus()` 的目标类型 `UnderwritingEnum.UnderwritingStatus` 同在 `enums/underwriting`，同包无需跨子包 import。名字前缀 Maintenance 指的是「保全场景」，不构成归属判据。
+    - **跨域兼容性**：Feign 契约传的是 `name()` 字符串，两版常量名逐字相同 ⇒ 收敛**不改变跨域传输形态**，存量无兼容问题；反之常量名即跨域契约，一经发布不可改名。
+    - **测试**：metadata 新增 `MaintenanceUnderwritingConclusionTest` 7 例（跨域契约 `code == name()`、数字码唯一且不重排、未知码显式失败、三个口径方法逐项断言、常量计数防新增漏判）。
+    - **门禁**：metadata 41 例 / maintenance 554 例 / underwriting 124 例，三域 `mvn -B clean install` 全绿。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*

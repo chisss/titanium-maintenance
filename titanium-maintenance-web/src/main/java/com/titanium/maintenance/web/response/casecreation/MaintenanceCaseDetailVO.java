@@ -30,12 +30,12 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeri
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewGate;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 /** 独立保全案件详情响应。 */
 public record MaintenanceCaseDetailVO(

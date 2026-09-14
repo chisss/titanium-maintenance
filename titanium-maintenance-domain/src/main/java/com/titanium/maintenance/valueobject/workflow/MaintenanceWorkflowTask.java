@@ -7,12 +7,12 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementT
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.metadata.exception.CommandValidationException;
 
 /** 案件内由冻结步骤定义实例化的不可变流程任务。 */

@@ -5,10 +5,10 @@ import java.util.Objects;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest;

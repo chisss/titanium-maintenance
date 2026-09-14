@@ -9,8 +9,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.regex.Pattern;
 
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 /** Maintenance 调用 Underwriting 取得权威风险结论的出口端口。 */
 public interface MaintenanceUnderwritingPort {

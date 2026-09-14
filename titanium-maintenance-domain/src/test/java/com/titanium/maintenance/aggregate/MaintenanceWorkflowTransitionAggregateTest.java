@@ -53,7 +53,6 @@ import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteSta
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewGate;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
@@ -94,6 +93,7 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowReviewEv
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowTask;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 
 class MaintenanceWorkflowTransitionAggregateTest {
 

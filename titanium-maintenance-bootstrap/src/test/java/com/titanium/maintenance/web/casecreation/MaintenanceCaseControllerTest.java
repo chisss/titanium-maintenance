@@ -72,13 +72,13 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpa
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodRecalculationStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceUnderwritingConclusion;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.web.controller.MaintenanceCaseController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
+import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceCaseControllerTest {
