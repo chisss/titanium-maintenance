@@ -611,6 +611,37 @@ public record MaintenanceWorkflowTask(
                 effectEvidence.applied(evidence));
     }
 
+    /**
+     * 记录投资账户转换权威回执并完成生效任务。
+     * <p>
+     * 与 {@link #recordPolicyApplication} 是两条<b>互斥</b>的生效收口路径：账户转换不改保单状态与字段，
+     * 其回执不携带批单号与新保单版本，故单独收口而不套用保单回执模型。
+     * </p>
+     */
+    public MaintenanceWorkflowTask recordInvestmentSwitch(
+            MaintenanceInvestmentSwitchEvidence evidence,
+            MaintenanceWorkflowOperation operation) {
+        requireAction(operation, MaintenanceWorkflowAction.RECORD_INVESTMENT_SWITCH);
+        if (stepType != MaintenanceStepType.EFFECT || effectEvidence == null || evidence == null) {
+            throw invalidTransition("当前生效任务没有可勾稽的请求证据");
+        }
+        requireStatus(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL, "记录投资账户转换回执");
+        if (!evidence.evidenceVersion().equals(operation.evidenceVersion())
+                || !evidence.contentHash().equals(operation.evidenceHash())
+                || !"APPLIED".equals(operation.resultCode())
+                || !evidence.accountId().equals(operation.reason())) {
+            throw new MaintenanceValidationException(
+                    "RecordMaintenanceCaseInvestmentSwitchCommand", "investmentSwitchEvidence",
+                    "投资账户转换回执与操作载荷不一致");
+        }
+        return new MaintenanceWorkflowTask(
+                taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
+                MaintenanceWorkflowTaskStatus.COMPLETED, null, retryCount, null,
+                conditionEvidence, reviewEvidence, operation, underwritingEvidence,
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence,
+                effectEvidence.switched(evidence));
+    }
+
     /** Policy 调用或回执校验失败时保留请求证据并进入可重试失败。 */
     public MaintenanceWorkflowTask failEffect(MaintenanceWorkflowOperation operation) {
         requireAction(operation, MaintenanceWorkflowAction.FAIL_EFFECT);

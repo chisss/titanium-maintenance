@@ -180,10 +180,10 @@ class CrossTenantCommandGuardTest {
         assertEquals(List.of(), violations,
                 "以下 @CommandHandler 未把跨租户守护放在首条语句：" + String.join("；", violations));
         // 守护一旦失效（例如结构变更导致一个都没扫到）本测试必须失败，而非静默通过
-        assertEquals(50, inspected, "首条守护的 @CommandHandler 数量异常，守护规则可能已失效");
+        assertEquals(51, inspected, "首条守护的 @CommandHandler 数量异常，守护规则可能已失效");
         assertEquals(1, constructors, "扫描到的创建构造器数量异常（Maintenance 1）");
         assertEquals(1, deferredGuards, "扫描到的幂等建案处理器数量异常（Maintenance 1）");
-        assertEquals(52, handlers, "扫描到的 @CommandHandler 总数异常（Maintenance 52）");
+        assertEquals(53, handlers, "扫描到的 @CommandHandler 总数异常（Maintenance 53）");
     }
 
     /** 判定该 {@code @CommandHandler} 是否标注在创建构造器上（方法名即聚合类名） */

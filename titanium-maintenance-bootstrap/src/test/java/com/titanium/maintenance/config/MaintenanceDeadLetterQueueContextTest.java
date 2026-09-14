@@ -18,6 +18,7 @@ import com.titanium.maintenance.infrastructure.client.billing.BillingRetroactive
 import com.titanium.maintenance.infrastructure.client.claim.ClaimRetroactiveImpactClient;
 import com.titanium.maintenance.infrastructure.client.customer.CustomerServiceClient;
 import com.titanium.maintenance.infrastructure.client.insurance.InsuranceServiceClient;
+import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountSwitchClient;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentMaintenanceRefundClient;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentPremiumCollectionClient;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentRetroactiveImpactClient;
@@ -90,6 +91,7 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
         ClaimRetroactiveImpactClient.class,
         CustomerServiceClient.class,
         InsuranceServiceClient.class,
+        InvestmentAccountSwitchClient.class,
         PaymentMaintenanceRefundClient.class,
         PaymentPremiumCollectionClient.class,
         PaymentRetroactiveImpactClient.class,

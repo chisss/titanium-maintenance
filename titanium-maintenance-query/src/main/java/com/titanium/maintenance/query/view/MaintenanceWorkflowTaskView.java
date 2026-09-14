@@ -334,6 +334,28 @@ public class MaintenanceWorkflowTaskView extends BaseView {
     @Column(name = "policy_applied_at")
     private LocalDateTime policyAppliedAt;
 
+    /** 投资账户转换回执（账户转换类案件的生效出口产物；与保单回执互斥，同刻最多一列非空） */
+    @Column(name = "switch_account_id", length = 64)
+    private String switchAccountId;
+
+    @Column(name = "switch_evidence_hash", length = 64)
+    private String switchEvidenceHash;
+
+    @Column(name = "switch_unit_price", precision = 24, scale = 8)
+    private BigDecimal switchUnitPrice;
+
+    @Column(name = "switch_total_units", precision = 24, scale = 8)
+    private BigDecimal switchTotalUnits;
+
+    @Column(name = "switch_account_value", precision = 24, scale = 8)
+    private BigDecimal switchAccountValue;
+
+    @Column(name = "switch_currency", length = 8)
+    private String switchCurrency;
+
+    @Column(name = "switch_switched_at")
+    private LocalDateTime switchSwitchedAt;
+
     @Column(name = "last_operation_id", length = 128)
     private String lastOperationId;
 

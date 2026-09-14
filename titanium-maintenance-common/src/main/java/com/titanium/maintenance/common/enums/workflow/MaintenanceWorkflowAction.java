@@ -23,7 +23,8 @@ public enum MaintenanceWorkflowAction implements BaseEnum {
     FAIL_EFFECT(14, "FAIL_EFFECT", "记录保全生效失败"),
     WITHDRAW_ITEM(15, "WITHDRAW_ITEM", "撤销保全项目"),
     RECORD_DOCUMENT(16, "RECORD_DOCUMENT", "出具凭证"),
-    COMPLETE_ITEM(17, "COMPLETE_ITEM", "完成保全项目");
+    COMPLETE_ITEM(17, "COMPLETE_ITEM", "完成保全项目"),
+    RECORD_INVESTMENT_SWITCH(18, "RECORD_INVESTMENT_SWITCH", "记录投资账户转换回执");
 
     private final Integer enumCode;
     private final String  code;

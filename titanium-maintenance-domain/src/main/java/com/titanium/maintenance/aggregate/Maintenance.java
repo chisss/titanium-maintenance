@@ -51,6 +51,7 @@ import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodResoluti
 import com.titanium.maintenance.command.FailMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
+import com.titanium.maintenance.command.RecordMaintenanceCaseInvestmentSwitchCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
@@ -172,6 +173,7 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceInvestmentSwitchEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyApplicationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePremiumQuoteEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactAnalysis;
@@ -1014,6 +1016,41 @@ public class Maintenance extends BaseAggregate {
                         new MaintenanceEffectCompensationResolvedEvent(id, effectCompensationEvidence.compensationId(),
                                 evidence.endorsementNo(), LocalDateTime.now(), command.operatorId(), tenantId));
             }
+        }
+    }
+
+    /**
+     * 在一个聚合命令事务中为案件全部生效任务记录同一投资账户转换回执。
+     * <p>
+     * 与 {@link #handle(RecordMaintenanceCasePolicyApplicationCommand)} 并列的第二条生效收口路径：走投资账户
+     * 转换出口的案件由此收口，两条路径的操作动作与回执证据类型均不同，不可交叉。
+     * </p>
+     */
+    @CommandHandler
+    public void handle(RecordMaintenanceCaseInvestmentSwitchCommand command) {
+        requireSameTenant(command.tenantId());
+        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        MaintenanceInvestmentSwitchEvidence evidence = command.evidence();
+        if (evidence == null) {
+            throw new MaintenanceValidationException("RecordMaintenanceCaseInvestmentSwitchCommand", "evidence",
+                    "投资账户转换回执不能为空");
+        }
+        boolean applied = false;
+        for (String taskId : taskIds) {
+            MaintenanceWorkflowOperation operation = workflowOperation(
+                    caseTaskOperationId(command.operationId(), taskId),
+                    MaintenanceWorkflowAction.RECORD_INVESTMENT_SWITCH, taskId, evidence.evidenceVersion(),
+                    evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.accountId(),
+                    command.operatorId());
+            applied |= transition(taskId, operation, task -> task.recordInvestmentSwitch(evidence, operation), true);
+        }
+        if (applied) {
+            if (!allEffectTasksApplied()) {
+                throw new MaintenanceValidationException("RecordMaintenanceCaseInvestmentSwitchCommand", "taskIds",
+                        "案件生效任务未全部完成");
+            }
+            changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.APPLIED, "案件级投资账户转换回执已记录",
+                    command.operatorId());
         }
     }
 

@@ -38,6 +38,7 @@ import com.titanium.maintenance.application.command.retroactive.MaintenanceRetro
 import com.titanium.maintenance.application.command.underwriting.MaintenanceUnderwritingAssessmentInput;
 import com.titanium.maintenance.application.command.withdrawal.MaintenanceItemWithdrawalInput;
 import com.titanium.maintenance.application.model.effect.MaintenanceEffectScheduleResult;
+import com.titanium.maintenance.application.model.effect.MaintenanceInvestmentSwitchInput;
 import com.titanium.maintenance.application.model.field.MaintenanceFieldConflictOperationResult;
 import com.titanium.maintenance.application.query.MaintenanceCaseQueryApplicationService;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
@@ -427,7 +428,8 @@ public class MaintenanceCaseController {
             @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
         MaintenanceEffectApplicationInput input = new MaintenanceEffectApplicationInput(
-                caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest));
+                caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest),
+                switchInput(request.investmentSwitch()));
         return caseCommandService.applyEffect(input).thenApply(result -> ResponseEntity.ok(
                 new MaintenanceEffectApplicationVO(
                         result.requestId(), result.endorsementNo(), result.actualPolicyVersion(),
@@ -676,6 +678,15 @@ public class MaintenanceCaseController {
         return request.getRequestURI().startsWith("/api/")
                 ? MaintenanceChannel.API
                 : MaintenanceChannel.MANUAL;
+    }
+
+    /** 账户转换参数翻译：未传（非账户转换案件）时为 null，交由应用层按案件类型判定必要性。 */
+    private MaintenanceInvestmentSwitchInput switchInput(ApplyMaintenanceEffectDTO.InvestmentSwitchDTO parameters) {
+        if (parameters == null) {
+            return null;
+        }
+        return new MaintenanceInvestmentSwitchInput(parameters.switchOutUnits(), parameters.targetUnitPrice(),
+                parameters.targetCurrency(), parameters.targetFund());
     }
 
     private CompletableFuture<ResponseEntity<Void>> noContent(CompletableFuture<Void> operation) {

@@ -12,8 +12,10 @@ import org.springframework.stereotype.Service;
 import com.titanium.maintenance.application.command.effect.MaintenanceEffectApplicationInput;
 import com.titanium.maintenance.application.command.field.RefreshMaintenanceFieldConflictsInput;
 import com.titanium.maintenance.application.model.effect.MaintenanceEffectApplicationResult;
+import com.titanium.maintenance.application.model.effect.MaintenanceInvestmentSwitchInput;
 import com.titanium.maintenance.application.model.field.MaintenanceFieldConflictOperationResult;
 import com.titanium.maintenance.command.FailMaintenanceCaseEffectCommand;
+import com.titanium.maintenance.command.RecordMaintenanceCaseInvestmentSwitchCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RequestMaintenanceCaseEffectCommand;
@@ -26,9 +28,13 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeri
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionFact;
+import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort;
+import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort.InvestmentSwitchFact;
+import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort.InvestmentSwitchRequest;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogRequest;
 import com.titanium.maintenance.port.policy.PolicyMaintenanceApplicationPort;
@@ -53,9 +59,12 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceAppliedFieldEvid
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceInvestmentSwitchEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyApplicationEvidence;
+import com.titanium.metadata.enums.maintenance.MaintenanceType;
 import com.titanium.metadata.enums.maintenance.PolicyMaintenanceAction;
 import com.titanium.metadata.enums.policy.PolicyEnum.TerminationReason;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -74,6 +83,7 @@ public class MaintenanceEffectApplicationService {
     private final PolicyFieldCatalogPort policyFieldCatalogPort;
     private final PolicyMaintenanceApplicationPort policyApplicationPort;
     private final BillingRetroactivePeriodResolutionPort billingResolutionPort;
+    private final InvestmentAccountSwitchPort investmentAccountSwitchPort;
 
     public CompletableFuture<MaintenanceEffectApplicationResult> apply(MaintenanceEffectApplicationInput input) {
         EffectContext context = requireContext(input, false, null);
@@ -85,6 +95,9 @@ public class MaintenanceEffectApplicationService {
         LocalDateTime effectiveAt = timeType == EffectiveTimeType.RETROACTIVE
                 ? context.caseView().getSpecificEffectiveDate() : LocalDateTime.now();
         return prepareConflicts(input, context).thenCompose(prepared -> {
+            if (isInvestmentSwitchCase(prepared.effectTasks())) {
+                return invokeInvestmentSwitch(input, prepared, timeType, effectiveAt);
+            }
             ApplicationRequest request = buildRequest(input, prepared, timeType, effectiveAt);
             CompletableFuture<Void> requestFrozen = freezeRequestIfRequired(input, prepared, request);
             return requestFrozen.thenCompose(ignored -> invokePolicy(input, prepared, request));
@@ -101,6 +114,9 @@ public class MaintenanceEffectApplicationService {
             return CompletableFuture.completedFuture(recovered);
         }
         return prepareConflicts(input, context).thenCompose(prepared -> {
+            if (isInvestmentSwitchCase(prepared.effectTasks())) {
+                throw validation("investmentSwitch", "账户转换案件不支持计划调度，须由人工立即执行生效");
+            }
             ApplicationRequest request = buildRequest(
                     input, prepared, prepared.caseView().getEffectiveTimeType(), scheduledEffectiveAt);
             CompletableFuture<Void> requestFrozen = freezeRequestIfRequired(input, prepared, request);
@@ -127,6 +143,103 @@ public class MaintenanceEffectApplicationService {
                 });
     }
 
+    /**
+     * 账户转换出口：冻结通用生效请求证据 → 调投资域执行转换 → 记录账户转换权威回执。
+     * <p>
+     * 🔴 与 Policy 出口的两点结构差异：①请求证据只冻结，不构造 {@code ApplicationRequest}（后者的不变量要求
+     * 「字段非空或状态动作改状态」，账户转换两者皆不满足，构造即抛）；②回执落到 {@code RecordMaintenanceCaseInvestmentSwitchCommand}，
+     * 产物是账户转换事实而非批单。
+     * </p>
+     */
+    private CompletableFuture<MaintenanceEffectApplicationResult> invokeInvestmentSwitch(
+            MaintenanceEffectApplicationInput input,
+            EffectContext context,
+            EffectiveTimeType effectiveTimeType,
+            LocalDateTime requestedEffectiveAt) {
+        MaintenanceWorkflowTaskView evidenceTask = context.effectTasks().getFirst();
+        boolean reuseFrozenRequest = evidenceTask.getStatus() == MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL;
+        InvestmentSwitchRequest switchRequest = investmentSwitchRequest(input, context);
+        String requestHash = switchRequest.requestPayloadHash();
+        if (reuseFrozenRequest) {
+            if (!Objects.equals(evidenceTask.getEffectRequestHash(), requestHash)) {
+                throw validation("investmentSwitch", "账户转换重试载荷与已冻结请求不一致");
+            }
+            return executeInvestmentSwitch(input, context, switchRequest, evidenceTask.getEffectRequestId());
+        }
+        LocalDateTime effectiveAt = evidenceTask.getEffectRequestedEffectiveAt() != null
+                ? evidenceTask.getEffectRequestedEffectiveAt() : requestedEffectiveAt;
+        EffectiveTimeType timeType = evidenceTask.getEffectTimeType() != null
+                ? evidenceTask.getEffectTimeType() : effectiveTimeType;
+        long expectedVersion = evidenceTask.getEffectExpectedPolicyVersion() != null
+                ? evidenceTask.getEffectExpectedPolicyVersion() : context.expectedPolicyVersion();
+        String requestId = evidenceTask.getEffectRequestId() != null
+                ? evidenceTask.getEffectRequestId()
+                : PolicyMaintenanceApplicationPort.stableCaseRequestId(input.tenantId(), input.maintenanceId());
+        MaintenanceEffectRequestEvidence evidence = new MaintenanceEffectRequestEvidence(
+                requestId, requestHash, expectedVersion, timeType, effectiveAt,
+                context.proposedSnapshotHash(), LocalDateTime.now());
+        String operationId = PolicyMaintenanceApplicationPort.stageOperationId(
+                input.operationId(), "request", context.retryCount());
+        return send(new RequestMaintenanceCaseEffectCommand(
+                MaintenanceId.of(input.maintenanceId()), context.taskIds(), operationId,
+                evidence, input.operatorId(), input.tenantId()))
+                .thenCompose(ignored -> executeInvestmentSwitch(input, context, switchRequest, requestId));
+    }
+
+    private CompletableFuture<MaintenanceEffectApplicationResult> executeInvestmentSwitch(
+            MaintenanceEffectApplicationInput input,
+            EffectContext context,
+            InvestmentSwitchRequest switchRequest,
+            String requestId) {
+        InvestmentSwitchFact fact;
+        try {
+            fact = investmentAccountSwitchPort.switchByPolicy(switchRequest);
+        } catch (RuntimeException exception) {
+            return recordFailure(input, context, "INVESTMENT_SWITCH_FAILED", exception);
+        }
+        if (fact == null) {
+            return recordFailure(input, context, "INVESTMENT_SWITCH_FAILED", new MaintenanceRemoteCallException(
+                    "保单名下无可用投资账户，账户转换无处可施, policyId=" + switchRequest.policyId(),
+                    MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_MISSING));
+        }
+        MaintenanceInvestmentSwitchEvidence evidence = new MaintenanceInvestmentSwitchEvidence(
+                requestId, fact.accountId(), switchRequest.switchOutUnits(), switchRequest.targetUnitPrice(),
+                switchRequest.targetFund(), fact.unitPrice(), fact.totalUnits(), fact.accountValue(),
+                fact.currency(), LocalDateTime.now());
+        String operationId = PolicyMaintenanceApplicationPort.stageOperationId(
+                input.operationId(), "receipt", context.retryCount());
+        return send(new RecordMaintenanceCaseInvestmentSwitchCommand(
+                MaintenanceId.of(input.maintenanceId()), context.taskIds(), operationId,
+                evidence, input.operatorId(), input.tenantId()))
+                .thenApply(ignored -> new MaintenanceEffectApplicationResult(
+                        requestId, null, context.expectedPolicyVersion(),
+                        evidence.contentHash(), evidence.switchedAt()))
+                .exceptionallyCompose(exception -> recordFailure(
+                        input, context, "INVESTMENT_SWITCH_FAILED", runtimeCause(rootCause(exception))));
+    }
+
+    private InvestmentSwitchRequest investmentSwitchRequest(
+            MaintenanceEffectApplicationInput input,
+            EffectContext context) {
+        MaintenanceInvestmentSwitchInput parameters = input.investmentSwitch();
+        if (parameters == null) {
+            throw validation("investmentSwitch", "账户转换案件必须携带转换参数(转出单位、目标净值与标的)");
+        }
+        return new InvestmentSwitchRequest(
+                input.tenantId(), context.caseView().getPolicyId(),
+                parameters.switchOutUnits(), parameters.targetUnitPrice(),
+                parameters.targetCurrency(), parameters.targetFund(), input.operatorId());
+    }
+
+    /** 账户转换出口判定：全部生效任务同属账户转换保全项（混合案件由 {@code requireContext} 显式拒绝）。 */
+    private boolean isInvestmentSwitchCase(List<MaintenanceWorkflowTaskView> effectTasks) {
+        return !effectTasks.isEmpty() && effectTasks.stream().allMatch(this::isInvestmentSwitchTask);
+    }
+
+    private boolean isInvestmentSwitchTask(MaintenanceWorkflowTaskView task) {
+        return MaintenanceItemCode.of(task.getItemCode()).legacyMaintenanceType() == MaintenanceType.FUND_SWITCH;
+    }
+
     private CompletableFuture<MaintenanceEffectApplicationResult> invokePolicy(
             MaintenanceEffectApplicationInput input,
             EffectContext context,
@@ -135,7 +248,7 @@ public class MaintenanceEffectApplicationService {
         try {
             fact = policyApplicationPort.apply(request);
         } catch (RuntimeException exception) {
-            return recordFailure(input, context, exception);
+            return recordFailure(input, context, "POLICY_APPLICATION_FAILED", exception);
         }
         MaintenancePolicyApplicationEvidence evidence;
         try {
@@ -160,8 +273,7 @@ public class MaintenanceEffectApplicationService {
             EffectContext context,
             ApplicationFact fact,
             Throwable exception) {
-        RuntimeException cause = exception instanceof RuntimeException runtimeException
-                ? runtimeException : new IllegalStateException(exception);
+        RuntimeException cause = runtimeCause(exception);
         String compensationId = PolicyMaintenanceApplicationPort.stageOperationId(
                 input.operationId(), "compensation", context.retryCount());
         MaintenanceEffectCompensationEvidence evidence = new MaintenanceEffectCompensationEvidence(
@@ -176,13 +288,14 @@ public class MaintenanceEffectApplicationService {
     private CompletableFuture<MaintenanceEffectApplicationResult> recordFailure(
             MaintenanceEffectApplicationInput input,
             EffectContext context,
+            String failureCode,
             RuntimeException exception) {
         String operationId = PolicyMaintenanceApplicationPort.stageOperationId(
                 input.operationId(), "failure", context.retryCount());
         String reason = failureReason(exception);
         return send(new FailMaintenanceCaseEffectCommand(
                 MaintenanceId.of(input.maintenanceId()), context.taskIds(), operationId,
-                "POLICY_APPLICATION_FAILED", reason, input.operatorId(), input.tenantId()))
+                failureCode, reason, input.operatorId(), input.tenantId()))
                 .thenCompose(ignored -> CompletableFuture.failedFuture(exception));
     }
 
@@ -304,7 +417,11 @@ public class MaintenanceEffectApplicationService {
             throw validation("fieldChanges", "生效不能存在未解决字段冲突");
         }
         PolicyMaintenanceAction stateAction = stateAction(effectTasks);
-        if (fields.isEmpty() && !stateAction.changesStatus()) {
+        boolean switchCase = isInvestmentSwitchCase(effectTasks);
+        if (!switchCase && effectTasks.stream().anyMatch(this::isInvestmentSwitchTask)) {
+            throw validation("investmentSwitch", "账户转换保全项不得与其它生效项混合在同一案件");
+        }
+        if (fields.isEmpty() && !stateAction.changesStatus() && !switchCase) {
             throw validation("fieldChanges", "字段型案件必须包含结构化字段变更");
         }
         if (!fields.isEmpty()) {
@@ -331,6 +448,13 @@ public class MaintenanceEffectApplicationService {
                 throw validation("policyApplication", "已完成生效任务未共享同一 Policy 请求和权威回执");
             }
         });
+        if (hasText(authoritative.getSwitchAccountId())) {
+            return new MaintenanceEffectApplicationResult(
+                    authoritative.getEffectRequestId(), null,
+                    authoritative.getEffectExpectedPolicyVersion() == null
+                            ? 0L : authoritative.getEffectExpectedPolicyVersion(),
+                    authoritative.getSwitchEvidenceHash(), authoritative.getSwitchSwitchedAt());
+        }
         return new MaintenanceEffectApplicationResult(
                 authoritative.getEffectRequestId(), authoritative.getPolicyEndorsementNo(),
                 authoritative.getPolicyActualVersion(), authoritative.getPolicyApplicationHash(),
@@ -344,6 +468,13 @@ public class MaintenanceEffectApplicationService {
                 || task.getEffectTimeType() == null
                 || task.getEffectRequestedEffectiveAt() == null
                 || !isHash(task.getEffectProposedSnapshotHash());
+        if (invalidRequest) {
+            throw validation("policyApplication", "已完成生效任务缺少完整生效请求投影");
+        }
+        // 账户转换出口：无批单号、不推进保单版本、无应用快照，故不适用保单回执不变量，以账户回执列齐备为准
+        if (hasText(task.getSwitchAccountId())) {
+            return;
+        }
         boolean invalidApplication = !hasText(task.getPolicyEndorsementNo())
                 || task.getPolicyActualVersion() == null
                 || !isHash(task.getPolicyApplicationHash())
@@ -357,8 +488,8 @@ public class MaintenanceEffectApplicationService {
         boolean invalidStatusChange = task.getPolicyStateAction() != null
                 && task.getPolicyStateAction().changesStatus()
                 && (!hasText(task.getPolicyStatusBefore()) || !hasText(task.getPolicyStatusAfter()));
-        if (invalidRequest || invalidApplication || invalidSnapshot || invalidStatusChange) {
-            throw validation("policyApplication", "已完成生效任务缺少完整 Policy 请求、回执或应用快照投影");
+        if (invalidApplication || invalidSnapshot || invalidStatusChange) {
+            throw validation("policyApplication", "已完成生效任务缺少完整 Policy 回执或应用快照投影");
         }
     }
 
@@ -382,7 +513,14 @@ public class MaintenanceEffectApplicationService {
                 && Objects.equals(expected.getAppliedSnapshotPolicyVersion(), actual.getAppliedSnapshotPolicyVersion())
                 && Objects.equals(expected.getAppliedSnapshotCapturedAt(), actual.getAppliedSnapshotCapturedAt())
                 && Objects.equals(expected.getAppliedFieldsJson(), actual.getAppliedFieldsJson())
-                && Objects.equals(expected.getPolicyAppliedAt(), actual.getPolicyAppliedAt());
+                && Objects.equals(expected.getPolicyAppliedAt(), actual.getPolicyAppliedAt())
+                && Objects.equals(expected.getSwitchAccountId(), actual.getSwitchAccountId())
+                && Objects.equals(expected.getSwitchEvidenceHash(), actual.getSwitchEvidenceHash())
+                && Objects.equals(expected.getSwitchUnitPrice(), actual.getSwitchUnitPrice())
+                && Objects.equals(expected.getSwitchTotalUnits(), actual.getSwitchTotalUnits())
+                && Objects.equals(expected.getSwitchAccountValue(), actual.getSwitchAccountValue())
+                && Objects.equals(expected.getSwitchCurrency(), actual.getSwitchCurrency())
+                && Objects.equals(expected.getSwitchSwitchedAt(), actual.getSwitchSwitchedAt());
     }
 
     private RetroactiveEvidence requireRetroactiveEvidence(
@@ -664,6 +802,12 @@ public class MaintenanceEffectApplicationService {
             current = current.getCause();
         }
         return current;
+    }
+
+    /** 异常统一收敛为运行时异常，供失败/补偿命令承载原因。 */
+    private RuntimeException runtimeCause(Throwable exception) {
+        return exception instanceof RuntimeException runtimeException
+                ? runtimeException : new IllegalStateException(exception);
     }
 
     private CompletableFuture<Void> send(Object command) {

@@ -1,12 +1,16 @@
 package com.titanium.maintenance.application.orchestration.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import java.math.BigDecimal;
@@ -24,8 +28,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.titanium.maintenance.application.command.effect.MaintenanceEffectApplicationInput;
+import com.titanium.maintenance.application.model.effect.MaintenanceEffectApplicationResult;
+import com.titanium.maintenance.application.model.effect.MaintenanceInvestmentSwitchInput;
 import com.titanium.maintenance.application.model.field.MaintenanceFieldConflictOperationResult;
 import com.titanium.maintenance.command.FailMaintenanceCaseEffectCommand;
+import com.titanium.maintenance.command.RecordMaintenanceCaseInvestmentSwitchCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RequestMaintenanceCaseEffectCommand;
@@ -44,6 +51,7 @@ import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionFact;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionLineFact;
+import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
@@ -82,6 +90,7 @@ class MaintenanceEffectApplicationServiceTest {
     private PolicyFieldCatalogPort fieldCatalogPort;
     private PolicyMaintenanceApplicationPort policyApplicationPort;
     private BillingRetroactivePeriodResolutionPort billingResolutionPort;
+    private InvestmentAccountSwitchPort investmentAccountSwitchPort;
     private MaintenanceEffectApplicationService service;
 
     @BeforeEach
@@ -96,10 +105,11 @@ class MaintenanceEffectApplicationServiceTest {
         fieldCatalogPort = mock(PolicyFieldCatalogPort.class);
         policyApplicationPort = mock(PolicyMaintenanceApplicationPort.class);
         billingResolutionPort = mock(BillingRetroactivePeriodResolutionPort.class);
+        investmentAccountSwitchPort = mock(InvestmentAccountSwitchPort.class);
         service = new MaintenanceEffectApplicationService(
                 commandGateway, maintenanceViewRepository, taskRepository, fieldRepository,
                 snapshotRepository, periodAdjustmentRepository, fieldConflictApplicationService, fieldCatalogPort,
-                policyApplicationPort, billingResolutionPort);
+                policyApplicationPort, billingResolutionPort, investmentAccountSwitchPort);
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(fieldConflictApplicationService.refreshIfVersionChanged(any(), anyLong()))
                 .thenReturn(CompletableFuture.completedFuture(null));
@@ -557,6 +567,187 @@ class MaintenanceEffectApplicationServiceTest {
                         "BILLING:bill-1", YearMonth.of(2026, 7), YearMonth.of(2026, 8),
                         MaintenanceBalanceDirection.DEBIT, new BigDecimal("20.00"), "CNY",
                         "posting-1", "f".repeat(64), "e".repeat(64))));
+    }
+
+    // ==================== 账户转换（FUND_SWITCH）生效出口 ====================
+
+    @Test
+    void shouldRouteInvestmentSwitchCaseToInvestmentPortWithoutPolicyApplication() {
+        investmentSwitchContext(MaintenanceWorkflowTaskStatus.READY);
+        when(investmentAccountSwitchPort.switchByPolicy(any())).thenReturn(switchFact());
+
+        MaintenanceEffectApplicationResult result = service.apply(switchInput()).join();
+
+        verify(policyApplicationPort, never()).apply(any());
+        ArgumentCaptor<InvestmentAccountSwitchPort.InvestmentSwitchRequest> switchCaptor =
+                ArgumentCaptor.forClass(InvestmentAccountSwitchPort.InvestmentSwitchRequest.class);
+        verify(investmentAccountSwitchPort).switchByPolicy(switchCaptor.capture());
+        assertEquals("policy-1", switchCaptor.getValue().policyId(), "账户按保单寻址");
+        assertEquals("tenant-1", switchCaptor.getValue().tenantId());
+        assertEquals(0, switchCaptor.getValue().switchOutUnits().compareTo(new BigDecimal("100")),
+                "转出单位应取自生效请求");
+        List<Object> commands = capturedCommands(2);
+        RequestMaintenanceCaseEffectCommand frozen = (RequestMaintenanceCaseEffectCommand) commands.get(0);
+        RecordMaintenanceCaseInvestmentSwitchCommand receipt =
+                (RecordMaintenanceCaseInvestmentSwitchCommand) commands.get(1);
+        assertEquals("tenant-1", frozen.tenantId());
+        assertEquals("tenant-1", receipt.tenantId());
+        assertEquals("account-1", receipt.evidence().accountId());
+        assertEquals(new BigDecimal("1.25000000"), receipt.evidence().unitPrice());
+        assertNull(result.endorsementNo(), "账户转换不改保单，无批单号");
+        assertEquals(receipt.evidence().contentHash(), result.applicationHash());
+        assertEquals(receipt.evidence().switchedAt(), result.appliedAt());
+    }
+
+    @Test
+    void shouldRejectInvestmentSwitchCaseWithoutParameters() {
+        investmentSwitchContext(MaintenanceWorkflowTaskStatus.READY);
+
+        MaintenanceValidationException error = assertValidationFailure(() -> service.apply(input()).join());
+
+        assertTrue(error.getMessage().contains("investmentSwitch"), error.getMessage());
+        verify(investmentAccountSwitchPort, never()).switchByPolicy(any());
+        verify(policyApplicationPort, never()).apply(any());
+        verify(commandGateway, never()).send(any());
+    }
+
+    @Test
+    void shouldRejectInvestmentSwitchItemMixedWithOtherItems() {
+        investmentSwitchContext(MaintenanceWorkflowTaskStatus.READY);
+        MaintenanceWorkflowTaskView other = effectTask("effect-task-2", "POLICY_INFO_CHANGE", 1);
+        when(taskRepository.findByTenantIdAndMaintenanceIdOrderByItemOrderAscSequenceAsc(
+                "tenant-1", "maintenance-1"))
+                .thenReturn(List.of(effectTask("effect-task-1", "FUND_SWITCH", 0), other));
+        when(taskRepository.findByTenantIdAndMaintenanceIdAndTaskId(
+                "tenant-1", "maintenance-1", "effect-task-1"))
+                .thenReturn(Optional.of(effectTask("effect-task-1", "FUND_SWITCH", 0)));
+
+        MaintenanceValidationException error = assertThrows(MaintenanceValidationException.class,
+                () -> service.apply(switchInput()).join());
+
+        assertTrue(error.getMessage().contains("investmentSwitch"), error.getMessage());
+        verify(investmentAccountSwitchPort, never()).switchByPolicy(any());
+    }
+
+    @Test
+    void shouldRejectInvestmentSwitchCaseOnScheduledEntry() {
+        investmentSwitchContext(MaintenanceWorkflowTaskStatus.READY);
+        when(maintenanceViewRepository
+                .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
+                        "maintenance-1", "tenant-1"))
+                .thenReturn(Optional.of(schedulableSwitchCase()));
+
+        assertThrows(java.util.concurrent.CompletionException.class,
+                () -> service.applyScheduled(switchInput(), LocalDateTime.parse("2026-09-01T00:00:00")).join());
+
+        verify(investmentAccountSwitchPort, never()).switchByPolicy(any());
+    }
+
+    @Test
+    void shouldFailClosedWhenPolicyHasNoInvestmentAccount() {
+        investmentSwitchContext(MaintenanceWorkflowTaskStatus.READY);
+        when(investmentAccountSwitchPort.switchByPolicy(any())).thenReturn(null);
+
+        assertThrows(java.util.concurrent.CompletionException.class, () -> service.apply(switchInput()).join());
+
+        FailMaintenanceCaseEffectCommand failure =
+                (FailMaintenanceCaseEffectCommand) capturedCommands(2).get(1);
+        assertEquals("INVESTMENT_SWITCH_FAILED", failure.failureCode());
+        verify(commandGateway, never()).send(any(RecordMaintenanceCaseInvestmentSwitchCommand.class));
+    }
+
+    @Test
+    void shouldRejectSwitchRetryWhenFrozenRequestPayloadDiffers() {
+        MaintenanceWorkflowTaskView waiting = investmentSwitchContext(
+                MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL);
+        waiting.setEffectRequestId("effect-case-1");
+
+        MaintenanceValidationException error = assertValidationFailure(() -> service.apply(switchInput()).join());
+
+        assertTrue(error.getMessage().contains("investmentSwitch"), error.getMessage());
+        verify(investmentAccountSwitchPort, never()).switchByPolicy(any());
+    }
+
+    @Test
+    void shouldReplaySwitchReceiptForCompletedSwitchCase() {
+        MaintenanceWorkflowTaskView completed = investmentSwitchContext(
+                MaintenanceWorkflowTaskStatus.COMPLETED);
+        completed.setEffectRequestId("effect-case-1");
+        completed.setEffectRequestHash("a".repeat(64));
+        completed.setEffectExpectedPolicyVersion(7L);
+        completed.setEffectTimeType(EffectiveTimeType.IMMEDIATE);
+        completed.setEffectRequestedEffectiveAt(LocalDateTime.parse("2026-08-25T09:59:59"));
+        completed.setEffectProposedSnapshotHash("d".repeat(64));
+        completed.setSwitchAccountId("account-1");
+        completed.setSwitchEvidenceHash("f".repeat(64));
+        completed.setSwitchUnitPrice(new BigDecimal("1.25000000"));
+        completed.setSwitchTotalUnits(new BigDecimal("800.00000000"));
+        completed.setSwitchAccountValue(new BigDecimal("1000.00000000"));
+        completed.setSwitchCurrency("CNY");
+        completed.setSwitchSwitchedAt(LocalDateTime.parse("2026-08-25T10:00:00"));
+
+        MaintenanceEffectApplicationResult result = service.apply(switchInput()).join();
+
+        assertEquals("effect-case-1", result.requestId());
+        assertNull(result.endorsementNo());
+        assertEquals("f".repeat(64), result.applicationHash());
+        assertEquals(LocalDateTime.parse("2026-08-25T10:00:00"), result.appliedAt());
+        verifyNoInteractions(investmentAccountSwitchPort);
+    }
+
+    private MaintenanceWorkflowTaskView investmentSwitchContext(MaintenanceWorkflowTaskStatus status) {
+        MaintenanceView caseView = visibleContext(true);
+        MaintenanceWorkflowTaskView task = effectTask("effect-task-1", "FUND_SWITCH", 0);
+        task.setStatus(status);
+        when(taskRepository.findByTenantIdAndMaintenanceIdAndTaskId(
+                "tenant-1", "maintenance-1", "effect-task-1"))
+                .thenReturn(Optional.of(task));
+        when(taskRepository.findByTenantIdAndMaintenanceIdOrderByItemOrderAscSequenceAsc(
+                "tenant-1", "maintenance-1"))
+                .thenReturn(List.of(task));
+        when(fieldRepository.findByTenantIdAndMaintenanceIdOrderByItemCodeAscFieldCodeAscObjectIdAsc(
+                "tenant-1", "maintenance-1"))
+                .thenReturn(List.of());
+        return task;
+    }
+
+    private MaintenanceView schedulableSwitchCase() {
+        MaintenanceView caseView = new MaintenanceView();
+        caseView.setMaintenanceId("maintenance-1");
+        caseView.setPolicyId("policy-1");
+        caseView.setTenantId("tenant-1");
+        caseView.setIndependentCase(true);
+        caseView.setInitializationCompleted(true);
+        caseView.setEffectiveTimeType(EffectiveTimeType.FUTURE);
+        return caseView;
+    }
+
+    private InvestmentAccountSwitchPort.InvestmentSwitchFact switchFact() {
+        return new InvestmentAccountSwitchPort.InvestmentSwitchFact("account-1",
+                new BigDecimal("1.25000000"), new BigDecimal("800.00000000"),
+                new BigDecimal("1000.00000000"), "CNY");
+    }
+
+    private MaintenanceEffectApplicationInput switchInput() {
+        return new MaintenanceEffectApplicationInput(
+                "maintenance-1", "effect-task-1", "operation-1", "operator-1", "tenant-1",
+                MaintenanceChannel.API, new MaintenanceInvestmentSwitchInput(
+                        new BigDecimal("100.00000000"), new BigDecimal("1.25000000"), "CNY", "FUND-B"));
+    }
+
+    /** 断言行内校验失败：校验发生在异步编排链内，join 后由 {@code CompletionException} 包装 */
+    private MaintenanceValidationException assertValidationFailure(Runnable action) {
+        java.util.concurrent.CompletionException wrapper = assertThrows(
+                java.util.concurrent.CompletionException.class, action::run);
+        assertTrue(wrapper.getCause() instanceof MaintenanceValidationException,
+                String.valueOf(wrapper.getCause()));
+        return (MaintenanceValidationException) wrapper.getCause();
+    }
+
+    private List<Object> capturedCommands(int expected) {
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(commandGateway, times(expected)).send(captor.capture());
+        return captor.getAllValues();
     }
 
     private MaintenanceWorkflowTaskView effectTask(String taskId, String itemCode, int itemOrder) {

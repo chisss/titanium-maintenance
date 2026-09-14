@@ -234,6 +234,18 @@ mvn spring-boot:run
     - **反向验证 2 项**：① 把 `EndorsementDocument.toEndorsementItem` 的权威取值改为直接取拟值 → `shouldPreferPolicyAppliedValueOverProposedValue` RED（`expected: <13900000000> but was: <changed>`），恢复即 GREEN；② 把聚合 `changeEffectStatus` 的 `if (next == APPLIED)` 批单发布分支置为不可达 → 聚合测试 **4 处**断言 RED（`:461` / `:492` / `:630` / `:671`），恢复即 GREEN。探针已清理并全文扫描确认。
     - **门禁**：本域 `mvn -B clean install` **582 例**（0 失败 0 错误 6 跳过，较 m15-1805 的 568 例 +14）；document 域 45 例；`CrossDomainEventCatalogTest` 12 例全绿。主题登记见 [跨域事件目录 §三 / §六.20](../docs/技术文档/跨域事件目录-2026-09.md)。
 
+20. ✅ **投资账户转换端点补齐 + 保全 FUND_SWITCH 跨域衔接（m16-1901，2026-09-14）**：`MaintenanceType.FUND_SWITCH`（账户转换）案件在生效环节**无处可施**——保全侧无出口、投资域无入口，案件推进到生效即卡死。本任务补齐两端。
+    - 🔴 **出口形态判据 = 同步 Feign（与第 19 条批单恰好相反）**：二者判别维度是**「该产物是否为案件生效的实质内容」**。批单是**旁路产物**（可延迟、失败不应回滚主链）⇒ Kafka；账户转换是**生效的实质内容**（成败决定案件能否置为已生效）⇒ 同步 Feign + fail-closed。若账户转换走 Kafka，保全侧将**无从判定成败**——要么误判成功、要么等一个永无回执的事件。
+    - **三段实现**：investment 侧 `InvestmentAccountApi` 补账户转换契约（新 `SwitchUnitsDTO`）+ controller/provider 同范式实现；maintenance 侧新建 `domain/port/investment/InvestmentAccountSwitchPort`（与 aggregate 平级、按对端域分包）+ `infrastructure/client/investment/InvestmentAccountSwitchClient` + `infrastructure/adapter/investment/InvestmentAccountSwitchAdapter`。
+    - 🔴 **适配器承担「保单 → 账户」解析**：案件只持有保单标识，适配器先按保单查账户列表、再对唯一命中账户执行转换（两步都不得插入对账户状态的本地假设）。
+    - 🔴 **「不存在」与「失败」严格区分（D13 同规）**：查询**正常应答的空列表**才是「保单名下无投资账户」→ 返回 **null 原样上交**，由调用方决定处置；对端非成功码 / 响应缺数据 / 连接失败 / 超时 / 契约反序列化失败一律抛 `MaintenanceRemoteCallException`（失败关闭），**禁止把服务故障伪装成「账户不存在」**。调用方的处置 = **案件生效失败关闭**（失败码 `INVESTMENT_SWITCH_FAILED`，错误码 `MAINTENANCE_INVESTMENT_ACCOUNT_MISSING` 71006016），不静默跳过。
+    - 🔴 **多账户歧义不静默择一**：同保单可派生多个形态账户（投连/万能/分红），转换目标是**业务事实**、无从推断，以 `MAINTENANCE_INVESTMENT_ACCOUNT_AMBIGUOUS`（71006015）显式失败，交人工明确账户后再执行——避免「转换落到了另一个账户」这类事后无从对账的错账。**与「无账户」的语义分野**：无账户是**业务事实**（返 null 上交），多账户是**事实不足**（显式失败），二者错误码不得复用。
+    - **生效环节两处结构性拒绝**：① FUND_SWITCH 与其它保全项**混合案件**拒绝（账户转换是案件级原子动作，与字段级批改语义不同）；② FUND_SWITCH 案件**不支持计划调度**（`applyScheduled` 拒绝，须人工立即执行）——均在 `requireContext` 闸口前置。
+    - **测试**：application 7 例（分流不触 policy 回写 / 混合案件拒绝 / 调度拒绝 / 参数缺失 / **无账户失败关闭** / 重试载荷不一致 / 已完成回执重放）、adapter 8 例（空列表返 null / 租户与请求体透传 / 显式币种优先 / 多账户歧义 / 查询不可达 / 失效应答 / 转换拒绝 / 回执字段缺失）、investment 端点 6 例（后台与远程两入口同语义、参数校验、币种缺省、回查未命中）。
+    - **反向验证 2 项**：① `isInvestmentSwitchTask` 置为 `return false` ⇒ **6 处 RED**（分流、混合案件、调度拒绝、参数缺失、无账户失败关闭、重试载荷）；② adapter 歧义分支置为不可达 ⇒ RED（`71006015` 退化为 `71006014`）。均恢复复绿，探针已全文扫描清理。
+    - **判定：未新增 Kafka 主题**——出口是同步 Feign，故《跨域事件目录-2026-09.md》§二/§三/§六 不登记，`CrossDomainEventCatalogTest` 12 例仍全绿。
+    - **门禁**：本域 `mvn -B clean install` **597 例**（0 失败 0 错误 6 跳过，较 m16-1902 的 582 例 +15）；investment 域 49 例。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*

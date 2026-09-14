@@ -253,6 +253,21 @@ public class MaintenanceWorkflowProjectionEventHandler {
                 policyApplication == null ? null : JSON.toJSONString(policyApplication.appliedFields()));
         view.setPolicyAppliedAt(
                 policyApplication == null ? null : policyApplication.appliedAt());
+        var investmentSwitch = effect == null ? null : effect.investmentSwitch();
+        view.setSwitchAccountId(
+                investmentSwitch == null ? null : investmentSwitch.accountId());
+        view.setSwitchEvidenceHash(
+                investmentSwitch == null ? null : investmentSwitch.contentHash());
+        view.setSwitchUnitPrice(
+                investmentSwitch == null ? null : investmentSwitch.unitPrice());
+        view.setSwitchTotalUnits(
+                investmentSwitch == null ? null : investmentSwitch.totalUnits());
+        view.setSwitchAccountValue(
+                investmentSwitch == null ? null : investmentSwitch.accountValue());
+        view.setSwitchCurrency(
+                investmentSwitch == null ? null : investmentSwitch.currency());
+        view.setSwitchSwitchedAt(
+                investmentSwitch == null ? null : investmentSwitch.switchedAt());
         view.setLastOperationId(
                 task.lastOperation() == null ? null : task.lastOperation().operationId());
         view.setLastOperationAction(
