@@ -30,6 +30,7 @@ import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
 import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceCaseInitializationCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceEffectScheduleCommand;
+import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactiveImpactAnalysisCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodRecalculationCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodResolutionCommand;
@@ -51,6 +52,7 @@ import com.titanium.maintenance.command.FailMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
+import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleFailureCommand;
@@ -161,6 +163,7 @@ import com.titanium.maintenance.valueobject.item.MaintenanceItemSelectionEvidenc
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawalRecoveryContext;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
@@ -993,7 +996,7 @@ public class Maintenance extends BaseAggregate {
                     MaintenanceWorkflowAction.RECORD_POLICY_APPLICATION, taskId, evidence.evidenceVersion(),
                     evidence.applicationHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.endorsementNo(),
                     command.operatorId());
-            applied |= transition(taskId, operation, task -> task.recordPolicyApplication(evidence, operation), false);
+            applied |= transition(taskId, operation, task -> task.recordPolicyApplication(evidence, operation), true);
         }
         if (applied) {
             if (!allEffectTasksApplied()) {
@@ -1008,6 +1011,35 @@ public class Maintenance extends BaseAggregate {
                                 evidence.endorsementNo(), LocalDateTime.now(), command.operatorId(), tenantId));
             }
         }
+    }
+
+    /** 出具保全凭证并完成凭证步骤；模板编码以案件冻结配置为准，不接受调用方自报。 */
+    @CommandHandler
+    public void handle(RecordMaintenanceDocumentCommand command) {
+        requireSameTenant(command.tenantId());
+        MaintenanceDocumentEvidence evidence = command.evidence();
+        if (evidence == null) {
+            throw new MaintenanceValidationException("RecordMaintenanceDocumentCommand", "evidence", "凭证出具事实不能为空");
+        }
+        requireDocumentTemplate(findWorkflowTask(command.taskId()), evidence);
+        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
+                MaintenanceWorkflowAction.RECORD_DOCUMENT, command.taskId(), evidence.templateCode(),
+                evidence.contentHash(), MaintenanceWorkflowTaskStatus.COMPLETED.getCode(),
+                evidence.voucherNo(), command.operatorId());
+        transition(command.taskId(), operation, task -> task.recordDocument(evidence, operation), true);
+    }
+
+    /** 完成案件终结标记步骤；同项目前序任务须全部形成终态。 */
+    @CommandHandler
+    public void handle(CompleteMaintenanceItemCommand command) {
+        requireSameTenant(command.tenantId());
+        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
+                MaintenanceWorkflowAction.COMPLETE_ITEM, command.taskId(), null, null,
+                MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), null, command.operatorId());
+        transition(command.taskId(), operation, task -> {
+            requirePredecessorsTerminal(task);
+            return task.completeItem(operation);
+        }, false);
     }
 
     /** 在一个聚合命令事务中将案件全部已发起生效任务置为失败。 */
@@ -2347,8 +2379,8 @@ public class Maintenance extends BaseAggregate {
         if (workflowOperationAlreadyApplied(operation)) {
             return false;
         }
-        requireWorkflowMutable(operation.action().getCode());
         MaintenanceWorkflowTask beforeTask = findWorkflowTask(taskId);
+        requireWorkflowMutable(beforeTask, operation.action().getCode());
         MaintenanceWorkflowTask afterTask = transition.apply(beforeTask);
         MaintenanceWorkflowTask activatedBefore = null;
         MaintenanceWorkflowTask activatedAfter = null;
@@ -2407,10 +2439,52 @@ public class Maintenance extends BaseAggregate {
         throw new MaintenanceValidationException("MaintenanceWorkflowOperation", "operationId", "同一操作号不能提交不同载荷");
     }
 
-    private void requireWorkflowMutable(String target) {
-        requireItemStatusMutable(target);
+    /**
+     * 校验案件与流程任务可推进。
+     * <p>
+     * 收口步骤（{@link MaintenanceStepType#closingPhase()}：出具凭证、完成）发生在案件生效完成之后，**案件级冻结
+     * 不适用于它们**——否则 {@code EFFECT → DOCUMENT → COMPLETE} 模板下收口步骤在结构上不可达（案件于生效回执
+     * 即置 {@code COMPLETED}）。其余步骤沿用原守卫，含收口步骤在案件被拒绝时，避免驳回后仍能改动保单内容。
+     * </p>
+     *
+     * @param task   待推进任务（其步骤类型决定是否豁免案件级冻结）
+     * @param target 目标动作编码，仅用于异常文案定位
+     */
+    private void requireWorkflowMutable(MaintenanceWorkflowTask task, String target) {
+        if (status != MaintenanceStatus.COMPLETED || !task.stepType().closingPhase()) {
+            requireItemStatusMutable(target);
+        }
         if (!initializationCompleted || workflowTasks == null || workflowTasks.isEmpty()) {
             throw new MaintenanceValidationException("MaintenanceWorkflowTask", "workflowTasks", "案件流程任务尚未初始化");
+        }
+    }
+
+    /**
+     * 校验同项目全部前序任务已形成终态（已完成或已跳过）。
+     * <p>
+     * 前驱顺序是**项目内**概念（同一 {@code itemCode} 的步骤序），故只在同项目任务间比较，不涉及其它保全项。
+     * </p>
+     */
+    private void requirePredecessorsTerminal(MaintenanceWorkflowTask task) {
+        List<String> unfinished = workflowTasks.stream()
+                .filter(candidate -> candidate.itemCode().equals(task.itemCode()))
+                .filter(candidate -> candidate.sequence() < task.sequence())
+                .filter(candidate -> candidate.status() != MaintenanceWorkflowTaskStatus.COMPLETED
+                        && candidate.status() != MaintenanceWorkflowTaskStatus.SKIPPED)
+                .map(MaintenanceWorkflowTask::taskId)
+                .toList();
+        if (!unfinished.isEmpty()) {
+            throw new MaintenanceConflictException("MaintenanceWorkflowTask", "status",
+                    "前序任务未形成终态，不能完成项目: " + String.join(",", unfinished));
+        }
+    }
+
+    /** 校验凭证模板编码取自本保全项冻结配置的输出规则。 */
+    private void requireDocumentTemplate(MaintenanceWorkflowTask task, MaintenanceDocumentEvidence evidence) {
+        String expected = findItem(task.itemCode()).controls().outputRule().voucherTemplateCode();
+        if (expected == null || !expected.equals(evidence.templateCode())) {
+            throw new MaintenanceValidationException("RecordMaintenanceDocumentCommand", "templateCode",
+                    "凭证模板必须使用冻结配置的输出模板");
         }
     }
 

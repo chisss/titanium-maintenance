@@ -13,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
+import org.axonframework.eventhandling.EventHandler;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -22,7 +23,6 @@ import com.titanium.maintenance.common.enums.change.PolicyFieldDataType;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceBillingPostingStatus;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceEffectStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementType;
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
@@ -31,7 +31,6 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewGate;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
-import com.titanium.maintenance.event.MaintenanceEffectStatusChangedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowInitializedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowTaskTransitionedEvent;
 import com.titanium.maintenance.query.repository.MaintenanceWorkflowTaskViewRepository;
@@ -40,6 +39,7 @@ import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceAppliedFieldEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyApplicationEvidence;
@@ -54,28 +54,75 @@ import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusio
 class MaintenanceWorkflowProjectionEventHandlerTest {
 
     @Test
-    void shouldCompleteTerminalTasksAfterPolicyApplication() {
+    void shouldNotDeriveTaskTerminalStatusFromEffectCallback() {
+        List<String> consumedEventTypes = Arrays.stream(
+                        MaintenanceWorkflowProjectionEventHandler.class.getDeclaredMethods())
+                .filter(method -> method.isAnnotationPresent(EventHandler.class))
+                .map(method -> method.getParameterTypes()[0].getName())
+                .sorted()
+                .toList();
+
+        assertEquals(
+                List.of(
+                        MaintenanceWorkflowInitializedEvent.class.getName(),
+                        MaintenanceWorkflowTaskTransitionedEvent.class.getName()),
+                consumedEventTypes,
+                "流程任务投影不得消费写侧任务迁移之外的事件：以生效回执推断任务终态会让读模型发明写侧没有的状态，"
+                        + "并在 EFFECT → DOCUMENT → COMPLETE 模板下越过前驱顺序把 COMPLETE 提前关闭");
+        // 计数断言：扫描规则一旦静默失效（例如注解被换掉、方法被下沉）本测试必须失败而非空集通过
+        assertEquals(2, consumedEventTypes.size(),
+                "流程任务投影的 @EventHandler 方法数量异常，终态来源守护可能已失效");
+    }
+
+    @Test
+    void shouldProjectDocumentAndCompleteStepTerminalStatus() {
         MaintenanceWorkflowTaskViewRepository repository = mock(MaintenanceWorkflowTaskViewRepository.class);
         MaintenanceWorkflowProjectionEventHandler handler =
                 new MaintenanceWorkflowProjectionEventHandler(repository);
-        MaintenanceWorkflowTaskView terminal = view("task-complete");
-        terminal.setStepType(MaintenanceStepType.COMPLETE);
-        terminal.setStatus(MaintenanceWorkflowTaskStatus.PENDING);
-        MaintenanceWorkflowTaskView skipped = view("task-skipped-complete");
-        skipped.setStepType(MaintenanceStepType.COMPLETE);
-        skipped.setStatus(MaintenanceWorkflowTaskStatus.SKIPPED);
-        when(repository.findByTenantIdAndMaintenanceIdOrderByItemOrderAscSequenceAsc(
-                "tenant-1", "case-1"))
-                .thenReturn(List.of(terminal, skipped));
+        MaintenanceWorkflowTaskView documentView = view("task-document");
+        MaintenanceWorkflowTaskView completeView = view("task-complete");
+        when(repository.findByTenantIdAndMaintenanceIdAndTaskId(
+                "tenant-1", "case-1", "task-document"))
+                .thenReturn(Optional.of(documentView));
+        when(repository.findByTenantIdAndMaintenanceIdAndTaskId(
+                "tenant-1", "case-1", "task-complete"))
+                .thenReturn(Optional.of(completeView));
+        LocalDateTime issuedAt = LocalDateTime.parse("2026-09-14T10:00:00");
+        MaintenanceWorkflowTask documentBefore = startedTask("task-document", MaintenanceStepType.DOCUMENT);
+        MaintenanceDocumentEvidence evidence = new MaintenanceDocumentEvidence(
+                "POLICY_INFO_CHANGE_VOUCHER", "VCH-20260914-001", issuedAt, "operator-1");
+        MaintenanceWorkflowOperation documentOperation = MaintenanceWorkflowOperation.create(
+                "operation-document", MaintenanceWorkflowAction.RECORD_DOCUMENT, "task-document",
+                evidence.templateCode(), evidence.contentHash(),
+                MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), evidence.voucherNo(),
+                issuedAt, "operator-1");
+        MaintenanceWorkflowTask documentAfter = documentBefore.recordDocument(evidence, documentOperation);
 
-        handler.on(new MaintenanceEffectStatusChangedEvent(
-                MaintenanceId.of("case-1"), "task-effect", MaintenanceEffectStatus.EFFECTING,
-                MaintenanceEffectStatus.APPLIED, "Policy 权威回执已记录",
-                LocalDateTime.parse("2026-08-25T15:00:00"), "operator-1", "tenant-1"));
+        handler.on(new MaintenanceWorkflowTaskTransitionedEvent(
+                MaintenanceId.of("case-1"), documentBefore, documentAfter, null, null,
+                documentOperation.operationId(), documentOperation.payloadHash(),
+                documentOperation.operatedAt(), documentOperation.operatedBy(), "tenant-1"));
 
-        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, terminal.getStatus());
-        assertEquals(MaintenanceWorkflowTaskStatus.SKIPPED, skipped.getStatus());
-        verify(repository).saveAll(List.of(terminal));
+        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, documentView.getStatus());
+        assertEquals("operation-document", documentView.getLastOperationId());
+        assertEquals("VCH-20260914-001", documentView.getLastOperationReason());
+        verify(repository).save(documentView);
+
+        MaintenanceWorkflowTask completeBefore = startedTask("task-complete", MaintenanceStepType.COMPLETE);
+        MaintenanceWorkflowOperation completeOperation = MaintenanceWorkflowOperation.create(
+                "operation-complete", MaintenanceWorkflowAction.COMPLETE_ITEM, "task-complete",
+                null, null, MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), null,
+                issuedAt.plusMinutes(5), "operator-1");
+        MaintenanceWorkflowTask completeAfter = completeBefore.completeItem(completeOperation);
+
+        handler.on(new MaintenanceWorkflowTaskTransitionedEvent(
+                MaintenanceId.of("case-1"), completeBefore, completeAfter, null, null,
+                completeOperation.operationId(), completeOperation.payloadHash(),
+                completeOperation.operatedAt(), completeOperation.operatedBy(), "tenant-1"));
+
+        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, completeView.getStatus());
+        assertEquals("operation-complete", completeView.getLastOperationId());
+        verify(repository).save(completeView);
     }
 
     @Test
@@ -376,6 +423,22 @@ class MaintenanceWorkflowProjectionEventHandlerTest {
         view.setMaintenanceId("case-1");
         view.setTenantId("tenant-1");
         return view;
+    }
+
+    /** 构造已领取并进入处理中的指定步骤任务（收口步骤推进的前置状态） */
+    private MaintenanceWorkflowTask startedTask(String taskId, MaintenanceStepType stepType) {
+        MaintenanceWorkflowTask task = new MaintenanceWorkflowTask(
+                taskId, "POLICY_INFO_CHANGE", 0, 3, stepType,
+                MaintenanceStepMode.REQUIRED, null, MaintenanceWorkflowTaskStatus.READY);
+        MaintenanceWorkflowOperation claim = MaintenanceWorkflowOperation.create(
+                "claim-" + taskId, MaintenanceWorkflowAction.CLAIM, taskId,
+                null, null, null, null,
+                LocalDateTime.parse("2026-09-14T09:55:00"), "operator-1");
+        MaintenanceWorkflowOperation start = MaintenanceWorkflowOperation.create(
+                "start-" + taskId, MaintenanceWorkflowAction.START, taskId,
+                null, null, null, null,
+                LocalDateTime.parse("2026-09-14T09:58:00"), "operator-1");
+        return task.claim(claim).start(start);
     }
 
     private MaintenanceWorkflowTask task(

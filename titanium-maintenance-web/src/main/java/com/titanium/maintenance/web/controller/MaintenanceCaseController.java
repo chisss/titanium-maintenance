@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.titanium.maintenance.application.command.casecreation.CreateMaintenanceCaseInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceAutomaticReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
+import com.titanium.maintenance.application.command.casecreation.MaintenanceDocumentIssueInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceManualReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceWorkflowTaskOperationInput;
 import com.titanium.maintenance.application.command.effect.MaintenanceEffectApplicationInput;
@@ -49,6 +50,7 @@ import com.titanium.maintenance.web.dto.casecreation.CreateMaintenanceCaseDTO;
 import com.titanium.maintenance.web.dto.casecreation.DecideMaintenanceReviewDTO;
 import com.titanium.maintenance.web.dto.casecreation.DecideMaintenanceWorkflowConditionDTO;
 import com.titanium.maintenance.web.dto.casecreation.FailMaintenanceWorkflowTaskDTO;
+import com.titanium.maintenance.web.dto.casecreation.IssueMaintenanceDocumentDTO;
 import com.titanium.maintenance.web.dto.casecreation.MaintenanceWorkflowOperationDTO;
 import com.titanium.maintenance.web.dto.casecreation.RetryMaintenanceWorkflowTaskDTO;
 import com.titanium.maintenance.web.dto.effect.ApplyMaintenanceEffectDTO;
@@ -364,6 +366,33 @@ public class MaintenanceCaseController {
                 request.policyVersion(), request.comment(), operatorId, tenantId,
                 MaintenanceChannel.MANUAL);
         return noContent(caseCommandService.decideReview(input));
+    }
+
+    /** 后台出具保全凭证；模板编码取自案件冻结配置，领域层继续校验领取人和任务状态。 */
+    @PostMapping("/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/document-issue")
+    public CompletableFuture<ResponseEntity<Void>> issueDocument(
+            @PathVariable @NotBlank @Size(max = 64) String caseId,
+            @PathVariable @NotBlank @Size(max = 191) String taskId,
+            @Valid @RequestBody IssueMaintenanceDocumentDTO request,
+            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
+            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+        MaintenanceDocumentIssueInput input = new MaintenanceDocumentIssueInput(
+                caseId, taskId, request.operationId(), request.voucherNo(), operatorId, tenantId,
+                MaintenanceChannel.MANUAL);
+        return noContent(caseCommandService.issueDocument(input));
+    }
+
+    /** 后台完成案件终结标记步骤；前序任务终态由领域层按同项目步骤序判定。 */
+    @PostMapping("/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/complete-item")
+    public CompletableFuture<ResponseEntity<Void>> completeItem(
+            @PathVariable @NotBlank @Size(max = 64) String caseId,
+            @PathVariable @NotBlank @Size(max = 191) String taskId,
+            @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
+            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
+            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+        return noContent(caseCommandService.completeItem(workflowInput(
+                caseId, taskId, request.operationId(), null, null, null, null, null,
+                tenantId, operatorId, MaintenanceChannel.MANUAL)));
     }
 
     /** API 自动审核；任何门禁不满足时返回转人工，不写拒绝事实。 */

@@ -9,10 +9,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.alibaba.fastjson2.JSON;
 
-import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceEffectStatus;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
-import com.titanium.maintenance.event.MaintenanceEffectStatusChangedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowInitializedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowTaskTransitionedEvent;
 import com.titanium.maintenance.query.repository.MaintenanceWorkflowTaskViewRepository;
@@ -21,7 +17,16 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowTask;
 
 import lombok.RequiredArgsConstructor;
 
-/** 将案件工作流初始化事实投影为租户隔离的任务列表。 */
+/**
+ * 将案件工作流初始化事实投影为租户隔离的任务列表。
+ * <p>
+ * 🔴 **任务终态的唯一来源是写侧 {@link MaintenanceWorkflowTaskTransitionedEvent}**。早前版本曾在
+ * {@code MaintenanceEffectStatusChangedEvent(APPLIED)} 上把配置中的 COMPLETE 任务直接置为已完成，该分支已删除，
+ * 判据有三：① 读模型不得发明写侧没有的终态（读写分叉）；② 在标准 {@code EFFECT → DOCUMENT → COMPLETE} 模板下
+ * 它会**越过前驱顺序**把 COMPLETE 提前关闭；③ 收口步骤落地后终态由 {@code RecordMaintenanceDocumentCommand}/
+ * {@code CompleteMaintenanceItemCommand} 经聚合产生。**勿**再以「生效即完成」为由恢复该分支。
+ * </p>
+ */
 @Component
 @ProcessingGroup("maintenance-query-group")
 @RequiredArgsConstructor
@@ -46,27 +51,6 @@ public class MaintenanceWorkflowProjectionEventHandler {
         if (event.activatedTaskAfter() != null) {
             update(event, event.activatedTaskAfter());
         }
-    }
-
-    /** Policy 已完成案件级应用时，自动关闭配置中的终结标记任务。 */
-    @EventHandler
-    @Transactional
-    public void on(MaintenanceEffectStatusChangedEvent event) {
-        if (event.currentStatus() != MaintenanceEffectStatus.APPLIED) {
-            return;
-        }
-        List<MaintenanceWorkflowTaskView> terminalTasks = repository
-                .findByTenantIdAndMaintenanceIdOrderByItemOrderAscSequenceAsc(
-                        event.tenantId(), event.maintenanceId().id())
-                .stream()
-                .filter(task -> task.getStepType() == MaintenanceStepType.COMPLETE)
-                .filter(task -> task.getStatus() != MaintenanceWorkflowTaskStatus.SKIPPED)
-                .toList();
-        terminalTasks.forEach(task -> {
-            task.setStatus(MaintenanceWorkflowTaskStatus.COMPLETED);
-            task.setUpdateTime(event.changedAt());
-        });
-        repository.saveAll(terminalTasks);
     }
 
     private MaintenanceWorkflowTaskView toView(

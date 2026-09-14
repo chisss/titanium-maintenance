@@ -21,13 +21,16 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.titanium.maintenance.application.command.casecreation.MaintenanceAutomaticReviewInput;
+import com.titanium.maintenance.application.command.casecreation.MaintenanceDocumentIssueInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceManualReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceWorkflowTaskOperationInput;
 import com.titanium.maintenance.application.command.underwriting.MaintenanceUnderwritingAssessmentInput;
 import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
+import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
 import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
 import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
 import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionCommand;
+import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.common.enums.change.MaintenanceFieldConflictStatus;
 import com.titanium.maintenance.common.enums.change.PolicyFieldDataType;
@@ -382,6 +385,146 @@ class MaintenanceWorkflowApplicationServiceTest {
         return new MaintenanceUnderwritingAssessmentInput(
                 CASE_ID, underwritingTaskId(), "operation-underwriting-1",
                 "underwriting-client", "tenant-1", MaintenanceChannel.API);
+    }
+
+    // ==================== 收口步骤：凭证出具与案件终结标记 ====================
+
+    @Test
+    void shouldIssueDocumentUsingFrozenVoucherTemplate() {
+        MaintenanceItemConfiguration configuration = publishedDocumentConfiguration();
+        visibleStepTask(configuration, MaintenanceStepType.DOCUMENT, documentTaskId(), 2);
+
+        service.issueDocument(new MaintenanceDocumentIssueInput(
+                CASE_ID, documentTaskId(), "operation-document", "VCH-20260914-001",
+                "operator-1", "tenant-1", MaintenanceChannel.MANUAL)).join();
+
+        ArgumentCaptor<RecordMaintenanceDocumentCommand> captor =
+                ArgumentCaptor.forClass(RecordMaintenanceDocumentCommand.class);
+        verify(commandGateway).send(captor.capture());
+        assertEquals(documentTaskId(), captor.getValue().taskId());
+        // 模板编码取自冻结配置而非调用方自报（入参不提供该字段，从源头堵死绕过）
+        assertEquals("POLICY_INFO_CHANGE_VOUCHER", captor.getValue().evidence().templateCode());
+        assertEquals("VCH-20260914-001", captor.getValue().evidence().voucherNo());
+    }
+
+    @Test
+    void shouldRejectDocumentIssueForNonDocumentStep() {
+        MaintenanceItemConfiguration configuration = publishedDocumentConfiguration();
+        visibleStepTask(configuration, MaintenanceStepType.DOCUMENT, documentTaskId(), 2);
+        visibleReviewTask(configuration, MaintenanceChannel.MANUAL,
+                MaintenanceWorkflowTaskStatus.READY, "reviewer-1", "maker-1");
+
+        assertThrows(MaintenanceValidationException.class, () -> service.issueDocument(
+                new MaintenanceDocumentIssueInput(
+                        CASE_ID, reviewTaskId(), "operation-document", "VCH-20260914-001",
+                        "operator-1", "tenant-1", MaintenanceChannel.MANUAL)));
+        verify(commandGateway, never()).send(any());
+    }
+
+    @Test
+    void shouldSendItemCompletionForTerminalStep() {
+        MaintenanceItemConfiguration configuration = publishedDocumentConfiguration();
+        visibleStepTask(configuration, MaintenanceStepType.COMPLETE, completeTaskId(), 3);
+
+        service.completeItem(new MaintenanceWorkflowTaskOperationInput(
+                CASE_ID, completeTaskId(), "operation-complete-item", null, null, null, null,
+                null, "operator-1", "tenant-1", MaintenanceChannel.MANUAL)).join();
+
+        ArgumentCaptor<CompleteMaintenanceItemCommand> captor =
+                ArgumentCaptor.forClass(CompleteMaintenanceItemCommand.class);
+        verify(commandGateway).send(captor.capture());
+        assertEquals(completeTaskId(), captor.getValue().taskId());
+        assertEquals("operation-complete-item", captor.getValue().operationId());
+        // 前序终态判定属于聚合（读模型最终一致，不能作判定依据），应用层只做步骤类型前置校验
+        assertEquals("tenant-1", captor.getValue().tenantId());
+    }
+
+    @Test
+    void shouldRejectItemCompletionForNonTerminalStep() {
+        MaintenanceItemConfiguration configuration = publishedDocumentConfiguration();
+        visibleStepTask(configuration, MaintenanceStepType.DOCUMENT, documentTaskId(), 2);
+
+        assertThrows(MaintenanceValidationException.class, () -> service.completeItem(
+                new MaintenanceWorkflowTaskOperationInput(
+                        CASE_ID, documentTaskId(), "operation-complete-item", null, null, null, null,
+                        null, "operator-1", "tenant-1", MaintenanceChannel.MANUAL)));
+        verify(commandGateway, never()).send(any());
+    }
+
+    /** 按指定步骤类型装载可见任务与冻结配置（收口步骤共用夹具） */
+    private void visibleStepTask(MaintenanceItemConfiguration configuration,
+                                 MaintenanceStepType stepType,
+                                 String taskId,
+                                 int sequence) {
+        MaintenanceView caseView = new MaintenanceView();
+        caseView.setMaintenanceId(CASE_ID);
+        caseView.setTenantId("tenant-1");
+        when(maintenanceViewRepository
+                .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
+                        CASE_ID, "tenant-1"))
+                .thenReturn(Optional.of(caseView));
+
+        MaintenanceWorkflowTaskView taskView = new MaintenanceWorkflowTaskView();
+        taskView.setTaskId(taskId);
+        taskView.setMaintenanceId(CASE_ID);
+        taskView.setTenantId("tenant-1");
+        taskView.setItemCode("POLICY_INFO_CHANGE");
+        taskView.setSequence(sequence);
+        taskView.setStepType(stepType);
+        taskView.setMode(MaintenanceStepMode.REQUIRED);
+        taskView.setStatus(MaintenanceWorkflowTaskStatus.IN_PROGRESS);
+        when(taskViewRepository.findByTenantIdAndMaintenanceIdAndTaskId(
+                "tenant-1", CASE_ID, taskId))
+                .thenReturn(Optional.of(taskView));
+
+        MaintenanceCaseItemView itemView = new MaintenanceCaseItemView();
+        itemView.setMaintenanceId(CASE_ID);
+        itemView.setItemCode("POLICY_INFO_CHANGE");
+        itemView.setConfigurationId(configuration.getConfigurationId());
+        itemView.setConfigurationVersion(configuration.getDefinition().version());
+        itemView.setConfigurationContentHash(configuration.getContentHash());
+        when(caseItemViewRepository.findByTenantIdAndMaintenanceIdAndItemCode(
+                "tenant-1", CASE_ID, "POLICY_INFO_CHANGE"))
+                .thenReturn(Optional.of(itemView));
+        when(configurationRepository.findById("tenant-1", configuration.getConfigurationId()))
+                .thenReturn(Optional.of(new StoredConfiguration(configuration, 1L)));
+    }
+
+    private MaintenanceItemConfiguration publishedDocumentConfiguration() {
+        MaintenanceItemControls controls = new MaintenanceItemControls(
+                Set.of(MaintenanceChannelCapability.manualApproval(MaintenanceChannel.MANUAL),
+                        new MaintenanceChannelCapability(MaintenanceChannel.API, true)),
+                List.of(), Set.of(), "APPROVAL_STANDARD", MaintenanceFeeRule.none(),
+                new MaintenanceAccessRule(Set.of("maintenance:item:operate"),
+                        Set.of("maintenance:item:view")),
+                new MaintenanceOutputRule("POLICY_INFO_CHANGE_VOUCHER", Set.of(), null));
+        MaintenanceItemDefinition definition = new MaintenanceItemDefinition(
+                "POLICY_INFO_CHANGE", "1.0.0", "保单基本信息变更",
+                MaintenanceItemCategory.BASIC_INFORMATION,
+                Set.of(MaintenanceChannel.MANUAL, MaintenanceChannel.API), List.of(),
+                List.of(
+                        MaintenanceStepDefinition.required(1, MaintenanceStepType.EFFECT),
+                        MaintenanceStepDefinition.required(2, MaintenanceStepType.DOCUMENT),
+                        MaintenanceStepDefinition.required(3, MaintenanceStepType.COMPLETE)),
+                MaintenanceFeeMode.NONE, MaintenanceEffectiveRule.immediate(), Set.of(), true, controls);
+        LocalDateTime operatedAt = LocalDateTime.parse("2026-08-25T10:00:00");
+        MaintenanceItemConfiguration configuration = MaintenanceItemConfiguration.createDraft(
+                "configuration-document", "tenant-1", definition,
+                operatedAt.minusDays(1), operatedAt.plusYears(1), "maker", operatedAt);
+        configuration.submitForApproval("maker", operatedAt.plusMinutes(1));
+        configuration.approve("checker", operatedAt.plusMinutes(2));
+        configuration.publish("publisher", operatedAt.plusMinutes(3),
+                new MaintenancePublicationEvidence(
+                        "catalog-v1", "f".repeat(64), operatedAt.plusMinutes(3)));
+        return configuration;
+    }
+
+    private String documentTaskId() {
+        return CASE_ID + ":POLICY_INFO_CHANGE:DOCUMENT";
+    }
+
+    private String completeTaskId() {
+        return CASE_ID + ":POLICY_INFO_CHANGE:COMPLETE";
     }
 
     private void visibleUnderwritingTask(MaintenanceItemConfiguration configuration) {

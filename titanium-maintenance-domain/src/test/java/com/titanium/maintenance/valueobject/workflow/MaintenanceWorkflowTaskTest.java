@@ -344,6 +344,76 @@ class MaintenanceWorkflowTaskTest {
     }
 
     @Test
+    void shouldRecordDocumentEvidenceAndCompleteDocumentStep() {
+        MaintenanceWorkflowTask started = startedTask(MaintenanceStepType.DOCUMENT);
+        MaintenanceDocumentEvidence evidence = new MaintenanceDocumentEvidence(
+                "POLICY_INFO_CHANGE_VOUCHER", "VCH-20260914-001", NOW, "operator-1");
+
+        MaintenanceWorkflowTask completed = started.recordDocument(
+                evidence, documentOperation(started.taskId(), evidence));
+
+        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, completed.status());
+        assertEquals(evidence, completed.documentEvidence());
+        assertEquals("VCH-20260914-001", completed.lastOperation().reason());
+        // 完成后释放领取人：终态任务不再归属任何处理人
+        assertNull(completed.assignment());
+    }
+
+    @Test
+    void shouldRejectDocumentEvidenceOutsideDocumentStep() {
+        MaintenanceDocumentEvidence evidence = new MaintenanceDocumentEvidence(
+                "POLICY_INFO_CHANGE_VOUCHER", "VCH-20260914-001", NOW, "operator-1");
+        MaintenanceWorkflowTask dataEntry = startedTask(MaintenanceStepType.DATA_ENTRY);
+
+        // 非凭证步骤即使载荷自洽也不得出具凭证
+        assertThrows(MaintenanceConflictException.class, () -> dataEntry.recordDocument(
+                evidence, documentOperation(dataEntry.taskId(), evidence)));
+        // 凭证事实缺失同样拒绝，避免「已完成但无凭证」
+        MaintenanceWorkflowTask document = startedTask(MaintenanceStepType.DOCUMENT);
+        assertThrows(MaintenanceConflictException.class, () -> document.recordDocument(
+                null, documentOperation(document.taskId(), evidence)));
+    }
+
+    @Test
+    void shouldRejectDocumentEvidenceMismatchingOperationPayload() {
+        MaintenanceWorkflowTask started = startedTask(MaintenanceStepType.DOCUMENT);
+        MaintenanceDocumentEvidence evidence = new MaintenanceDocumentEvidence(
+                "POLICY_INFO_CHANGE_VOUCHER", "VCH-20260914-001", NOW, "operator-1");
+        MaintenanceWorkflowOperation mismatched = MaintenanceWorkflowOperation.create(
+                "op-document", MaintenanceWorkflowAction.RECORD_DOCUMENT, started.taskId(),
+                "OTHER_VOUCHER", evidence.contentHash(),
+                MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), evidence.voucherNo(),
+                NOW, "operator-1");
+
+        assertThrows(MaintenanceValidationException.class,
+                () -> started.recordDocument(evidence, mismatched));
+    }
+
+    @Test
+    void shouldCompleteOnlyStartedTerminalStepAndRejectRepeat() {
+        MaintenanceWorkflowTask ready = task(
+                MaintenanceStepType.COMPLETE, MaintenanceStepMode.REQUIRED,
+                MaintenanceWorkflowTaskStatus.READY);
+        // 未进入处理中不得终结，防止跳过处理直接收口
+        assertThrows(MaintenanceConflictException.class,
+                () -> ready.completeItem(itemOperation(ready.taskId())));
+
+        MaintenanceWorkflowTask started = startedTask(MaintenanceStepType.COMPLETE);
+        MaintenanceWorkflowTask completed = started.completeItem(itemOperation(started.taskId()));
+
+        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, completed.status());
+        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED.getCode(),
+                completed.lastOperation().resultCode());
+        // 已完成任务再次收口必须被拒（终态不回退，也不做静默幂等）
+        assertThrows(MaintenanceConflictException.class,
+                () -> completed.completeItem(itemOperation(completed.taskId())));
+        // 非终结标记步骤不得借该命令完成
+        MaintenanceWorkflowTask dataEntry = startedTask(MaintenanceStepType.DATA_ENTRY);
+        assertThrows(MaintenanceConflictException.class,
+                () -> dataEntry.completeItem(itemOperation(dataEntry.taskId())));
+    }
+
+    @Test
     void shouldProduceStableOperationHashAndDetectPayloadDifference() {
         MaintenanceWorkflowOperation first = operation(
                 "operation-1", MaintenanceWorkflowAction.COMPLETE,
@@ -357,6 +427,32 @@ class MaintenanceWorkflowTaskTest {
 
         assertEquals(first.payloadHash(), retry.payloadHash());
         assertNotEquals(first.payloadHash(), conflict.payloadHash());
+    }
+
+    /** 构造已由 operator-1 领取并进入处理中的任务（收口步骤推进的前置状态） */
+    private MaintenanceWorkflowTask startedTask(MaintenanceStepType stepType) {
+        return task(stepType, MaintenanceStepMode.REQUIRED, MaintenanceWorkflowTaskStatus.READY)
+                .claim(operation("op-claim", MaintenanceWorkflowAction.CLAIM,
+                        null, null, null, null, "operator-1"))
+                .start(operation("op-start", MaintenanceWorkflowAction.START,
+                        null, null, null, null, "operator-1"));
+    }
+
+    private MaintenanceWorkflowOperation documentOperation(
+            String taskId,
+            MaintenanceDocumentEvidence evidence) {
+        return MaintenanceWorkflowOperation.create(
+                "op-document", MaintenanceWorkflowAction.RECORD_DOCUMENT, taskId,
+                evidence.templateCode(), evidence.contentHash(),
+                MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), evidence.voucherNo(),
+                NOW, "operator-1");
+    }
+
+    private MaintenanceWorkflowOperation itemOperation(String taskId) {
+        return MaintenanceWorkflowOperation.create(
+                "op-complete-item", MaintenanceWorkflowAction.COMPLETE_ITEM, taskId,
+                null, null, MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), null,
+                NOW, "operator-1");
     }
 
     private MaintenanceWorkflowTask task(

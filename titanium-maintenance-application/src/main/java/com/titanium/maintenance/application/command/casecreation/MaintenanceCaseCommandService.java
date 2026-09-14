@@ -104,6 +104,14 @@ public class MaintenanceCaseCommandService {
         return workflowApplicationService.decideReview(input);
     }
 
+    public CompletableFuture<Void> issueDocument(MaintenanceDocumentIssueInput input) {
+        return workflowApplicationService.issueDocument(input);
+    }
+
+    public CompletableFuture<Void> completeItem(MaintenanceWorkflowTaskOperationInput input) {
+        return workflowApplicationService.completeItem(input);
+    }
+
     public CompletableFuture<MaintenanceAutomaticReviewResult> automaticReview(
             MaintenanceAutomaticReviewInput input) {
         return workflowApplicationService.automaticReview(input);

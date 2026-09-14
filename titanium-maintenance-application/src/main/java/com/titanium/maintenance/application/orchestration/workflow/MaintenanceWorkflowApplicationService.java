@@ -17,6 +17,7 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 
 import com.titanium.maintenance.application.command.casecreation.MaintenanceAutomaticReviewInput;
+import com.titanium.maintenance.application.command.casecreation.MaintenanceDocumentIssueInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceManualReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceWorkflowTaskOperationInput;
 import com.titanium.maintenance.application.command.premium.MaintenancePremiumQuoteInput;
@@ -25,11 +26,13 @@ import com.titanium.maintenance.application.model.casecreation.MaintenanceAutoma
 import com.titanium.maintenance.application.model.premium.MaintenancePremiumQuoteResult;
 import com.titanium.maintenance.application.model.underwriting.MaintenanceUnderwritingAssessmentResult;
 import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
+import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
 import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
 import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionCommand;
 import com.titanium.maintenance.command.FailMaintenanceWorkflowTaskCommand;
+import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumQuoteCommand;
 import com.titanium.maintenance.command.RetryMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.StartMaintenanceWorkflowTaskCommand;
@@ -77,6 +80,7 @@ import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemCode;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePremiumQuoteEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceUnderwritingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowReviewEvidence;
@@ -156,7 +160,7 @@ public class MaintenanceWorkflowApplicationService {
 
     /** 人工审核必须由当前领取人决定，并与建案人保持职责分离。 */
     public CompletableFuture<Void> decideReview(MaintenanceManualReviewInput input) {
-        ReviewContext context = requireReviewContext(
+        StepContext context = requireReviewContext(
                 input.maintenanceId(), input.taskId(), input.tenantId());
         if (input.source() != MaintenanceChannel.MANUAL) {
             throw validation("source", "人工审核只能从后台人工路由发起");
@@ -181,10 +185,41 @@ public class MaintenanceWorkflowApplicationService {
                 evidence, input.operatorId(), input.tenantId()));
     }
 
+    /** 出具保全凭证并完成凭证步骤；模板编码取自案件冻结配置，不接受调用方自报。 */
+    public CompletableFuture<Void> issueDocument(MaintenanceDocumentIssueInput input) {
+        if (input.source() != MaintenanceChannel.MANUAL) {
+            throw validation("source", "凭证出具只能从后台人工路由发起");
+        }
+        if (blank(input.voucherNo())) {
+            throw validation("voucherNo", "凭证编号不能为空");
+        }
+        StepContext context = requireStepContext(input.maintenanceId(), input.taskId(), input.tenantId(),
+                MaintenanceStepType.DOCUMENT, "目标任务不是凭证出具步骤");
+        String templateCode = requireFrozenConfiguration(context)
+                .getDefinition().controls().outputRule().voucherTemplateCode();
+        if (blank(templateCode)) {
+            throw validation("voucherTemplateCode", "冻结保全项未配置凭证输出模板");
+        }
+        MaintenanceDocumentEvidence evidence = new MaintenanceDocumentEvidence(
+                templateCode, input.voucherNo(), LocalDateTime.now(), input.operatorId());
+        return send(new RecordMaintenanceDocumentCommand(
+                MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
+                evidence, input.operatorId(), input.tenantId()));
+    }
+
+    /** 完成案件终结标记步骤；前序任务是否已全部形成终态由聚合按同项目步骤序判定。 */
+    public CompletableFuture<Void> completeItem(MaintenanceWorkflowTaskOperationInput input) {
+        requireStepContext(input.maintenanceId(), input.taskId(), input.tenantId(),
+                MaintenanceStepType.COMPLETE, "目标任务不是案件终结标记步骤");
+        return send(new CompleteMaintenanceItemCommand(
+                MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
+                input.operatorId(), input.tenantId()));
+    }
+
     /** 自动审核只有在七类门禁全部通过时写入通过事实，否则原任务留给人工接管。 */
     public CompletableFuture<MaintenanceAutomaticReviewResult> automaticReview(
             MaintenanceAutomaticReviewInput input) {
-        ReviewContext context = requireReviewContext(
+        StepContext context = requireReviewContext(
                 input.maintenanceId(), input.taskId(), input.tenantId());
         MaintenanceItemConfiguration configuration = requireFrozenConfiguration(context);
         MaintenanceReviewPolicyEvaluator.Evaluation evaluation = reviewPolicyEvaluator.evaluate(
@@ -585,23 +620,28 @@ public class MaintenanceWorkflowApplicationService {
                 .orElseThrow(MaintenanceNotFoundException::new);
     }
 
-    private ReviewContext requireReviewContext(String maintenanceId, String taskId, String tenantId) {
-        MaintenanceView caseView = requireCase(maintenanceId, tenantId);
-        MaintenanceWorkflowTaskView taskView = workflowTaskViewRepository
-                .findByTenantIdAndMaintenanceIdAndTaskId(
-                        tenantId, maintenanceId, taskId)
-                .orElseThrow(MaintenanceNotFoundException::new);
-        if (taskView.getStepType() != MaintenanceStepType.REVIEW) {
-            throw validation("taskId", "目标任务不是审核步骤");
-        }
-        MaintenanceCaseItemView itemView = caseItemViewRepository
-                .findByTenantIdAndMaintenanceIdAndItemCode(
-                        tenantId, maintenanceId, taskView.getItemCode())
-                .orElseThrow(MaintenanceNotFoundException::new);
-        return new ReviewContext(caseView, taskView, itemView);
+    private StepContext requireReviewContext(String maintenanceId, String taskId, String tenantId) {
+        return requireStepContext(maintenanceId, taskId, tenantId,
+                MaintenanceStepType.REVIEW, "目标任务不是审核步骤");
     }
 
-    private MaintenanceItemConfiguration requireFrozenConfiguration(ReviewContext context) {
+    /** 按目标步骤类型装载任务上下文；步骤类型不符时前置拒绝，避免后续守卫读到错误形态的任务。 */
+    private StepContext requireStepContext(String maintenanceId, String taskId, String tenantId,
+                                           MaintenanceStepType expectedStepType, String mismatchMessage) {
+        MaintenanceView caseView = requireCase(maintenanceId, tenantId);
+        MaintenanceWorkflowTaskView taskView = workflowTaskViewRepository
+                .findByTenantIdAndMaintenanceIdAndTaskId(tenantId, maintenanceId, taskId)
+                .orElseThrow(MaintenanceNotFoundException::new);
+        if (taskView.getStepType() != expectedStepType) {
+            throw validation("taskId", mismatchMessage);
+        }
+        MaintenanceCaseItemView itemView = caseItemViewRepository
+                .findByTenantIdAndMaintenanceIdAndItemCode(tenantId, maintenanceId, taskView.getItemCode())
+                .orElseThrow(MaintenanceNotFoundException::new);
+        return new StepContext(caseView, taskView, itemView);
+    }
+
+    private MaintenanceItemConfiguration requireFrozenConfiguration(StepContext context) {
         return requireFrozenConfiguration(context.caseView(), context.itemView());
     }
 
@@ -703,7 +743,7 @@ public class MaintenanceWorkflowApplicationService {
         return value == null || value.isBlank();
     }
 
-    private record ReviewContext(
+    private record StepContext(
             MaintenanceView caseView,
             MaintenanceWorkflowTaskView taskView,
             MaintenanceCaseItemView itemView) {

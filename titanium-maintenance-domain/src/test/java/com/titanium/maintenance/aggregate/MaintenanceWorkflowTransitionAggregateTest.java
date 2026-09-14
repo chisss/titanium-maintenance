@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 
 import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceEffectScheduleCommand;
+import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
 import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
@@ -26,6 +27,7 @@ import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionComman
 import com.titanium.maintenance.command.FailMaintenanceCaseEffectCommand;
 import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
+import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleFailureCommand;
@@ -62,6 +64,11 @@ import com.titanium.maintenance.configuration.MaintenanceEffectiveRule;
 import com.titanium.maintenance.configuration.MaintenanceFieldRule;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.MaintenanceStepDefinition;
+import com.titanium.maintenance.configuration.control.MaintenanceAccessRule;
+import com.titanium.maintenance.configuration.control.MaintenanceChannelCapability;
+import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
+import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
+import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
 import com.titanium.maintenance.event.MaintenanceCaseInitializationCompletedEvent;
 import com.titanium.maintenance.event.MaintenanceCaseRejectedByReviewEvent;
 import com.titanium.maintenance.event.MaintenanceCreatedEvent;
@@ -81,6 +88,7 @@ import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemInstance;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceAppliedFieldEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
@@ -107,6 +115,9 @@ class MaintenanceWorkflowTransitionAggregateTest {
     private static final String FEE_TASK_ID = "workflow-case-1:POLICY_INFO_CHANGE:FEE_SETTLEMENT";
     private static final String EFFECT_TASK_ID = "workflow-case-1:POLICY_INFO_CHANGE:EFFECT";
     private static final String SECOND_EFFECT_TASK_ID = "workflow-case-1:BENEFICIARY_CHANGE:EFFECT";
+    private static final String DOCUMENT_TASK_ID = "workflow-case-1:POLICY_INFO_CHANGE:DOCUMENT";
+    private static final String COMPLETE_TASK_ID = "workflow-case-1:POLICY_INFO_CHANGE:COMPLETE";
+    private static final String VOUCHER_TEMPLATE_CODE = "POLICY_INFO_CHANGE_VOUCHER";
 
     private FixtureConfiguration<Maintenance> fixture;
 
@@ -883,6 +894,186 @@ class MaintenanceWorkflowTransitionAggregateTest {
                         ID, REVIEW_TASK_ID, "operation-review", evidence, "reviewer-1", "tenant-1"))
                 .expectSuccessfulHandlerExecution()
                 .expectNoEvents();
+    }
+
+    // ==================== 收口步骤：凭证出具与案件终结标记 ====================
+
+    @Test
+    void shouldRecordDocumentAndActivateTerminalStep() {
+        MaintenanceDocumentEvidence evidence = documentEvidence(VOUCHER_TEMPLATE_CODE);
+
+        fixture.given(closingCaseEvents(MaintenanceWorkflowTaskStatus.PENDING))
+                .andGivenCommands(
+                        claimCommand(DOCUMENT_TASK_ID, "op-claim-document"),
+                        startCommand(DOCUMENT_TASK_ID, "op-start-document"))
+                .when(new RecordMaintenanceDocumentCommand(
+                        ID, DOCUMENT_TASK_ID, "op-document", evidence, "operator-1", "tenant-1"))
+                .expectSuccessfulHandlerExecution()
+                .expectState(aggregate -> {
+                    MaintenanceWorkflowTask document = task(aggregate, DOCUMENT_TASK_ID);
+                    assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, document.status());
+                    assertEquals(evidence, document.documentEvidence());
+                    assertEquals("VCH-20260914-001", document.lastOperation().reason());
+                    // 前驱形成终态后，终结标记步骤须被自动激活，否则收口链条断裂
+                    assertEquals(MaintenanceWorkflowTaskStatus.READY,
+                            task(aggregate, COMPLETE_TASK_ID).status());
+                });
+    }
+
+    @Test
+    void shouldRejectDocumentEvidenceOutsideFrozenTemplate() {
+        fixture.given(closingCaseEvents(MaintenanceWorkflowTaskStatus.PENDING))
+                .andGivenCommands(
+                        claimCommand(DOCUMENT_TASK_ID, "op-claim-document"),
+                        startCommand(DOCUMENT_TASK_ID, "op-start-document"))
+                .when(new RecordMaintenanceDocumentCommand(
+                        ID, DOCUMENT_TASK_ID, "op-document",
+                        documentEvidence("CALLER_SUPPLIED_VOUCHER"), "operator-1", "tenant-1"))
+                .expectException(MaintenanceValidationException.class)
+                .expectNoEvents();
+    }
+
+    @Test
+    void shouldRejectItemCompletionWhileDocumentPredecessorUnfinished() {
+        fixture.given(closingCaseEvents(MaintenanceWorkflowTaskStatus.READY))
+                .andGivenCommands(
+                        claimCommand(DOCUMENT_TASK_ID, "op-claim-document"),
+                        startCommand(DOCUMENT_TASK_ID, "op-start-document"),
+                        claimCommand(COMPLETE_TASK_ID, "op-claim-terminal"),
+                        startCommand(COMPLETE_TASK_ID, "op-start-terminal"))
+                .when(new CompleteMaintenanceItemCommand(
+                        ID, COMPLETE_TASK_ID, "op-complete-item", "operator-1", "tenant-1"))
+                .expectException(MaintenanceConflictException.class)
+                .expectNoEvents();
+    }
+
+    @Test
+    void shouldAdvanceClosingStepsAfterCaseAlreadyCompleted() {
+        MaintenanceDocumentEvidence evidence = documentEvidence(VOUCHER_TEMPLATE_CODE);
+
+        // 生效回执会把案件置为 COMPLETED；收口步骤（DOCUMENT/COMPLETE）须豁免案件不可变守卫，否则结构上不可达
+        fixture.given(createdEvent(), initializedEvent(), closingItemAddedEvent(),
+                        closingWorkflowInitializedEvent(MaintenanceWorkflowTaskStatus.READY),
+                        effectStatusChanged(MaintenanceEffectStatus.EFFECTING, MaintenanceEffectStatus.APPLIED))
+                .andGivenCommands(
+                        claimCommand(DOCUMENT_TASK_ID, "op-claim-document"),
+                        startCommand(DOCUMENT_TASK_ID, "op-start-document"),
+                        new RecordMaintenanceDocumentCommand(
+                                ID, DOCUMENT_TASK_ID, "op-document", evidence, "operator-1", "tenant-1"),
+                        claimCommand(COMPLETE_TASK_ID, "op-claim-terminal"),
+                        startCommand(COMPLETE_TASK_ID, "op-start-terminal"))
+                .when(new CompleteMaintenanceItemCommand(
+                        ID, COMPLETE_TASK_ID, "op-complete-item", "operator-1", "tenant-1"))
+                .expectSuccessfulHandlerExecution()
+                .expectState(aggregate -> {
+                    assertEquals(MaintenanceStatus.COMPLETED, aggregate.getStatus());
+                    assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED,
+                            task(aggregate, COMPLETE_TASK_ID).status());
+                });
+    }
+
+    @Test
+    void shouldActivateDocumentStepAfterEffectReceipt() {
+        MaintenanceEffectRequestEvidence request = effectRequest();
+        MaintenancePolicyApplicationEvidence receipt = policyApplication(request);
+        List<String> taskIds = List.of(EFFECT_TASK_ID);
+
+        fixture.given(createdEvent(), initializedEvent(), closingItemAddedEvent(),
+                        effectAndDocumentWorkflowInitializedEvent())
+                .andGivenCommands(
+                        new RequestMaintenanceCaseEffectCommand(
+                                ID, taskIds, "case-effect-request", request, "operator-1", "tenant-1"))
+                .when(new RecordMaintenanceCasePolicyApplicationCommand(
+                        ID, taskIds, "case-effect-receipt", receipt, "policy-service", "tenant-1"))
+                .expectSuccessfulHandlerExecution()
+                .expectState(aggregate -> {
+                    assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED,
+                            task(aggregate, EFFECT_TASK_ID).status());
+                    // 生效回执若不带后继激活，凭证步骤将永远停在 PENDING，收口链条结构上不可达
+                    assertEquals(MaintenanceWorkflowTaskStatus.READY,
+                            task(aggregate, DOCUMENT_TASK_ID).status());
+                });
+    }
+
+    private MaintenanceWorkflowInitializedEvent effectAndDocumentWorkflowInitializedEvent() {
+        return new MaintenanceWorkflowInitializedEvent(
+                ID,
+                List.of(
+                        new MaintenanceWorkflowTask(
+                                EFFECT_TASK_ID, ITEM_CODE, 0, 3,
+                                MaintenanceStepType.EFFECT, MaintenanceStepMode.REQUIRED,
+                                null, MaintenanceWorkflowTaskStatus.READY),
+                        new MaintenanceWorkflowTask(
+                                DOCUMENT_TASK_ID, ITEM_CODE, 0, 4,
+                                MaintenanceStepType.DOCUMENT, MaintenanceStepMode.REQUIRED,
+                                null, MaintenanceWorkflowTaskStatus.PENDING)),
+                NOW, "operator-1", "tenant-1");
+    }
+
+    private Object[] closingCaseEvents(MaintenanceWorkflowTaskStatus terminalStatus) {
+        return new Object[]{createdEvent(), initializedEvent(), closingItemAddedEvent(),
+                closingWorkflowInitializedEvent(terminalStatus)};
+    }
+
+    private MaintenanceItemAddedEvent closingItemAddedEvent() {
+        MaintenanceItemDefinition definition = new MaintenanceItemDefinition(
+                ITEM_CODE, "1.0.0", ITEM_CODE, MaintenanceItemCategory.BASIC_INFORMATION,
+                Set.of(MaintenanceChannel.MANUAL),
+                List.of(MaintenanceFieldRule.editable(
+                        "policy.holder.mobile", false, false, PolicyFieldValueType.TEXT)),
+                List.of(
+                        MaintenanceStepDefinition.required(1, MaintenanceStepType.DATA_ENTRY),
+                        MaintenanceStepDefinition.skipped(2, MaintenanceStepType.FEE_SETTLEMENT),
+                        MaintenanceStepDefinition.required(3, MaintenanceStepType.EFFECT),
+                        MaintenanceStepDefinition.required(4, MaintenanceStepType.DOCUMENT),
+                        MaintenanceStepDefinition.required(5, MaintenanceStepType.COMPLETE)),
+                MaintenanceFeeMode.NONE, MaintenanceEffectiveRule.immediate(), Set.of(), false,
+                closingControls());
+        return new MaintenanceItemAddedEvent(
+                ID, MaintenanceItemInstance.from(definition, NOW), NOW, "operator-1", "tenant-1");
+    }
+
+    /** 冻结配置的输出规则是凭证模板的唯一权威，调用方不得自报模板 */
+    private MaintenanceItemControls closingControls() {
+        return new MaintenanceItemControls(
+                Set.of(MaintenanceChannelCapability.manualApproval(MaintenanceChannel.MANUAL)),
+                List.of(), Set.of(), null, MaintenanceFeeRule.none(), MaintenanceAccessRule.empty(),
+                new MaintenanceOutputRule(VOUCHER_TEMPLATE_CODE, Set.of(), null));
+    }
+
+    private MaintenanceWorkflowInitializedEvent closingWorkflowInitializedEvent(
+            MaintenanceWorkflowTaskStatus terminalStatus) {
+        return new MaintenanceWorkflowInitializedEvent(
+                ID,
+                List.of(
+                        new MaintenanceWorkflowTask(
+                                DOCUMENT_TASK_ID, ITEM_CODE, 0, 4,
+                                MaintenanceStepType.DOCUMENT, MaintenanceStepMode.REQUIRED,
+                                null, MaintenanceWorkflowTaskStatus.READY),
+                        new MaintenanceWorkflowTask(
+                                COMPLETE_TASK_ID, ITEM_CODE, 0, 5,
+                                MaintenanceStepType.COMPLETE, MaintenanceStepMode.REQUIRED,
+                                null, terminalStatus)),
+                NOW, "operator-1", "tenant-1");
+    }
+
+    private MaintenanceDocumentEvidence documentEvidence(String templateCode) {
+        return new MaintenanceDocumentEvidence(templateCode, "VCH-20260914-001", NOW, "operator-1");
+    }
+
+    private ClaimMaintenanceWorkflowTaskCommand claimCommand(String taskId, String operationId) {
+        return new ClaimMaintenanceWorkflowTaskCommand(ID, taskId, operationId, "operator-1", "tenant-1");
+    }
+
+    private StartMaintenanceWorkflowTaskCommand startCommand(String taskId, String operationId) {
+        return new StartMaintenanceWorkflowTaskCommand(ID, taskId, operationId, "operator-1", "tenant-1");
+    }
+
+    private MaintenanceWorkflowTask task(Maintenance aggregate, String taskId) {
+        return aggregate.getWorkflowTasks().stream()
+                .filter(candidate -> candidate.taskId().equals(taskId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("流程任务不存在: " + taskId));
     }
 
     private Object[] baseEvents() {

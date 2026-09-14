@@ -35,7 +35,8 @@ public record MaintenanceWorkflowTask(
         MaintenancePremiumQuoteEvidence premiumQuoteEvidence,
         MaintenanceBillingPostingEvidence billingPostingEvidence,
         MaintenanceFundSettlementEvidence fundSettlementEvidence,
-        MaintenanceEffectEvidence effectEvidence) {
+        MaintenanceEffectEvidence effectEvidence,
+        MaintenanceDocumentEvidence documentEvidence) {
 
     public MaintenanceWorkflowTask(
             String taskId,
@@ -47,7 +48,7 @@ public record MaintenanceWorkflowTask(
             String conditionRuleCode,
             MaintenanceWorkflowTaskStatus status) {
         this(taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
-                status, null, 0, null, null, null, null, null, null, null, null, null);
+                status, null, 0, null, null, null, null, null, null, null, null, null, null);
     }
 
     /** 兼容 M4-04 之前事件中的任务结构。 */
@@ -68,7 +69,7 @@ public record MaintenanceWorkflowTask(
             MaintenanceWorkflowOperation lastOperation) {
         this(taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
                 status, assignment, retryCount, failure, conditionEvidence,
-                reviewEvidence, lastOperation, null, null, null, null, null);
+                reviewEvidence, lastOperation, null, null, null, null, null, null);
     }
 
     /** 兼容 M4-05 之前不含报价证据的任务事件。 */
@@ -90,7 +91,7 @@ public record MaintenanceWorkflowTask(
             MaintenanceUnderwritingEvidence underwritingEvidence) {
         this(taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
                 status, assignment, retryCount, failure, conditionEvidence,
-                reviewEvidence, lastOperation, underwritingEvidence, null, null, null, null);
+                reviewEvidence, lastOperation, underwritingEvidence, null, null, null, null, null);
     }
 
     /** 兼容 M4-06 之前不含 Billing 与资金证据的任务事件。 */
@@ -113,7 +114,7 @@ public record MaintenanceWorkflowTask(
             MaintenancePremiumQuoteEvidence premiumQuoteEvidence) {
         this(taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
                 status, assignment, retryCount, failure, conditionEvidence, reviewEvidence,
-                lastOperation, underwritingEvidence, premiumQuoteEvidence, null, null, null);
+                lastOperation, underwritingEvidence, premiumQuoteEvidence, null, null, null, null);
     }
 
     /** 兼容 M5-01 之前不含生效请求与 Policy 回执证据的任务事件。 */
@@ -139,7 +140,40 @@ public record MaintenanceWorkflowTask(
         this(taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
                 status, assignment, retryCount, failure, conditionEvidence, reviewEvidence,
                 lastOperation, underwritingEvidence, premiumQuoteEvidence,
-                billingPostingEvidence, fundSettlementEvidence, null);
+                billingPostingEvidence, fundSettlementEvidence, null, null);
+    }
+
+    /**
+     * 兼容 m15-1805 之前（M5-01 至 m15-1805）不含凭证事实的任务事件。
+     * <p>
+     * 凭证事实是本轮新增的第 20 个组件，历史事件流中不存在该属性，Jackson 反序列化时按缺失传入
+     * {@code null}；旧 canonical 构造签名在此显式保留，避免存量事件重建失败。
+     * </p>
+     */
+    public MaintenanceWorkflowTask(
+            String taskId,
+            String itemCode,
+            int itemOrder,
+            int sequence,
+            MaintenanceStepType stepType,
+            MaintenanceStepMode mode,
+            String conditionRuleCode,
+            MaintenanceWorkflowTaskStatus status,
+            MaintenanceWorkflowAssignment assignment,
+            int retryCount,
+            MaintenanceWorkflowFailure failure,
+            MaintenanceWorkflowConditionEvidence conditionEvidence,
+            MaintenanceWorkflowReviewEvidence reviewEvidence,
+            MaintenanceWorkflowOperation lastOperation,
+            MaintenanceUnderwritingEvidence underwritingEvidence,
+            MaintenancePremiumQuoteEvidence premiumQuoteEvidence,
+            MaintenanceBillingPostingEvidence billingPostingEvidence,
+            MaintenanceFundSettlementEvidence fundSettlementEvidence,
+            MaintenanceEffectEvidence effectEvidence) {
+        this(taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
+                status, assignment, retryCount, failure, conditionEvidence, reviewEvidence,
+                lastOperation, underwritingEvidence, premiumQuoteEvidence,
+                billingPostingEvidence, fundSettlementEvidence, effectEvidence, null);
     }
 
     public MaintenanceWorkflowTask {
@@ -209,6 +243,14 @@ public record MaintenanceWorkflowTask(
                 && status != MaintenanceWorkflowTaskStatus.COMPLETED) {
             throw new MaintenanceValidationException(
                     "MaintenanceWorkflowTask", "effectEvidence", "Policy 已应用的生效任务必须完成");
+        }
+        if (documentEvidence != null && stepType != MaintenanceStepType.DOCUMENT) {
+            throw new MaintenanceValidationException(
+                    "MaintenanceWorkflowTask", "documentEvidence", "只有凭证步骤可以携带凭证出具事实");
+        }
+        if (documentEvidence != null && status != MaintenanceWorkflowTaskStatus.COMPLETED) {
+            throw new MaintenanceValidationException(
+                    "MaintenanceWorkflowTask", "documentEvidence", "已出具凭证的任务必须完成");
         }
         if (status == MaintenanceWorkflowTaskStatus.WAITING_CONDITION
                 && mode != MaintenanceStepMode.CONDITIONAL) {
@@ -589,6 +631,53 @@ public record MaintenanceWorkflowTask(
                 effectEvidence);
     }
 
+    /**
+     * 记录保全凭证出具事实并完成凭证步骤。
+     * <p>
+     * 凭证模板编码取自案件冻结配置的输出规则，由聚合在处理器内比对，**不接受调用方自报**；出具时间不参与
+     * 载荷摘要（见 {@link MaintenanceDocumentEvidence#contentHash()}），保证响应丢失后原载荷重试仍命中同一幂等指纹。
+     * </p>
+     */
+    public MaintenanceWorkflowTask recordDocument(
+            MaintenanceDocumentEvidence evidence,
+            MaintenanceWorkflowOperation operation) {
+        requireAction(operation, MaintenanceWorkflowAction.RECORD_DOCUMENT);
+        if (stepType != MaintenanceStepType.DOCUMENT || evidence == null) {
+            throw invalidTransition("当前任务不是可出具凭证的步骤");
+        }
+        requireStatus(MaintenanceWorkflowTaskStatus.IN_PROGRESS, "出具凭证");
+        requireAssignee(operation);
+        if (!evidence.templateCode().equals(operation.evidenceVersion())
+                || !evidence.contentHash().equals(operation.evidenceHash())
+                || !evidence.voucherNo().equals(operation.reason())) {
+            throw new MaintenanceValidationException(
+                    "RecordMaintenanceDocumentCommand", "documentEvidence", "凭证事实与操作载荷不一致");
+        }
+        return new MaintenanceWorkflowTask(
+                taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
+                MaintenanceWorkflowTaskStatus.COMPLETED, null, retryCount, null,
+                conditionEvidence, reviewEvidence, operation, underwritingEvidence,
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence,
+                effectEvidence, evidence);
+    }
+
+    /**
+     * 完成案件终结标记步骤。
+     * <p>
+     * 同项目前序任务的终态校验由聚合施加（值对象看不到兄弟任务），此处只做任务自身守卫。
+     * </p>
+     */
+    public MaintenanceWorkflowTask completeItem(MaintenanceWorkflowOperation operation) {
+        requireAction(operation, MaintenanceWorkflowAction.COMPLETE_ITEM);
+        if (stepType != MaintenanceStepType.COMPLETE) {
+            throw invalidTransition("当前任务不是案件终结标记步骤");
+        }
+        requireStatus(MaintenanceWorkflowTaskStatus.IN_PROGRESS, "完成");
+        requireAssignee(operation);
+        return copy(MaintenanceWorkflowTaskStatus.COMPLETED, null, retryCount, null,
+                conditionEvidence, operation);
+    }
+
     /** 项目撤销后将尚未形成终态的任务显式跳过，并保留全部历史证据。 */
     public MaintenanceWorkflowTask withdraw(MaintenanceWorkflowOperation operation) {
         requireAction(operation, MaintenanceWorkflowAction.WITHDRAW_ITEM);
@@ -608,7 +697,8 @@ public record MaintenanceWorkflowTask(
                 taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
                 MaintenanceWorkflowTaskStatus.SKIPPED, null, retryCount, failure,
                 conditionEvidence, reviewEvidence, operation, underwritingEvidence,
-                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence, effectEvidence);
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence, effectEvidence,
+                documentEvidence);
     }
 
     /** 前置任务形成终态后激活同项目下一任务。 */
@@ -631,7 +721,8 @@ public record MaintenanceWorkflowTask(
                 taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
                 targetStatus, targetAssignment, targetRetryCount, targetFailure,
                 targetConditionEvidence, reviewEvidence, targetOperation, underwritingEvidence,
-                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence, effectEvidence);
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence, effectEvidence,
+                documentEvidence);
     }
 
     private void validatePostingAgainstQuote(MaintenanceBillingPostingEvidence posting) {

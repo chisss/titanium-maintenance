@@ -27,4 +27,16 @@ public enum MaintenanceStepType implements BaseEnum {
         this.code = code;
         this.name = name;
     }
+
+    /**
+     * 是否为收口步骤：在保全生效完成之后执行，不修改保单要素、责任与金额。
+     * <p>
+     * 判据：{@link #DOCUMENT}（出具凭证）与 {@link #COMPLETE}（完成）在标准步骤序中位于 {@link #EFFECT} 之后，
+     * 承载「凭证出具 + 项目收口」而非业务变更，故案件级生效完成后仍须可达（见聚合 {@code requireWorkflowMutable}）；
+     * 其余步骤在案件完成后一律冻结，避免生效后再次改动保单内容。
+     * </p>
+     */
+    public boolean closingPhase() {
+        return this == DOCUMENT || this == COMPLETE;
+    }
 }
