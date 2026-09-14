@@ -17,7 +17,7 @@ import com.titanium.maintenance.infrastructure.client.payment.PaymentPremiumColl
 import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort.CollectionRequest;
 import com.titanium.metadata.errorcode.PaymentErrorCode;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.response.PaymentOrderResponse;
+import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 class PaymentPremiumCollectionAdapterTest {
 

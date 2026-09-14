@@ -11,8 +11,8 @@ import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.errorcode.PaymentErrorCode;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.request.CreatePaymentOrderRequest;
-import com.titanium.payment.api.response.PaymentOrderResponse;
+import com.titanium.payment.api.request.payment.CreatePaymentOrderRequest;
+import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

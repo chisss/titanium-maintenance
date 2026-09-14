@@ -17,7 +17,7 @@ import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentRetroactiveImpactClient;
 import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort.ImpactRequest;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.response.PaymentOrderResponse;
+import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 class PaymentRetroactiveImpactSourceAdapterTest {
 

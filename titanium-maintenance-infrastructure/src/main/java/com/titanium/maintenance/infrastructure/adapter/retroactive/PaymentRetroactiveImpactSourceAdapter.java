@@ -16,7 +16,7 @@ import com.titanium.maintenance.infrastructure.client.payment.PaymentRetroactive
 import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactItem;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.response.PaymentOrderResponse;
+import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 import lombok.RequiredArgsConstructor;
 

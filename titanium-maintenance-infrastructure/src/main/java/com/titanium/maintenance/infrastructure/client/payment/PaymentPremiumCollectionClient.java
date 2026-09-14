@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.request.CreatePaymentOrderRequest;
-import com.titanium.payment.api.response.PaymentOrderResponse;
+import com.titanium.payment.api.request.payment.CreatePaymentOrderRequest;
+import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 /** Maintenance 调用 Payment 正式收款单契约的 Feign 客户端。 */
 @FeignClient(

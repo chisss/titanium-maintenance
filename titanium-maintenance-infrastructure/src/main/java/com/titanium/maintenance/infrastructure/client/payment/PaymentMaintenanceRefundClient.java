@@ -8,8 +8,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.request.CreateRefundOrderRequest;
-import com.titanium.payment.api.response.RefundOrderResponse;
+import com.titanium.payment.api.request.refund.CreateRefundOrderRequest;
+import com.titanium.payment.api.response.refund.RefundOrderResponse;
 
 /** Maintenance 调用 Payment 独立退款单契约的 Feign 客户端。 */
 @FeignClient(

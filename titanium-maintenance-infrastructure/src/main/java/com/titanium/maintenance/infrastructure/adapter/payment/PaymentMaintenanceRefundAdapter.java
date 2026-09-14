@@ -9,8 +9,8 @@ import com.titanium.maintenance.infrastructure.client.payment.PaymentMaintenance
 import com.titanium.maintenance.port.payment.PaymentMaintenanceRefundPort;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.payment.api.request.CreateRefundOrderRequest;
-import com.titanium.payment.api.response.RefundOrderResponse;
+import com.titanium.payment.api.request.refund.CreateRefundOrderRequest;
+import com.titanium.payment.api.response.refund.RefundOrderResponse;
 
 import lombok.RequiredArgsConstructor;
 
