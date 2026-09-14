@@ -21,12 +21,12 @@ import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.model.Amount;
 import com.titanium.policy.api.request.maintenance.ApplyPolicyMaintenanceRequest;
-import com.titanium.policy.api.response.InsuranceResponse;
-import com.titanium.policy.api.response.PolicyEndorsementResponse;
-import com.titanium.policy.api.response.PolicyMaintenanceSnapshotResponse;
-import com.titanium.policy.api.response.PolicyResponse;
-import com.titanium.policy.api.response.PolicyStatusResponse;
+import com.titanium.policy.api.response.issuance.InsuranceResponse;
+import com.titanium.policy.api.response.maintenance.PolicyEndorsementResponse;
 import com.titanium.policy.api.response.maintenance.PolicyMaintenanceApplicationResponse;
+import com.titanium.policy.api.response.maintenance.PolicyMaintenanceSnapshotResponse;
+import com.titanium.policy.api.response.policy.PolicyResponse;
+import com.titanium.policy.api.response.policy.PolicyStatusResponse;
 
 class PolicyServiceAdapterTest {
 

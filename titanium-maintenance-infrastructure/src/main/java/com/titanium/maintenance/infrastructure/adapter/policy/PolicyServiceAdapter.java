@@ -10,9 +10,9 @@ import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.policy.api.response.InsuranceResponse;
-import com.titanium.policy.api.response.PolicyResponse;
-import com.titanium.policy.api.response.PolicyStatusResponse;
+import com.titanium.policy.api.response.issuance.InsuranceResponse;
+import com.titanium.policy.api.response.policy.PolicyResponse;
+import com.titanium.policy.api.response.policy.PolicyStatusResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

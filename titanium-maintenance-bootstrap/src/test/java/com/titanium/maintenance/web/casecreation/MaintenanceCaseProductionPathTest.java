@@ -69,11 +69,11 @@ import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.policy.api.response.PolicyMaintenanceSnapshotResponse;
-import com.titanium.policy.api.response.PolicySnapshotFieldValueResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldCapabilityResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldCatalogResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldDescriptorResponse;
+import com.titanium.policy.api.response.fieldcatalog.PolicySnapshotFieldValueResponse;
+import com.titanium.policy.api.response.maintenance.PolicyMaintenanceSnapshotResponse;
 import com.titanium.product.api.response.maintenance.ProductMaintenanceOfferingResolutionResponse;
 
 class MaintenanceCaseProductionPathTest {

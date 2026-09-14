@@ -19,8 +19,8 @@ import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient
 import com.titanium.maintenance.port.policy.PolicyMaintenanceSnapshotPort.PolicyMaintenanceSnapshotRequest;
 import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.policy.api.response.PolicyMaintenanceSnapshotResponse;
-import com.titanium.policy.api.response.PolicySnapshotFieldValueResponse;
+import com.titanium.policy.api.response.fieldcatalog.PolicySnapshotFieldValueResponse;
+import com.titanium.policy.api.response.maintenance.PolicyMaintenanceSnapshotResponse;
 
 class PolicyMaintenanceSnapshotAdapterTest {
 

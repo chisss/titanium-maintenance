@@ -16,7 +16,7 @@ import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
 import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort.ImpactRequest;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.policy.api.response.PolicyEndorsementResponse;
+import com.titanium.policy.api.response.maintenance.PolicyEndorsementResponse;
 
 class PolicyRetroactiveImpactSourceAdapterTest {
 

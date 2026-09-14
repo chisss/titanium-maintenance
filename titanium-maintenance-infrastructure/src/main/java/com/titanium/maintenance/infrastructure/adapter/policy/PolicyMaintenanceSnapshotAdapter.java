@@ -20,8 +20,8 @@ import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.metadata.enums.BaseEnum;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.policy.api.response.PolicyMaintenanceSnapshotResponse;
-import com.titanium.policy.api.response.PolicySnapshotFieldValueResponse;
+import com.titanium.policy.api.response.fieldcatalog.PolicySnapshotFieldValueResponse;
+import com.titanium.policy.api.response.maintenance.PolicyMaintenanceSnapshotResponse;
 
 import feign.FeignException;
 import lombok.RequiredArgsConstructor;

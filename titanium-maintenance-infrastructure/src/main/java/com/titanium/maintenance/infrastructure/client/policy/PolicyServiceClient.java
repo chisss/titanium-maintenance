@@ -11,11 +11,11 @@ import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.request.maintenance.ApplyPolicyMaintenanceRequest;
-import com.titanium.policy.api.response.PolicyEndorsementResponse;
-import com.titanium.policy.api.response.PolicyMaintenanceSnapshotResponse;
-import com.titanium.policy.api.response.PolicyResponse;
-import com.titanium.policy.api.response.PolicyStatusResponse;
+import com.titanium.policy.api.response.maintenance.PolicyEndorsementResponse;
 import com.titanium.policy.api.response.maintenance.PolicyMaintenanceApplicationResponse;
+import com.titanium.policy.api.response.maintenance.PolicyMaintenanceSnapshotResponse;
+import com.titanium.policy.api.response.policy.PolicyResponse;
+import com.titanium.policy.api.response.policy.PolicyStatusResponse;
 
 /** Policy 正式 API 的保全域 Feign 客户端，响应类型与 PolicyApi 保持一致。 */
 @FeignClient(name = "titanium-policy", contextId = "maintenancePolicyClient", path = "/api/v1/policies")

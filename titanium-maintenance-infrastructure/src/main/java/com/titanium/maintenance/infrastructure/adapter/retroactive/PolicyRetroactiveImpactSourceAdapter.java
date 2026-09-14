@@ -13,7 +13,7 @@ import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient
 import com.titanium.maintenance.port.maintenance.MaintenanceRetroactiveImpactSourcePort;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactItem;
 import com.titanium.metadata.response.ApiResponse;
-import com.titanium.policy.api.response.PolicyEndorsementResponse;
+import com.titanium.policy.api.response.maintenance.PolicyEndorsementResponse;
 
 import lombok.RequiredArgsConstructor;
 
