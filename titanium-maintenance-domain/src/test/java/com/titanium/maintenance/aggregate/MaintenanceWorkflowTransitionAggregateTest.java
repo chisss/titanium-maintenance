@@ -75,6 +75,7 @@ import com.titanium.maintenance.event.MaintenanceCreatedEvent;
 import com.titanium.maintenance.event.MaintenanceEffectCompensationRequiredEvent;
 import com.titanium.maintenance.event.MaintenanceEffectCompensationResolvedEvent;
 import com.titanium.maintenance.event.MaintenanceEffectStatusChangedEvent;
+import com.titanium.maintenance.event.MaintenanceEndorsementIssuedEvent;
 import com.titanium.maintenance.event.MaintenanceFieldChangesRecordedEvent;
 import com.titanium.maintenance.event.MaintenanceItemAddedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowInitializedEvent;
@@ -459,12 +460,42 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 .expectSuccessfulHandlerExecution()
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
-                        instanceOf(MaintenanceEffectStatusChangedEvent.class))))
+                        instanceOf(MaintenanceEffectStatusChangedEvent.class),
+                        instanceOf(MaintenanceEndorsementIssuedEvent.class))))
                 .expectState(aggregate -> {
                     MaintenanceWorkflowTask task = aggregate.getWorkflowTasks().getFirst();
                     assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, task.status());
                     assertEquals(receipt, task.effectEvidence().application());
                     assertEquals(MaintenanceEffectStatus.APPLIED, aggregate.getEffectStatus());
+                    assertEquals(MaintenanceStatus.COMPLETED, aggregate.getStatus());
+                });
+    }
+
+    @Test
+    void shouldFreezeEndorsementElementsFromPolicyReceiptWhenEffectApplied() {
+        MaintenanceEffectRequestEvidence request = effectRequest();
+        MaintenanceWorkflowTask ready = readyEffectTask();
+        MaintenanceWorkflowOperation requestOperation = effectRequestOperation(request);
+        MaintenanceWorkflowTask waiting = ready.requestEffect(request, requestOperation);
+        MaintenancePolicyApplicationEvidence receipt = policyApplication(request);
+
+        fixture.given(createdEvent(), initializedEvent(),
+                        itemAddedEvent(ITEM_CODE, "policy.holder.mobile"),
+                        fieldChangesRecordedEvent(ITEM_CODE, "policy-1", "policy.holder.mobile"),
+                        effectWorkflowInitializedEvent(),
+                        transition(ready, waiting, null, null, requestOperation),
+                        effectStatusChanged(MaintenanceEffectStatus.NOT_STARTED,
+                                MaintenanceEffectStatus.EFFECTING))
+                .when(new RecordMaintenanceCasePolicyApplicationCommand(
+                        ID, List.of(EFFECT_TASK_ID), "effect-receipt-operation", receipt, "policy-service", "tenant-1"))
+                .expectSuccessfulHandlerExecution()
+                .expectEventsMatching(payloadsMatching(exactSequenceOf(
+                        instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
+                        instanceOf(MaintenanceEffectStatusChangedEvent.class),
+                        instanceOf(MaintenanceEndorsementIssuedEvent.class))))
+                .expectState(aggregate -> {
+                    assertEquals(MaintenanceEffectStatus.APPLIED, aggregate.getEffectStatus(),
+                            "批单出具事件须与案件生效完成同刻发布");
                     assertEquals(MaintenanceStatus.COMPLETED, aggregate.getStatus());
                 });
     }
@@ -599,7 +630,8 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
-                        instanceOf(MaintenanceEffectStatusChangedEvent.class))))
+                        instanceOf(MaintenanceEffectStatusChangedEvent.class),
+                        instanceOf(MaintenanceEndorsementIssuedEvent.class))))
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceEffectStatus.APPLIED, aggregate.getEffectStatus());
                     aggregate.getWorkflowTasks().forEach(task -> {
@@ -639,6 +671,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
                         instanceOf(MaintenanceEffectStatusChangedEvent.class),
+                        instanceOf(MaintenanceEndorsementIssuedEvent.class),
                         instanceOf(MaintenanceEffectCompensationResolvedEvent.class))))
                 .expectState(aggregate -> {
                     assertEquals(false, aggregate.isEffectCompensationRequired());
@@ -1123,6 +1156,7 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 ID, itemCode, List.of(change), NOW, "operator-1", "tenant-1");
     }
 
+    /** 取本次命令执行中发布的批单出具事件（given 阶段不产生该类型事件，故 findFirst 即本次结果） */
     private MaintenanceWorkflowInitializedEvent workflowInitializedEvent() {
         return new MaintenanceWorkflowInitializedEvent(
                 ID, List.of(dataEntryTask(), validationTask()), NOW, "operator-1", "tenant-1");

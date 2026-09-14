@@ -63,5 +63,6 @@ public class MaintenanceConstants {
         public static final String MAINTENANCE_CHANGE_ADDED       = CrossDomainTopics.MAINTENANCE_CHANGE_ADDED;
         public static final String MAINTENANCE_PREMIUM_CALCULATED = CrossDomainTopics.MAINTENANCE_PREMIUM_CALCULATED;
         public static final String MAINTENANCE_EXECUTED           = CrossDomainTopics.MAINTENANCE_EXECUTED;
+        public static final String MAINTENANCE_ENDORSEMENT_ISSUED = CrossDomainTopics.MAINTENANCE_ENDORSEMENT_ISSUED;
     }
 }

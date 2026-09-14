@@ -222,6 +222,18 @@ mvn spring-boot:run
     - **测试**：domain 值对象 4 例（非 DOCUMENT 步骤拒绝凭证 / 载荷不匹配拒绝 / 非 IN_PROGRESS 收口拒绝 / 重复收口拒绝）、聚合 5 例、application 4 例、query 2 例。**反向验证 3 项**：逐项把目标分支置为不可达 → 对应用例 RED → 恢复 → 复绿（探针全部清理）。
     - **门禁**：`mvn -B clean install` 全域 **568 例**（0 失败 0 错误 6 跳过）。
 
+19. ✅ **批单出具触发端补齐：`maintenance-endorsement-issued` → document 域 `ENDORSEMENT_DOC`（m16-1902，2026-09-14）**：document 域 `DocumentType` 五值中 `ENDORSEMENT_DOC` 早已定义，却**零触发端**——「保单签发 → `POLICY_DOC`」「理赔结案 → `CLAIM_DOC`」两条链已通（m13-1602 / m14-1705），保全批单一条缺。本任务补齐，实现三域联动（metadata 主题登记 + 本域出站 + document 入站）。
+    - 🔴 **与第 18 条 `DOCUMENT` 步骤的界限（勿混为一谈）**：m15-1805 的 DOCUMENT 步骤是保全案件**域内**的凭证事实留痕（`MaintenanceDocumentEvidence` 落库，不接 document 域）；本任务产出的是案件生效完成后**对外**的批改文书（跨域经 Kafka 交付 document 域渲染建档）。二者层级不同，故第 18 条「maintenance 与 document 零衔接」的判定在**该步骤范围内**仍成立，本任务新增的是**另一条通道**。
+    - **出站机制定夺 = Kafka（非同步 Feign）**：判据沿用 m14-1705——单证是**可延迟的旁路产物**，不应把 document 域的可用性绑进保全生效主链；同步 Feign 会让保全生效因下游建档失败而回滚。实现：`EndorsementDocumentPort`（`domain/port/document/`，与 aggregate 平级）← `EndorsementDocumentAdapter`（`infrastructure/adapter/document/`，Kafka + `KafkaPublishSupport.awaitSent`），由 `MaintenanceEndorsementDocumentSaga`（`application/saga`）在事件处理路径搬运。
+    - 🔴 **要素由写侧聚合固化，不由 Saga 取数**：`MaintenanceEndorsementIssuedEvent(id, EndorsementDocument, issuedAt)` 与案件级 `MaintenanceEffectStatusChangedEvent(APPLIED)` **同刻**发布，载荷自带被批改保单、保全项、字段前后值、生效时间。若改由 Saga 查读模型取数，要素正确性将取决于投影推进时序（最终一致），且把跨层查询依赖引入事件处理路径。与理赔域结案事件自足载荷同范式。
+    - 🔴 **复用 `maintenance-kafka-group` 而非新建处理组**：该组已登记在 `titanium.axon.outbound-relay.groups`（首启位点取事件流**末端**）。新建组不在名单中，首次部署将从事件流**头部**重放——对全部历史已生效案件洪水式补发批单。<b>不得</b>改动本组归属配置。
+    - 🔴 **实施中发现并修掉一处实质缺陷（批单字段明细会全滤空）**：原实现按 `MaintenanceFieldChange.appliedValue()` 非空筛选字段变更，而 `markApplied` 写入者在本域**无生产调用点**（仅值对象单测覆盖）⇒ 事件流中该字段**恒为 `null`** ⇒ 批单要素的字段明细会被**全部滤掉**，对外签发的批改凭证只剩空壳。**根因**：把「拟值」与「生效值」的权威来源搞错。**修复**：改为从 Policy 生效回执的 `MaintenancePolicyApplicationEvidence.appliedFields` 取「变更后」权威值（键 `保全项:业务对象:字段` 三元组，见 `EndorsementDocument.fieldKey`），回执未覆盖的字段回落案件拟值（如实呈现、不臆造）。要素推导逻辑同时**内聚到 `EndorsementDocument.of(...)` 值对象**，换取可直测性与可反向验证性。
+    - 🔴 **可复用判据（值对象字段的「生产者缺席」检查）**：判「某字段是否有真实数据」不能只看它被赋值过——必须查**写入方法是否有生产调用点**（`grep` 全仓非测试代码）。仅有单测覆盖的 setter/工厂是**死字段**，围绕它设计的分支会在生产路径上静默走空。与 D14「读序依赖链」同属「跨模块咬合静默失效」类。
+    - 🔴 **Axon `Matchers.exactSequenceOf` 是「前缀严格匹配」**：仅当实际事件数 **<** 期望数时为 false，**允许实际序列更长**。故既有测试中「期望 2 个事件、实际 3 个」会侥幸通过——新增事件（本例批单事件插在 `EffectStatusChanged` 与 `CompensationResolved` 之间）若不同批补进期望序列，断言即**静默失守**。本任务同批补强 3 处旧断言 + 新增 1 处（共 4 处断言批单事件序列）。**判据**：给聚合新增事件后，必须回扫所有 `expectEventsMatching(exactSequenceOf(...))` 断言，而非只看新增用例是否通过。
+    - **测试**：本域 4 例新增——值对象 `EndorsementDocumentTest` 7 例（权威值优先 / 回执缺失回落 / 建档要素齐备 / 生效时间可空 / 无保全项 / 必填拒绝 / 键三元组）、聚合 1 例（生效回执同刻发布批单事件）、Saga 3 例（要素原样交付 / **失败必须上抛不吞** / 出站组名四方一致）、Adapter 3 例（主题与分区键 / 线格式为 POJO 而非二次编码 / **发布失败必须抛出**）。document 侧 11 例由该域补（入站 listener 5 + 编排器 6）。
+    - **反向验证 2 项**：① 把 `EndorsementDocument.toEndorsementItem` 的权威取值改为直接取拟值 → `shouldPreferPolicyAppliedValueOverProposedValue` RED（`expected: <13900000000> but was: <changed>`），恢复即 GREEN；② 把聚合 `changeEffectStatus` 的 `if (next == APPLIED)` 批单发布分支置为不可达 → 聚合测试 **4 处**断言 RED（`:461` / `:492` / `:630` / `:671`），恢复即 GREEN。探针已清理并全文扫描确认。
+    - **门禁**：本域 `mvn -B clean install` **582 例**（0 失败 0 错误 6 跳过，较 m15-1805 的 568 例 +14）；document 域 45 例；`CrossDomainEventCatalogTest` 12 例全绿。主题登记见 [跨域事件目录 §三 / §六.20](../docs/技术文档/跨域事件目录-2026-09.md)。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*

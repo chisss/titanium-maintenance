@@ -114,6 +114,7 @@ import com.titanium.maintenance.event.MaintenanceEffectSchedulePausedEvent;
 import com.titanium.maintenance.event.MaintenanceEffectScheduleResumedEvent;
 import com.titanium.maintenance.event.MaintenanceEffectScheduledEvent;
 import com.titanium.maintenance.event.MaintenanceEffectStatusChangedEvent;
+import com.titanium.maintenance.event.MaintenanceEndorsementIssuedEvent;
 import com.titanium.maintenance.event.MaintenanceExecutedEvent;
 import com.titanium.maintenance.event.MaintenanceFieldChangesRecordedEvent;
 import com.titanium.maintenance.event.MaintenanceFieldConflictResolvedEvent;
@@ -158,13 +159,16 @@ import com.titanium.maintenance.valueobject.change.MaintenanceFieldProposalPlan;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotSet;
+import com.titanium.maintenance.valueobject.endorsement.EndorsementDocument;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemInstance;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemSelectionEvidence;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawalRecoveryContext;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceAppliedFieldEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
@@ -1105,6 +1109,18 @@ public class Maintenance extends BaseAggregate {
         }
         this.updateTime = event.changedAt();
         this.updatedBy = event.changedBy();
+    }
+
+    /**
+     * 批单出具回放。
+     * <p>
+     * 本事件是「案件已生效」这一事实的**派生凭证**，不改变聚合任何业务状态——回放时只推进审计时间。
+     * 其存在意义在于把批单要素固化进事件流（见 {@link MaintenanceEndorsementIssuedEvent} javadoc）。
+     * </p>
+     */
+    @EventSourcingHandler
+    public void on(MaintenanceEndorsementIssuedEvent event) {
+        this.updateTime = event.issuedAt();
     }
 
     @EventSourcingHandler
@@ -2243,8 +2259,53 @@ public class Maintenance extends BaseAggregate {
             throw new MaintenanceValidationException(
                     "MaintenanceEffectStatus", "next", "已生效案件不能回退生效状态");
         }
+        LocalDateTime changedAt = LocalDateTime.now();
         AggregateLifecycle.apply(new MaintenanceEffectStatusChangedEvent(id, taskId, previous, next, reason,
-                LocalDateTime.now(), changedBy, tenantId));
+                changedAt, changedBy, tenantId));
+        if (next == MaintenanceEffectStatus.APPLIED) {
+            AggregateLifecycle.apply(new MaintenanceEndorsementIssuedEvent(id, buildEndorsementDocument(changedAt),
+                    changedAt));
+        }
+    }
+
+    /**
+     * 组装批单要素：取案件已生效的保全项与字段变更。
+     * <p>
+     * 「变更后」值以 Policy 生效回执的 {@code appliedFields} 为唯一权威来源（见 {@link #appliedFieldValues()}），
+     * 回执未覆盖的字段回落案件拟值——未执行的提案不臆造、已归一化的生效值不丢失。保全项本身不过滤：状态型
+     * 保全（如保单中止）无字段明细，但仍是本次批改的内容。
+     * </p>
+     */
+    private EndorsementDocument buildEndorsementDocument(LocalDateTime completedAt) {
+        return EndorsementDocument.of(id.id(), policyId.id(), maintenanceType.getCode(), itemInstances,
+                appliedFieldValues(), specificEffectiveDate, completedAt, tenantId);
+    }
+
+    /**
+     * 汇集全部生效任务回执中的权威实际生效值。
+     * <p>
+     * 🔴 <b>为何取回执而不取 {@code MaintenanceFieldChange.appliedValue}</b>：后者由
+     * {@code MaintenanceFieldChange.markApplied} 写入，而该方法在本域<b>无生产调用点</b>（仅单测覆盖），
+     * 事件流中该字段恒为 {@code null}。Policy 回执的 {@code appliedFields} 才是实际生效值的唯一权威来源，
+     * 故批单要素从任务证据取「变更后」值。
+     * </p>
+     *
+     * @return 键由 {@link EndorsementDocument#fieldKey} 构造的实际生效值索引
+     */
+    private Map<String, String> appliedFieldValues() {
+        if (workflowTasks == null) {
+            return Map.of();
+        }
+        return workflowTasks.stream()
+                .map(MaintenanceWorkflowTask::effectEvidence)
+                .filter(Objects::nonNull)
+                .map(MaintenanceEffectEvidence::application)
+                .filter(Objects::nonNull)
+                .flatMap(application -> application.appliedFields().stream())
+                .collect(Collectors.toMap(
+                        field -> EndorsementDocument.fieldKey(field.itemCode(), field.objectId(), field.fieldCode()),
+                        MaintenanceAppliedFieldEvidence::canonicalValue,
+                        (existing, replacement) -> replacement));
     }
 
     private MaintenanceEffectStatus currentEffectStatus() {
