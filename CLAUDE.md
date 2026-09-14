@@ -210,6 +210,18 @@ mvn spring-boot:run
     - **测试**：metadata 新增 `MaintenanceUnderwritingConclusionTest` 7 例（跨域契约 `code == name()`、数字码唯一且不重排、未知码显式失败、三个口径方法逐项断言、常量计数防新增漏判）。
     - **门禁**：metadata 41 例 / maintenance 554 例 / underwriting 124 例，三域 `mvn -B clean install` 全绿。
 
+18. ✅ **收口步骤 DOCUMENT/COMPLETE 落地 + 三处「终态结构性不可达」修复（m15-1805，2026-09-14）**：工作流模板末段为 `EFFECT → DOCUMENT → COMPLETE`，但两个步骤在写侧**无命令处理器**（只有枚举与模板定义），案件推进到 DOCUMENT 即卡死。
+    - **实施**：① `RecordMaintenanceDocumentCommand` → 凭证事实落库（`MaintenanceDocumentEvidence`：模板/凭证号/时间/操作人），经既有通用 `last*` 列发布，**读侧不新增列**；② `CompleteMaintenanceItemCommand` → 终态收口，`requirePredecessorsTerminal` 要求同 `itemCode` 内 sequence 更小任务**全部 COMPLETED/SKIPPED**，仅 `IN_PROGRESS` 可收口、重复完成拒绝。
+    - 🔴 **凭证模板编码取自本保全项冻结配置**（`MaintenanceItemControls.outputRule().voucherTemplateCode()`），**调用方不得自报**——`requireDocumentTemplate` 比对命令载荷，不符即 `MaintenanceValidationException`。
+    - 🔴 **修掉三处「收口步骤结构性不可达」**（任一残留即整条链走不通）：
+      1. **案件级冻结过严**：`requireWorkflowMutable` 在案件 `COMPLETED` 后拒绝一切推进，而案件恰在**生效回执**即置 `COMPLETED` ⇒ 收口步骤结构上不可达。改按**任务步骤类型**判定豁免（`MaintenanceStepType.closingPhase()`）。
+      2. **生效回执不激活后继**：`handle(RecordMaintenanceCasePolicyApplicationCommand)` 原 `activateNext=false`，EFFECT 后继的 DOCUMENT 永不激活。改为 `true`。
+      3. **读侧越权关闭终态**：投影原按「生效回执」自动把终态任务置 `COMPLETED` ⇒ 读模型**发明了写侧没有的状态**，在 `EFFECT→DOCUMENT→COMPLETE` 模板下**越过前驱顺序**把 COMPLETE 提前关闭。**删除该分支**，终态唯一来源回归写侧迁移事件。
+    - 🔴 **可复用判据（终态唯一来源）**：读侧投影**只能搬运写侧已发生的事实**，不得依据「业务上大概该结束了」自行推断终态——推断逻辑与写侧守卫是**两套规则**，一旦写侧新增中间步骤（本例 DOCUMENT），读侧的推断即静默错误。守护方式：以「`@EventHandler` 消费事件类型集合」为**结构判据** + **计数断言**，防扫描规则静默失效。
+    - **判定：DOCUMENT 不衔接 document 域**——实读确认 maintenance 与 document **零衔接**（无 pom 依赖、无 Port、无 Adapter、无跨域主题），凭证为**域内事实落库**而非触发下游单证生成，故未改《跨域事件目录-2026-09.md》，`CrossDomainEventCatalogTest` 12 例仍全绿。
+    - **测试**：domain 值对象 4 例（非 DOCUMENT 步骤拒绝凭证 / 载荷不匹配拒绝 / 非 IN_PROGRESS 收口拒绝 / 重复收口拒绝）、聚合 5 例、application 4 例、query 2 例。**反向验证 3 项**：逐项把目标分支置为不可达 → 对应用例 RED → 恢复 → 复绿（探针全部清理）。
+    - **门禁**：`mvn -B clean install` 全域 **568 例**（0 失败 0 错误 6 跳过）。
+
 ---
 
 *本文档为保全域模块级规约，与根 [CLAUDE.md](../CLAUDE.md)、[AGENTS.md](./AGENTS.md) 配合使用。*
