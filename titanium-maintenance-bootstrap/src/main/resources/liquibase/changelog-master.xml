@@ -36,4 +36,6 @@
     <include file="classpath:liquibase/ddl/maintenance_configuration_audit_retention_202608281305_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/business_number_sequence_202609041030_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_workflow_investment_switch_m16_1901_202609141030_weisun_ddl.sql"/>
+    <!-- 第 6 张 Axon 系统表：本域两处理组已开 dlq.enabled，缺表将使处理器整域停摆（详见脚本头注释） -->
+    <include file="classpath:liquibase/ddl/axon_dead_letter_202609151500_weisun_ddl.sql"/>
 </databaseChangeLog>
