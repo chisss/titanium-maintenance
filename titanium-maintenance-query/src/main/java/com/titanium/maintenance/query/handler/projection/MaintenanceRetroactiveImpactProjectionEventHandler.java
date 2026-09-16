@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.event.MaintenanceRetroactiveImpactAnalysisCompletedEvent;
@@ -32,20 +33,20 @@ public class MaintenanceRetroactiveImpactProjectionEventHandler {
     private final MaintenanceRetroactiveImpactItemViewRepository impactItemViewRepository;
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactiveImpactAnalysisStartedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.analysis(), event.startedBy());
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactiveImpactAnalysisCompletedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.analysis(), event.completedBy());
         replaceItems(event.maintenanceId().id(), event.tenantId(), event.analysis());
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactiveImpactAnalysisFailedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.analysis(), event.failedBy());
     }

@@ -11,6 +11,7 @@ import java.util.Objects;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
@@ -65,7 +66,7 @@ public class MaintenanceCaseProjectionEventHandler {
     private final MaintenanceSnapshotViewRepository snapshotViewRepository;
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceCaseOpenedEvent event) {
         MaintenanceView view = requireCase(event.maintenanceId().id(), event.tenantId());
         view.setSource(event.source());
@@ -81,7 +82,7 @@ public class MaintenanceCaseProjectionEventHandler {
 
     /** 投影案件正交生效状态，避免由任务状态临时推断。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectStatusChangedEvent event) {
         MaintenanceView view = requireCase(event.maintenanceId().id(), event.tenantId());
         view.setEffectStatus(event.currentStatus());
@@ -94,7 +95,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectScheduledEvent event) {
         MaintenanceView view = requireCase(event.maintenanceId().id(), event.tenantId());
         var schedule = event.schedule();
@@ -111,7 +112,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectSchedulePausedEvent event) {
         MaintenanceView view = requireSchedule(event.maintenanceId().id(), event.tenantId(), event.scheduleId());
         view.setEffectScheduleStatus(MaintenanceEffectScheduleStatus.PAUSED);
@@ -122,7 +123,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectScheduleResumedEvent event) {
         MaintenanceView view = requireSchedule(event.maintenanceId().id(), event.tenantId(), event.scheduleId());
         view.setEffectScheduleStatus(MaintenanceEffectScheduleStatus.ACTIVE);
@@ -136,7 +137,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectScheduleAttemptedEvent event) {
         MaintenanceView view = requireSchedule(event.maintenanceId().id(), event.tenantId(), event.scheduleId());
         view.setEffectScheduleAttemptCount(event.attemptNumber());
@@ -151,7 +152,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectScheduleFailedEvent event) {
         MaintenanceView view = requireSchedule(event.maintenanceId().id(), event.tenantId(), event.scheduleId());
         view.setEffectScheduleStatus(event.terminal()
@@ -168,7 +169,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectScheduleCompletedEvent event) {
         MaintenanceView view = requireSchedule(event.maintenanceId().id(), event.tenantId(), event.scheduleId());
         view.setEffectScheduleStatus(MaintenanceEffectScheduleStatus.COMPLETED);
@@ -182,7 +183,7 @@ public class MaintenanceCaseProjectionEventHandler {
 
     /** 报价任务补全案件重算检查点；Policy 成功回执补全字段实际值和 applied 快照。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceWorkflowTaskTransitionedEvent event) {
         projectPremiumCalculationCheckpoint(event);
         var effectEvidence = event.afterTask().effectEvidence();
@@ -234,7 +235,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenancePolicySnapshotCapturedEvent event) {
         MaintenanceView view = requireCase(event.maintenanceId().id(), event.tenantId());
         var snapshot = event.snapshot();
@@ -258,7 +259,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceCaseItemsPlannedEvent event) {
         MaintenanceView view = requireCase(event.maintenanceId().id(), event.tenantId());
         view.setPlannedItemCount(event.itemCodes().size());
@@ -268,7 +269,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceItemAddedEvent event) {
         MaintenanceItemInstance item = event.item();
         MaintenanceCaseItemView view = itemViewRepository
@@ -288,7 +289,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceItemWithdrawalStartedEvent event) {
         MaintenanceCaseItemView view = requireItem(
                 event.tenantId(), event.maintenanceId().id(), event.withdrawal().itemCode());
@@ -297,7 +298,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceItemWithdrawalRecoveryConfiguredEvent event) {
         MaintenanceCaseItemView view = requireItem(
                 event.tenantId(), event.maintenanceId().id(), event.recoveryContext().itemCode());
@@ -309,7 +310,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceItemWithdrawalCompensationRecordedEvent event) {
         MaintenanceCaseItemView view = requireItem(
                 event.tenantId(), event.maintenanceId().id(), event.withdrawal().itemCode());
@@ -333,7 +334,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceItemWithdrawalFailedEvent event) {
         MaintenanceCaseItemView view = requireItem(
                 event.tenantId(), event.maintenanceId().id(), event.withdrawal().itemCode());
@@ -342,7 +343,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceCaseInitializationCompletedEvent event) {
         MaintenanceView view = requireCase(event.maintenanceId().id(), event.tenantId());
         view.setInitializationCompleted(true);
@@ -353,7 +354,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceFieldChangesRecordedEvent event) {
         fieldChangeViewRepository.deleteByTenantIdAndMaintenanceIdAndItemCode(
                 event.tenantId(), event.maintenanceId().id(), event.itemCode());
@@ -384,7 +385,7 @@ public class MaintenanceCaseProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceProposedSnapshotRecordedEvent event) {
         List<MaintenanceFieldChangeView> fieldViews = fieldChangeViewRepository
                 .findByTenantIdAndMaintenanceIdAndItemCodeOrderByFieldCodeAscObjectIdAsc(

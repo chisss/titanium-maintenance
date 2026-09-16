@@ -7,6 +7,7 @@ import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.common.number.BusinessNumberGenerator;
@@ -68,7 +69,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 投影 Policy 已成功但案件回执待人工勾稽的补偿事实。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectCompensationRequiredEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applyEffectCompensationRequired(view, event),
@@ -77,7 +78,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 幂等重试勾稽成功后关闭人工补偿标记。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceEffectCompensationResolvedEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applyEffectCompensationResolved(view, event),
@@ -86,7 +87,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 审核拒绝将案件主投影同步置为终态。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceCaseRejectedByReviewEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applyRejectedByReview(view, event),
@@ -95,7 +96,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 核保拒绝将案件主投影同步置为终态。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceCaseRejectedByUnderwritingEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applyRejectedByUnderwriting(view, event),
@@ -106,7 +107,7 @@ public class MaintenanceProjectionEventHandler {
      * 投影保全创建事件：新建读模型记录
      */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceCreatedEvent event) {
         log.info("[读模型投影] 保全创建: maintenanceId={}", event.maintenanceId().id());
 
@@ -132,7 +133,7 @@ public class MaintenanceProjectionEventHandler {
      * 投影保全状态变更事件
      */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceStatusChangedEvent event) {
         log.info("[读模型投影] 保全状态变更: maintenanceId={}, {} -> {}", event.maintenanceId().id(),
                 event.oldStatus(), event.newStatus());
@@ -145,7 +146,7 @@ public class MaintenanceProjectionEventHandler {
      * 投影保全保费计算事件
      */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenancePremiumCalculatedEvent event) {
         log.info("[读模型投影] 保全保费计算: maintenanceId={}", event.maintenanceId().id());
         applyToView(event.maintenanceId().id(), event.tenantId(),
@@ -155,7 +156,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 投影 Product 生命周期差额检查点。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenancePremiumAdjustmentRecordedEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(), view -> {
             maintenanceViewMapper.applyPremiumAdjustmentCheckpoint(view, event);
@@ -174,7 +175,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 投影 Product 退保价值策略证据。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceSurrenderValueRecordedEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applySurrenderValueRecorded(view, event),
@@ -183,7 +184,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 投影 Billing 生命周期余额检查点。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenancePremiumPostingRecordedEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applyPremiumPostingRecorded(view, event),
@@ -192,7 +193,7 @@ public class MaintenanceProjectionEventHandler {
 
     /** 投影 Billing 资金结算检查点。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceFinancialSettlementRecordedEvent event) {
         applyToView(event.maintenanceId().id(), event.tenantId(),
                 view -> maintenanceViewMapper.applyFinancialSettlementRecorded(view, event),
@@ -203,7 +204,7 @@ public class MaintenanceProjectionEventHandler {
      * 投影保全执行事件（流转至 COMPLETED）
      */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceExecutedEvent event) {
         log.info("[读模型投影] 保全执行完成: maintenanceId={}", event.maintenanceId().id());
         applyToView(event.maintenanceId().id(), event.tenantId(),

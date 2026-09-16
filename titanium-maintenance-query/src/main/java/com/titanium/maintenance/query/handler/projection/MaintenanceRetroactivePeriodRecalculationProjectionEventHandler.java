@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.event.MaintenanceRetroactivePeriodRecalculationCompletedEvent;
@@ -35,7 +36,7 @@ public class MaintenanceRetroactivePeriodRecalculationProjectionEventHandler {
     private final MaintenanceRetroactivePeriodAdjustmentViewRepository periodAdjustmentViewRepository;
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactivePeriodRecalculationStartedEvent event) {
         periodAdjustmentViewRepository.deleteByTenantIdAndMaintenanceId(
                 event.tenantId(), event.maintenanceId().id());
@@ -43,21 +44,21 @@ public class MaintenanceRetroactivePeriodRecalculationProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactiveProductRecalculationRecordedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.recalculation(), event.recordedBy());
         replacePeriods(event.maintenanceId().id(), event.tenantId(), event.recalculation());
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactivePeriodRecalculationCompletedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.recalculation(), event.completedBy());
         replacePeriods(event.maintenanceId().id(), event.tenantId(), event.recalculation());
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactivePeriodRecalculationFailedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.recalculation(), event.failedBy());
     }

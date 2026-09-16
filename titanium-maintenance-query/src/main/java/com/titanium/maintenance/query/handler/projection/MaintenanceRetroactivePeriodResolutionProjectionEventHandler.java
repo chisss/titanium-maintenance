@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.event.MaintenanceRetroactivePeriodResolutionCompletedEvent;
@@ -33,20 +34,20 @@ public class MaintenanceRetroactivePeriodResolutionProjectionEventHandler {
     private final MaintenanceRetroactivePeriodAdjustmentViewRepository periodRepository;
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactivePeriodResolutionStartedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.resolution(), event.startedBy());
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactivePeriodResolutionCompletedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.resolution(), event.completedBy());
         updatePeriods(event.maintenanceId().id(), event.tenantId(), event.resolution());
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceRetroactivePeriodResolutionFailedEvent event) {
         updateCase(event.maintenanceId().id(), event.tenantId(), event.resolution(), event.failedBy());
     }

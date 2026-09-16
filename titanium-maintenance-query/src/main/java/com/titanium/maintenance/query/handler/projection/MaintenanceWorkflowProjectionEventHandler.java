@@ -5,6 +5,7 @@ import java.util.List;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.alibaba.fastjson2.JSON;
@@ -35,7 +36,7 @@ public class MaintenanceWorkflowProjectionEventHandler {
     private final MaintenanceWorkflowTaskViewRepository repository;
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceWorkflowInitializedEvent event) {
         List<MaintenanceWorkflowTaskView> views = event.tasks().stream()
                 .map(task -> toView(event, task))
@@ -45,7 +46,7 @@ public class MaintenanceWorkflowProjectionEventHandler {
 
     /** 按事件中的完整后值更新当前任务及被激活的后继任务。 */
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceWorkflowTaskTransitionedEvent event) {
         update(event, event.afterTask());
         if (event.activatedTaskAfter() != null) {

@@ -6,6 +6,7 @@ import java.util.List;
 import org.axonframework.config.ProcessingGroup;
 import org.axonframework.eventhandling.EventHandler;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.titanium.maintenance.common.enums.change.MaintenanceFieldConflictStatus;
@@ -31,7 +32,7 @@ public class MaintenanceFieldConflictProjectionEventHandler {
     private final MaintenanceSnapshotViewRepository snapshotViewRepository;
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceFieldConflictsRefreshedEvent event) {
         LocalDateTime refreshedAt = event.refreshedAt().toLocalDateTime();
         List<MaintenanceFieldChangeView> views = requireFieldViews(event.tenantId(), event.maintenanceId().id());
@@ -51,7 +52,7 @@ public class MaintenanceFieldConflictProjectionEventHandler {
     }
 
     @EventHandler
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void on(MaintenanceFieldConflictResolvedEvent event) {
         LocalDateTime resolvedAt = event.resolvedAt().toLocalDateTime();
         List<MaintenanceFieldChangeView> views = requireFieldViews(event.tenantId(), event.maintenanceId().id());
