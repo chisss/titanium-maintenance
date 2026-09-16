@@ -3,6 +3,7 @@ package com.titanium.maintenance.infrastructure.config;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.kafka.clients.admin.AdminClientConfig;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
@@ -17,6 +18,7 @@ import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.ConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
+import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
@@ -32,6 +34,15 @@ import com.titanium.maintenance.common.constant.MaintenanceConstants;
 public class KafkaConfig {
     @Value("${spring.kafka.bootstrap-servers}")
     private String bootstrapServers;
+
+    /**
+     * 主题副本因子：**部署环境属性**，不是代码常量。
+     * <p>🔴 D-501-27：原硬编码 {@code replicas(2)}，单 broker 环境下 {@code KafkaAdmin} 创建主题必然失败
+     * （{@code InvalidReplicationFactorException}）。现默认 1（单 broker 开箱可用），
+     * 多 broker 环境经配置覆盖为 3。</p>
+     */
+    @Value("${kafka.topic.replication-factor:1}")
+    private int topicReplicationFactor;
 
     @Value("${spring.kafka.consumer.group-id}")
     private String groupId;
@@ -50,7 +61,7 @@ public class KafkaConfig {
     public NewTopic maintenanceCreatedTopic() {
         return TopicBuilder.name(MaintenanceConstants.KafkaTopic.MAINTENANCE_CREATED)
                 .partitions(3)
-                .replicas(2)
+                .replicas(topicReplicationFactor)
                 .build();
     }
 
@@ -58,7 +69,7 @@ public class KafkaConfig {
     public NewTopic maintenanceStatusChangedTopic() {
         return TopicBuilder.name(MaintenanceConstants.KafkaTopic.MAINTENANCE_STATUS_CHANGED)
                 .partitions(3)
-                .replicas(2)
+                .replicas(topicReplicationFactor)
                 .build();
     }
 
@@ -93,6 +104,21 @@ public class KafkaConfig {
     @Bean
     public KafkaTemplate<String, Object> kafkaTemplate() {
         return new KafkaTemplate<>(producerFactory());
+    }
+
+    /**
+     * Kafka Admin：消费本类声明的 {@link NewTopic} Bean 并由其在 broker 上创建主题。
+     * <p>🔴 D-501-27：本域依赖裸 {@code spring-kafka}，Boot 的 Kafka 自动配置不激活，
+     * {@code KafkaAdmin} 从未被注册 —— 下方两个 {@code NewTopic} 声明<b>静默失效</b>，
+     * broker 上的 {@code maintenance-created} / {@code maintenance-status-changed} 实为生产者
+     * 首次发送时 auto-create 所建。实测佐证：声明 {@code partitions(3).replicas(2)}，
+     * broker 上实为 <b>1 分区 1 副本</b>。对齐 billing / claim / payment / regulatory 同名样板。</p>
+     */
+    @Bean
+    public KafkaAdmin kafkaAdmin() {
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);
+        return new KafkaAdmin(configs);
     }
 
     // 消费者配置
