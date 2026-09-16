@@ -54,6 +54,7 @@ import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.casecreation.PolicyMaintenanceSnapshot;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
+import com.titanium.metadata.exception.DomainException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -468,7 +469,19 @@ public class MaintenanceEffectScheduleApplicationService {
                 || cause instanceof MaintenanceNotFoundException;
     }
 
+    /**
+     * 受控失败原因抽取（红线 20）：异常携带业务码时落 8 位码，否则落异常类名。
+     * <p>
+     * 🔴 {@link DomainException}（{@link MaintenanceValidationException} 经 {@code CommandValidationException}
+     * 即属此类，携 {@code MaintenanceErrorCode}）与本域 {@link BusinessException}（独立继承自
+     * {@code RuntimeException}）<b>无继承关系</b>，须并列判定——此前只判后者，校验类失败一律被降级为异常类名
+     * `MaintenanceValidationException`，保全域各校验点无从定位（与 product 域 D-501-36 同型）。
+     * </p>
+     */
     private String errorCode(Throwable cause) {
+        if (cause instanceof DomainException domainException && domainException.getErrorCode() != null) {
+            return domainException.getErrorCode();
+        }
         return cause instanceof BusinessException businessException
                 ? businessException.getErrorCode() : cause.getClass().getSimpleName();
     }

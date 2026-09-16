@@ -52,6 +52,7 @@ import com.titanium.maintenance.valueobject.casecreation.PolicyMaintenanceSnapsh
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 class MaintenanceEffectScheduleApplicationServiceTest {
 
@@ -134,7 +135,10 @@ class MaintenanceEffectScheduleApplicationServiceTest {
         assertThrows(MaintenanceValidationException.class, () -> service.executeNow(input()));
 
         RecordMaintenanceEffectScheduleFailureCommand failure = capturedFailure();
-        assertEquals("MaintenanceValidationException", failure.errorCode());
+        // 校验类异常经 CommandValidationException 继承 DomainException，携 MaintenanceErrorCode 8 位码；
+        // 失败原因须落业务码而非异常类名（D-501-85，与 product D-501-36 同型）
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_COMMAND_VALIDATION_FAILED.getCode(),
+                failure.errorCode());
         assertEquals(true, failure.terminal());
         assertEquals(null, failure.retryAt());
         verify(effectApplicationService, never()).applyScheduled(any(), any());

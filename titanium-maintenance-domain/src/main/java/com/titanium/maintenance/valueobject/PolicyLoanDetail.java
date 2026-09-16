@@ -3,6 +3,8 @@ package com.titanium.maintenance.valueobject;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 /**
  * 保单贷款明细值对象
  * <p>
@@ -57,6 +59,10 @@ public record PolicyLoanDetail(BigDecimal cashValue, BigDecimal loanableRatio, B
      *
      * @return 未超上限返回 {@code true}
      */
+    // 🔴 @JsonIgnore 不可删（D-501-19，与 D-501-18 investment/regulatory 同病）：
+    //    派生 getter 非 record 分量，却会被 Axon 的 Jackson 序列化器写进事件载荷
+    //    （isXxx → 属性 "withinLoanableLimit"），重放时报 UnrecognizedPropertyException → 聚合无法加载。
+    @JsonIgnore
     public boolean isWithinLoanableLimit() {
         return requestedAmount.compareTo(maxLoanableAmount()) <= 0;
     }
