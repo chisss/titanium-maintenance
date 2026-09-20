@@ -133,6 +133,7 @@ class MaintenanceCaseQueryServiceImplTest {
         Optional<MaintenanceCaseDetailQueryResult> result = service.findDetail("tenant-1", "case-1");
 
         assertTrue(result.isPresent());
+        assertEquals("MNT202608240000001", result.orElseThrow().maintenanceNo());
         assertEquals("P202608240001", result.orElseThrow().policyNumber());
         assertEquals("configuration-1", result.orElseThrow().items().getFirst().configurationId());
         assertEquals(MaintenanceWorkflowTaskStatus.READY,
@@ -185,6 +186,7 @@ class MaintenanceCaseQueryServiceImplTest {
     private MaintenanceView mainView() {
         MaintenanceView view = new MaintenanceView();
         view.setMaintenanceId("case-1");
+        view.setMaintenanceNo("MNT202608240000001");
         view.setPolicyId("policy-1");
         view.setPolicyNumber("P202608240001");
         view.setCustomerId("customer-1");

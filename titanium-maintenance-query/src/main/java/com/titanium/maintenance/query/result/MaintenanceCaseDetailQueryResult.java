@@ -41,6 +41,7 @@ import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusio
 /** 独立保全案件详情，字段值仍是 Query 内部原始值，由 Application 决定脱敏。 */
 public record MaintenanceCaseDetailQueryResult(
         String maintenanceId,
+        String maintenanceNo,
         String policyId,
         String policyNumber,
         String customerId,
@@ -100,7 +101,7 @@ public record MaintenanceCaseDetailQueryResult(
             List<WorkflowTaskQueryResult> workflowTasks,
             List<FieldChangeQueryResult> fieldChanges,
             SnapshotSetQueryResult snapshots) {
-        this(maintenanceId, policyId, policyNumber, customerId, productId, productVersion,
+        this(maintenanceId, null, policyId, policyNumber, customerId, productId, productVersion,
                 planVersion, policyBaselineVersion, businessEffectiveAt, source, status, effectStatus,
                 effectCompensation, null, null, null, effectiveTimeType, specificEffectiveDate, description,
                 createdBy, createdAt, updatedBy, updatedAt, items, workflowTasks, fieldChanges, snapshots);
@@ -131,7 +132,7 @@ public record MaintenanceCaseDetailQueryResult(
             List<WorkflowTaskQueryResult> workflowTasks,
             List<FieldChangeQueryResult> fieldChanges,
             SnapshotSetQueryResult snapshots) {
-        this(maintenanceId, policyId, policyNumber, customerId, productId, productVersion,
+        this(maintenanceId, null, policyId, policyNumber, customerId, productId, productVersion,
                 planVersion, policyBaselineVersion, businessEffectiveAt, source, status, effectStatus,
                 null, null, null, null, effectiveTimeType, specificEffectiveDate, description, createdBy, createdAt,
                 updatedBy, updatedAt, items, workflowTasks, fieldChanges, snapshots);
@@ -161,7 +162,7 @@ public record MaintenanceCaseDetailQueryResult(
             List<WorkflowTaskQueryResult> workflowTasks,
             List<FieldChangeQueryResult> fieldChanges,
             SnapshotSetQueryResult snapshots) {
-        this(maintenanceId, policyId, policyNumber, customerId, productId, productVersion,
+        this(maintenanceId, null, policyId, policyNumber, customerId, productId, productVersion,
                 planVersion, policyBaselineVersion, businessEffectiveAt, source, status,
                 MaintenanceEffectStatus.NOT_STARTED, null, null, null, null, effectiveTimeType, specificEffectiveDate,
                 description, createdBy, createdAt, updatedBy, updatedAt, items, workflowTasks,

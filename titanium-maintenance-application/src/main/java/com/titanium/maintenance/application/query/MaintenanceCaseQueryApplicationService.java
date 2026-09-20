@@ -41,8 +41,9 @@ public class MaintenanceCaseQueryApplicationService {
         MaintenanceCaseDetailQueryResult detail = queryService.findDetail(tenantId, maintenanceId)
                 .orElseThrow(MaintenanceNotFoundException::new);
         return new MaintenanceCaseDetailQueryResult(
-                detail.maintenanceId(), detail.policyId(), detail.policyNumber(), detail.customerId(),
-                detail.productId(), detail.productVersion(), detail.planVersion(), detail.policyBaselineVersion(),
+                detail.maintenanceId(), detail.maintenanceNo(), detail.policyId(), detail.policyNumber(),
+                detail.customerId(), detail.productId(), detail.productVersion(), detail.planVersion(),
+                detail.policyBaselineVersion(),
                 detail.businessEffectiveAt(), detail.source(), detail.status(), detail.effectStatus(),
                 detail.effectCompensation(), detail.effectSchedule(), detail.retroactiveImpactAnalysis(),
                 detail.retroactivePeriodRecalculation(),

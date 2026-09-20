@@ -40,6 +40,7 @@ import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusio
 /** 独立保全案件详情响应。 */
 public record MaintenanceCaseDetailVO(
         String caseId,
+        String maintenanceNo,
         String policyId,
         String policyNumber,
         String customerId,

@@ -99,6 +99,7 @@ class MaintenanceCaseQueryControllerTest {
                         .header("X-Tenant-Id", "tenant-1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.caseId").value("case-1"))
+                .andExpect(jsonPath("$.maintenanceNo").value("MNT202608240000001"))
                 .andExpect(jsonPath("$.effectStatus").value("FAILED"))
                 .andExpect(jsonPath("$.effectCompensation.required").value(true))
                 .andExpect(jsonPath("$.effectCompensation.compensationId").value("compensation-1"))
@@ -125,7 +126,7 @@ class MaintenanceCaseQueryControllerTest {
                 MaintenanceStepType.DATA_ENTRY, MaintenanceStepMode.REQUIRED, null,
                 MaintenanceWorkflowTaskStatus.READY, null, 0, null, null, null, null);
         return new MaintenanceCaseDetailQueryResult(
-                "case-1", "policy-1", "P202608240001", "customer-1",
+                "case-1", "MNT202608240000001", "policy-1", "P202608240001", "customer-1",
                 "product-1", "product-v1", "plan-v1", 7L,
                 "2026-08-01T00:00:00+08:00", MaintenanceChannel.API,
                 MaintenanceStatus.PENDING, MaintenanceEffectStatus.FAILED,
@@ -133,6 +134,7 @@ class MaintenanceCaseQueryControllerTest {
                         true, "compensation-1", "request-1", "END-20260825-001", 8L,
                         "a".repeat(64), "案件回执写入失败",
                         LocalDateTime.parse("2026-08-25T16:00:00"), null, null),
+                null, null, null,
                 EffectiveTimeType.IMMEDIATE, null,
                 "联系方式变更", "api-client-1", LocalDateTime.parse("2026-08-24T10:00:00"),
                 "api-client-1", LocalDateTime.parse("2026-08-24T10:05:00"),

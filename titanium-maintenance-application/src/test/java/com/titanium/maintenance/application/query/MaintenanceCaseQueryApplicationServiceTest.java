@@ -19,6 +19,7 @@ import com.titanium.maintenance.common.enums.change.PolicyFieldDataType;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
+import com.titanium.maintenance.common.enums.workflow.MaintenanceEffectStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.query.query.MaintenanceCaseSearchCriteria;
@@ -53,6 +54,7 @@ class MaintenanceCaseQueryApplicationServiceTest {
 
         MaintenanceCaseDetailQueryResult result = service.findDetail("tenant-1", "case-1", false);
 
+        assertEquals("MNT202608240000001", result.maintenanceNo());
         FieldChangeQueryResult field = result.fieldChanges().getFirst();
         assertEquals("138****0000", field.baseValue());
         assertEquals("137****0000", field.currentValue());
@@ -111,10 +113,11 @@ class MaintenanceCaseQueryApplicationServiceTest {
                 null, null, null, null,
                 new WorkflowEffectEvidenceQueryResult(request, application), null);
         return new MaintenanceCaseDetailQueryResult(
-                "case-1", "policy-1", "P202608240001", "customer-1",
+                "case-1", "MNT202608240000001", "policy-1", "P202608240001", "customer-1",
                 "product-1", "product-v1", "plan-v1", 7L,
                 "2026-08-01T00:00:00+08:00", MaintenanceChannel.MANUAL,
-                MaintenanceStatus.PENDING, EffectiveTimeType.IMMEDIATE, null, "联系方式变更",
+                MaintenanceStatus.PENDING, MaintenanceEffectStatus.NOT_STARTED, null, null, null, null,
+                EffectiveTimeType.IMMEDIATE, null, "联系方式变更",
                 "operator-1", LocalDateTime.parse("2026-08-24T10:00:00"),
                 "operator-1", LocalDateTime.parse("2026-08-24T10:05:00"),
                 List.of(), List.of(task), List.of(field), new SnapshotSetQueryResult(null, null, null));

@@ -85,9 +85,11 @@ public class MaintenanceCaseQueryServiceImpl implements MaintenanceCaseQueryServ
     @Transactional(readOnly = true)
     public MaintenanceCasePageQueryResult search(
             String tenantId, MaintenanceCaseSearchCriteria criteria) {
+        // 默认排序：创建时间倒序 + 主键第二排序键（同一秒创建的多行顺序仍然确定，分页不重不漏）
+        Sort sort = Sort.by(Sort.Direction.DESC, "createTime").and(Sort.by("maintenanceId"));
         Page<MaintenanceView> page = maintenanceViewRepository.findAll(
                 specification(tenantId, criteria),
-                PageRequest.of(criteria.page(), criteria.size(), Sort.by(Sort.Direction.DESC, "createTime")));
+                PageRequest.of(criteria.page(), criteria.size(), sort));
         List<String> maintenanceIds = page.getContent().stream()
                 .map(MaintenanceView::getMaintenanceId)
                 .toList();
@@ -197,8 +199,8 @@ public class MaintenanceCaseQueryServiceImpl implements MaintenanceCaseQueryServ
             List<MaintenanceRetroactivePeriodAdjustmentView> retroactivePeriodAdjustments,
             MaintenanceSnapshotView snapshots) {
         return new MaintenanceCaseDetailQueryResult(
-                view.getMaintenanceId(), view.getPolicyId(), view.getPolicyNumber(), view.getCustomerId(),
-                view.getProductId(), view.getProductVersion(), view.getPlanVersion(),
+                view.getMaintenanceId(), view.getMaintenanceNo(), view.getPolicyId(), view.getPolicyNumber(),
+                view.getCustomerId(), view.getProductId(), view.getProductVersion(), view.getPlanVersion(),
                 view.getPolicyBaselineVersion(), view.getBusinessEffectiveAt(), view.getSource(), view.getStatus(),
                 view.getEffectStatus(), toEffectCompensation(view), toEffectSchedule(view),
                 toRetroactiveImpactAnalysis(view, retroactiveImpactItems),
