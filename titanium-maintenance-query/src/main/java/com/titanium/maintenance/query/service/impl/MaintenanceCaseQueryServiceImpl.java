@@ -143,6 +143,9 @@ public class MaintenanceCaseQueryServiceImpl implements MaintenanceCaseQueryServ
         return (root, query, builder) -> {
             var predicates = new java.util.ArrayList<jakarta.persistence.criteria.Predicate>();
             predicates.add(builder.equal(root.get("tenantId"), tenantId));
+            // 🔴 可见性开关：与详情端派生查询 …AndIndependentCaseTrueAndInitializationCompletedTrue 必须逐项一致。
+            //    列表放宽而详情收紧 ⇒ 列表里点得到的案件，详情报「资源不存在」（R8-03 排查的题面症状）。
+            //    该对称由 MaintenanceCaseVisibilitySymmetryTest 守住，改这里必须同批改那边。
             predicates.add(builder.isTrue(root.get("independentCase")));
             predicates.add(builder.isTrue(root.get("initializationCompleted")));
             addEqual(predicates, builder, root.get("maintenanceId"), criteria.maintenanceId());

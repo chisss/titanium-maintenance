@@ -244,7 +244,14 @@ mvn spring-boot:run
     - **测试**：application 7 例（分流不触 policy 回写 / 混合案件拒绝 / 调度拒绝 / 参数缺失 / **无账户失败关闭** / 重试载荷不一致 / 已完成回执重放）、adapter 8 例（空列表返 null / 租户与请求体透传 / 显式币种优先 / 多账户歧义 / 查询不可达 / 失效应答 / 转换拒绝 / 回执字段缺失）、investment 端点 6 例（后台与远程两入口同语义、参数校验、币种缺省、回查未命中）。
     - **反向验证 2 项**：① `isInvestmentSwitchTask` 置为 `return false` ⇒ **6 处 RED**（分流、混合案件、调度拒绝、参数缺失、无账户失败关闭、重试载荷）；② adapter 歧义分支置为不可达 ⇒ RED（`71006015` 退化为 `71006014`）。均恢复复绿，探针已全文扫描清理。
     - **判定：未新增 Kafka 主题**——出口是同步 Feign，故《跨域事件目录-2026-09.md》§二/§三/§六 不登记，`CrossDomainEventCatalogTest` 12 例仍全绿。
-    - **门禁**：本域 `mvn -B clean install` **597 例**（0 失败 0 错误 6 跳过，较 m16-1902 的 582 例 +15）；investment 域 49 例。
+    - **门禁**：本域 `mvn -B clean install` **597 例**（0 失败 0 错误 6 跳过，较 m16-1902 的 582 例 +15）；investment 域 49 例。⚠️ 该总数与后续全量口径不一致（同源码下分模块实测合计 600），**请改用第 21 条的分模块基准**。
+
+21. ✅ **列表/详情可见性对称守卫 + 例数口径校正（R8-03，2026-09-22，题面证伪）**：起因 R7-13 遗留(b)「`maintenance_id` 与 `caseId` 口径不一致，详情代理报资源不存在」。
+    - **证伪逐环**：前端 `src/api/maintenance.ts:384` 用 caseId 拼路径 → BFF `MaintenanceServiceClient.getCase` 透传 → 本域 `MaintenanceCaseQueryWebMapper:85,89` 列表与详情**都是** `@Mapping(target="caseId", source="maintenanceId")` ⇒ 两侧逐字一致；库中 `maintenance_id` 是 **UUID 形态 varchar(128)**（实样 `1d2c6cec-…`）、**非雪花**，表中**无 `case_id` 列** ⇒ 原记录「雪花 id」系误判。
+    - **真机双向对照**（成对同体、只换被测变量；需带齐 `X-Internal-Token` + `X-Operator-Id` + `X-Authorities`，缺任一即 401）：`1d2c6cec-…`（independent_case=1, init=1）→ **200** 且响应 `caseId` 与请求 path **逐字相同**；`02505bf7-…`（0,0）→ **404 / 71000000**。404 唯一来源是**可见性边界**（§7.11 双通道，历史案件走旧通道），且库分布 0,0=41 / 1,0=1 / 1,1=43 ⇒ 不可见行**在列表里根本不显示**，**UI 走不到「点了却 404」**。
+    - 🔴 **本任务实际交付 = 补上的守卫**：`MaintenanceCaseVisibilitySymmetryTest` —— 列表 `specification` 的可见性谓词与详情派生方法名的 `True` 段必须逐项一致。**两侧各取真值再互比**（列表侧真跑 `search` 用 mock `CriteriaBuilder` 捕获 `isTrue` 所指字段；详情侧真跑 `findDetail`，从**被调用的那个方法**取方法名再解析），**不对照写死清单**——写死清单会把「两侧一致改动」判红，且证明不了出货物里确实有那两项（用户级 lessons 首条「断言里引用了内联副本」的形态）。**改 `specification` 里的可见性开关时必须同批改详情端派生方法名**。
+    - **六向反向对照**（自动还原 + sha256 校验 25 个文件一致）：单侧增/删/退化四向全 RED、下限断言专项 RED、**两侧同加 `archived` ⇒ GREEN**（对照组，证明不误报、不对齐清单）。R4 首轮得 RED 系**编译失败**——该派生方法名全仓 **39 处调用点 / 25 个文件**，注入须**全仓改名**，逐点写锚反而脆弱。
+    - **门禁与例数口径**：`mvn -B clean install` **600 例**（594 有效 + 6 skipped，0 失败 0 错误，8 模块全绿）。第 20 条的 597 与本轮相差 3（本任务 +1），已查证**差额系统计口径而非代码变更**：597 之后 5 个 commit（387d277 / 3b2717f / b4a6c83 / a856c61 / 554ce62）**改动测试文件数全为 0**，且 surefire 报告时间戳全部为本轮生成 ⇒ **分模块基准** application 152 / bootstrap 121 / domain 191 / infrastructure 95 / query 38 / web 3 显示 **597 + web 3 = 600**，历史统计最可能漏算 web 模块。⇒ 后续比对**用分模块基准，勿再以单个总数作基线**。
 
 ---
 
