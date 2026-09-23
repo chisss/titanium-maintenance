@@ -13,6 +13,7 @@ import jakarta.persistence.Index;
 import jakarta.persistence.Lob;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -80,4 +81,16 @@ public class MaintenanceConfigurationAuditDO {
 
     @Column(name = "recorded_at", nullable = false)
     private LocalDateTime recordedAt;
+    /**
+     * 乐观锁版本（JPA 自动维护）。
+     * <p>
+     * m20-09（审查报告 PER-01）补齐：原先写侧 DO 无 {@code @Version}，并发更新走无条件 UPDATE，
+     * 后写者静默覆盖前写者、数据丢失。加此字段后 JPA 的 UPDATE 会带 {@code WHERE version = ?}，
+     * 冲突时抛 {@code ObjectOptimisticLockingFailureException}（由异常处理器映射为 409）。
+     * </p>
+     */
+    @Version
+    @Column(name = "version", nullable = false)
+    private Long version;
+
 }
