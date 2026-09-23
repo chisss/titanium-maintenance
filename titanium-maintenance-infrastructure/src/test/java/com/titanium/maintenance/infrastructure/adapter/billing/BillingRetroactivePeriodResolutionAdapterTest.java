@@ -26,7 +26,7 @@ class BillingRetroactivePeriodResolutionAdapterTest {
     @Test
     void shouldAcceptFullyReconciledResolution() {
         RetroactivePeriodAdjustmentApi api = mock(RetroactivePeriodAdjustmentApi.class);
-        when(api.resolveClosedPeriods(eq("billing-batch-1"), any(), eq("tenant-1")))
+        when(api.resolveClosedPeriods(eq("billing-batch-1"), any()))
                 .thenReturn(ApiResponse.success(response("case-1")));
 
         var fact = new BillingRetroactivePeriodResolutionAdapter(api).resolve(request());
@@ -38,7 +38,7 @@ class BillingRetroactivePeriodResolutionAdapterTest {
     @Test
     void shouldRejectResolutionWithDifferentCaseEcho() {
         RetroactivePeriodAdjustmentApi api = mock(RetroactivePeriodAdjustmentApi.class);
-        when(api.resolveClosedPeriods(eq("billing-batch-1"), any(), eq("tenant-1")))
+        when(api.resolveClosedPeriods(eq("billing-batch-1"), any()))
                 .thenReturn(ApiResponse.success(response("case-other")));
 
         assertThrows(BusinessException.class,

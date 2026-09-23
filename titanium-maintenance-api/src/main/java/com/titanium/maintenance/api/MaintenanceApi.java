@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
@@ -40,59 +39,49 @@ public interface MaintenanceApi {
      * 创建保全案件
      *
      * @param request 创建保全请求 DTO
-     * @param tenantId 租户ID
      * @return 保全案件ID
      */
     @PostMapping
-    String createMaintenance(@RequestBody @Valid CreateMaintenanceRequest request,
-                             @RequestHeader("X-Tenant-Id") String tenantId);
+    String createMaintenance(@RequestBody @Valid CreateMaintenanceRequest request);
 
     /**
      * 变更保全案件状态
      *
      * @param id 保全案件ID
      * @param request 状态变更请求 DTO
-     * @param tenantId 租户ID
      * @return 保全案件ID
      */
     @PutMapping("/{id}/status")
-    String changeMaintenanceStatus(@PathVariable("id") String id,
-                                   @RequestBody @Valid ChangeMaintenanceStatusRequest request,
-                                   @RequestHeader("X-Tenant-Id") String tenantId);
+    String changeMaintenanceStatus(@PathVariable String id,
+                                   @RequestBody @Valid ChangeMaintenanceStatusRequest request);
 
     /** 由 Maintenance 编排 Product 替代计算、差额确认与 Billing 余额登记。 */
     @PostMapping("/{id}/premium-settlements")
     MaintenancePremiumSettlementResponse settlePremium(
-            @PathVariable("id") String id,
-            @RequestBody @Valid SettleMaintenancePremiumRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String id,
+            @RequestBody @Valid SettleMaintenancePremiumRequest request);
 
     /** 将既有 Product 生命周期差额生成反向事实并登记 Billing。 */
     @PostMapping("/{id}/reversal-settlements")
     MaintenancePremiumSettlementResponse settleReversal(
-            @PathVariable("id") String id,
-            @RequestBody @Valid SettleMaintenanceReversalRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String id,
+            @RequestBody @Valid SettleMaintenanceReversalRequest request);
 
     /**
      * 根据ID查询保全案件（跨域集成用）
      *
      * @param id 保全案件ID
-     * @param tenantId 租户ID
      * @return 保全案件详情
      */
     @GetMapping("/{id}")
-    MaintenanceResponse getMaintenanceById(@PathVariable("id") String id,
-                                           @RequestHeader("X-Tenant-Id") String tenantId);
+    MaintenanceResponse getMaintenanceById(@PathVariable String id);
 
     /**
      * 根据保单ID查询保全案件列表
      *
      * @param policyId 保单ID
-     * @param tenantId 租户ID
      * @return 保全案件列表
      */
     @GetMapping("/policy/{policyId}")
-    List<MaintenanceResponse> getMaintenancesByPolicyId(@PathVariable("policyId") String policyId,
-                                                        @RequestHeader("X-Tenant-Id") String tenantId);
+    List<MaintenanceResponse> getMaintenancesByPolicyId(@PathVariable String policyId);
 }

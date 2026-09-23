@@ -35,7 +35,7 @@ public class ClaimRetroactiveImpactSourceAdapter
 
     @Override
     protected ApiResponse<List<ClaimResponse>> query(ImpactRequest request) {
-        return client.getClaimsByPolicyId(request.policyId(), request.tenantId());
+        return client.getClaimsByPolicyId(request.policyId());
     }
 
     @Override

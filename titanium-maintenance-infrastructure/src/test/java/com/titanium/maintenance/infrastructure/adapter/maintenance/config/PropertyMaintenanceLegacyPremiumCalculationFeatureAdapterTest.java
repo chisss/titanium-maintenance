@@ -11,13 +11,13 @@ class PropertyMaintenanceLegacyPremiumCalculationFeatureAdapterTest {
     void shouldEnableLegacyPremiumCalculationWhenPropertyIsTrue() {
         var adapter = new PropertyMaintenanceLegacyPremiumCalculationFeatureAdapter(true);
 
-        assertTrue(adapter.isEnabled("tenant-1"));
+        assertTrue(adapter.isEnabled());
     }
 
     @Test
     void shouldDisableLegacyPremiumCalculationWhenPropertyIsFalse() {
         var adapter = new PropertyMaintenanceLegacyPremiumCalculationFeatureAdapter(false);
 
-        assertFalse(adapter.isEnabled("tenant-1"));
+        assertFalse(adapter.isEnabled());
     }
 }

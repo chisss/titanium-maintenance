@@ -62,7 +62,7 @@ class MaintenanceConfigurationLifecycleIntegrationTest {
                 request -> new ReferenceValidationEvidence(true, "reference-v1",
                         request.ruleCodes(), request.permissionCodes(), request.templateCodes(), null));
         var managementService = new MaintenanceConfigurationManagementApplicationService(
-                repository, validator, tenantId -> true);
+                repository, validator, () -> true);
         var commandService = new MaintenanceConfigurationCommandService(managementService);
         var queryService = new MaintenanceConfigurationQueryService(
                 new MaintenanceConfigurationQueryApplicationService(repository));

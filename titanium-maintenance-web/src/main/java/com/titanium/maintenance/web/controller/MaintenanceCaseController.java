@@ -13,10 +13,10 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.command.casecreation.CreateMaintenanceCaseInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceAutomaticReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
@@ -116,8 +116,8 @@ public class MaintenanceCaseController {
             @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId) {
+            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size) {
+        String tenantId = RequestContextHolder.requireTenantId();
         MaintenanceCaseSearchCriteria criteria = new MaintenanceCaseSearchCriteria(
                 caseId, policyNumber, customerId, itemCode, source, status, operatorId,
                 createdFrom, createdTo, page, size);
@@ -127,8 +127,8 @@ public class MaintenanceCaseController {
     /** 独立案件详情；敏感字段默认脱敏。 */
     @GetMapping({"/api/v1/maintenance/cases/{caseId}", "/web/v1/maintenance/cases/{caseId}"})
     public ResponseEntity<MaintenanceCaseDetailVO> detail(
-            @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId) {
+            @PathVariable @NotBlank @Size(max = 64) String caseId) {
+        String tenantId = RequestContextHolder.requireTenantId();
         boolean sensitiveDetailsVisible = queryAccessResolver.sensitiveDetailsVisible();
         return ResponseEntity.ok(caseQueryWebMapper.toDetailVO(
                 caseQueryService.findDetail(tenantId, caseId, sensitiveDetailsVisible)));
@@ -141,9 +141,9 @@ public class MaintenanceCaseController {
     })
     public ResponseEntity<MaintenanceRetroactiveImpactAnalysisVO> analyzeRetroactiveImpact(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody AnalyzeMaintenanceRetroactiveImpactDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody AnalyzeMaintenanceRetroactiveImpactDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.analyzeRetroactiveImpact(new MaintenanceRetroactiveImpactAnalysisInput(
                 caseId, request.operationId(), operatorId, tenantId));
         return ResponseEntity.ok(new MaintenanceRetroactiveImpactAnalysisVO(
@@ -160,9 +160,9 @@ public class MaintenanceCaseController {
     })
     public ResponseEntity<MaintenanceRetroactivePeriodRecalculationVO> recalculateRetroactivePeriods(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody RecalculateMaintenanceRetroactivePeriodsDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody RecalculateMaintenanceRetroactivePeriodsDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.recalculateRetroactivePeriods(
                 new MaintenanceRetroactivePeriodRecalculationInput(
                         caseId, request.operationId(), operatorId, tenantId));
@@ -181,9 +181,9 @@ public class MaintenanceCaseController {
     })
     public ResponseEntity<MaintenanceRetroactivePeriodResolutionVO> resolveRetroactivePeriods(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody ResolveMaintenanceRetroactivePeriodsDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody ResolveMaintenanceRetroactivePeriodsDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.resolveRetroactivePeriods(
                 new MaintenanceRetroactivePeriodResolutionInput(
                         caseId, request.operationId(), request.targetAccountingPeriod(),
@@ -198,18 +198,18 @@ public class MaintenanceCaseController {
     /** 系统 API 自动建案；来源由路由固定，不接受请求体覆盖。 */
     @PostMapping("/api/v1/maintenance/cases")
     public CompletableFuture<ResponseEntity<MaintenanceCaseCreationVO>> createByApi(
-            @Valid @RequestBody CreateMaintenanceCaseDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody CreateMaintenanceCaseDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return create(request, tenantId, operatorId, MaintenanceChannel.API);
     }
 
     /** 保全后台人工建案；来源由路由固定，不接受请求体覆盖。 */
     @PostMapping("/web/v1/maintenance/cases")
     public CompletableFuture<ResponseEntity<MaintenanceCaseCreationVO>> createManually(
-            @Valid @RequestBody CreateMaintenanceCaseDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody CreateMaintenanceCaseDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return create(request, tenantId, operatorId, MaintenanceChannel.MANUAL);
     }
 
@@ -218,9 +218,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<Void>> recordApiFieldChanges(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 64) String itemCode,
-            @Valid @RequestBody RecordMaintenanceFieldChangesDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody RecordMaintenanceFieldChangesDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return recordFieldChanges(caseId, itemCode, request, tenantId, operatorId);
     }
 
@@ -229,9 +229,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<Void>> recordManualFieldChanges(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 64) String itemCode,
-            @Valid @RequestBody RecordMaintenanceFieldChangesDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody RecordMaintenanceFieldChangesDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return recordFieldChanges(caseId, itemCode, request, tenantId, operatorId);
     }
 
@@ -243,9 +243,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<MaintenanceItemWithdrawalVO>> withdrawItem(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 64) String itemCode,
-            @Valid @RequestBody WithdrawMaintenanceItemDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody WithdrawMaintenanceItemDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.withdrawItem(new MaintenanceItemWithdrawalInput(
                 caseId, itemCode, request.operationId(), request.reason(), request.paymentMethod(),
                 operatorId, tenantId)).thenApply(result -> ResponseEntity.ok(new MaintenanceItemWithdrawalVO(
@@ -266,9 +266,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.claimTask(workflowInput(
                 caseId, taskId, request.operationId(), null, null, null, null,
                 null, tenantId, operatorId, source(servletRequest))));
@@ -282,9 +282,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.startTask(workflowInput(
                 caseId, taskId, request.operationId(), null, null, null, null,
                 null, tenantId, operatorId, source(servletRequest))));
@@ -298,9 +298,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody CompleteMaintenanceWorkflowTaskDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.completeTask(workflowInput(
                 caseId, taskId, request.operationId(), request.evidenceVersion(),
                 request.evidenceHash(), request.resultCode(), request.reason(), null,
@@ -315,9 +315,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody FailMaintenanceWorkflowTaskDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.failTask(workflowInput(
                 caseId, taskId, request.operationId(), null, null,
                 request.failureCode(), request.failureReason(), null,
@@ -332,9 +332,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody RetryMaintenanceWorkflowTaskDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.retryTask(workflowInput(
                 caseId, taskId, request.operationId(), null, null, null,
                 request.reason(), null, tenantId, operatorId, source(servletRequest))));
@@ -345,9 +345,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<Void>> decideTaskCondition(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
-            @Valid @RequestBody DecideMaintenanceWorkflowConditionDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody DecideMaintenanceWorkflowConditionDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.decideTaskCondition(workflowInput(
                 caseId, taskId, request.operationId(), request.ruleVersion(),
                 request.inputHash(), null, request.reason(), request.decision(),
@@ -359,9 +359,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<Void>> decideReview(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
-            @Valid @RequestBody DecideMaintenanceReviewDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody DecideMaintenanceReviewDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenanceManualReviewInput input = new MaintenanceManualReviewInput(
                 caseId, taskId, request.operationId(), request.decision(),
                 request.policyVersion(), request.comment(), operatorId, tenantId,
@@ -374,9 +374,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<Void>> issueDocument(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
-            @Valid @RequestBody IssueMaintenanceDocumentDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody IssueMaintenanceDocumentDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenanceDocumentIssueInput input = new MaintenanceDocumentIssueInput(
                 caseId, taskId, request.operationId(), request.voucherNo(), operatorId, tenantId,
                 MaintenanceChannel.MANUAL);
@@ -388,9 +388,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<Void>> completeItem(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
-            @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody MaintenanceWorkflowOperationDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return noContent(caseCommandService.completeItem(workflowInput(
                 caseId, taskId, request.operationId(), null, null, null, null, null,
                 tenantId, operatorId, MaintenanceChannel.MANUAL)));
@@ -401,9 +401,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<MaintenanceAutomaticReviewVO>> automaticReview(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
-            @Valid @RequestBody AutomaticMaintenanceReviewDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody AutomaticMaintenanceReviewDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenanceAutomaticReviewInput input = new MaintenanceAutomaticReviewInput(
                 caseId, taskId, request.operationId(), request.policyVersion(),
                 request.identityVerified(), request.identityEvidenceHash(),
@@ -424,9 +424,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody ApplyMaintenanceEffectDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenanceEffectApplicationInput input = new MaintenanceEffectApplicationInput(
                 caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest),
                 switchInput(request.investmentSwitch()));
@@ -442,9 +442,9 @@ public class MaintenanceCaseController {
             "/web/v1/maintenance/cases/{caseId}/field-conflicts/refresh"})
     public CompletableFuture<ResponseEntity<MaintenanceFieldConflictOperationVO>> refreshFieldConflicts(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody RefreshMaintenanceFieldConflictsDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody RefreshMaintenanceFieldConflictsDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.refreshFieldConflicts(new RefreshMaintenanceFieldConflictsInput(
                         caseId, request.operationId(), operatorId, tenantId))
                 .thenApply(result -> ResponseEntity.ok(conflictOperationVO(result)));
@@ -456,9 +456,9 @@ public class MaintenanceCaseController {
             "/web/v1/maintenance/cases/{caseId}/field-conflicts/resolve"})
     public CompletableFuture<ResponseEntity<MaintenanceFieldConflictOperationVO>> resolveFieldConflict(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody ResolveMaintenanceFieldConflictDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId) {
+            @Valid @RequestBody ResolveMaintenanceFieldConflictDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.resolveFieldConflict(new ResolveMaintenanceFieldConflictInput(
                         caseId, request.operationId(), request.itemCode(), request.objectId(), request.fieldCode(),
                         request.action(), request.dataType(), request.canonicalValue(), request.reason(),
@@ -473,9 +473,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<MaintenanceEffectScheduleVO>> createEffectSchedule(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.createEffectSchedule(scheduleInput(
                         caseId, request, tenantId, operatorId, source(servletRequest)))
                 .thenApply(result -> ResponseEntity.ok(scheduleVO(result)));
@@ -488,9 +488,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<MaintenanceEffectScheduleVO>> pauseEffectSchedule(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.pauseEffectSchedule(scheduleInput(
                         caseId, request, tenantId, operatorId, source(servletRequest)))
                 .thenApply(result -> ResponseEntity.ok(scheduleVO(result)));
@@ -503,9 +503,9 @@ public class MaintenanceCaseController {
     public CompletableFuture<ResponseEntity<MaintenanceEffectScheduleVO>> resumeEffectSchedule(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.resumeEffectSchedule(scheduleInput(
                         caseId, request, tenantId, operatorId, source(servletRequest)))
                 .thenApply(result -> ResponseEntity.ok(scheduleVO(result)));
@@ -518,9 +518,9 @@ public class MaintenanceCaseController {
     public ResponseEntity<MaintenanceEffectApplicationVO> executeEffectScheduleNow(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.executeEffectScheduleNow(scheduleInput(
                 caseId, request, tenantId, operatorId, source(servletRequest)));
         return ResponseEntity.ok(new MaintenanceEffectApplicationVO(
@@ -536,9 +536,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenanceUnderwritingAssessmentInput input = new MaintenanceUnderwritingAssessmentInput(
                 caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest));
         return caseCommandService.assessUnderwriting(input)
@@ -556,9 +556,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody QuoteMaintenancePremiumDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenancePremiumQuoteInput input = new MaintenancePremiumQuoteInput(
                 caseId, taskId, request.operationId(), request.lifecycleType(),
                 request.originalCalculationId(), request.currency(), request.sumInsured(), request.age(),
@@ -588,9 +588,9 @@ public class MaintenanceCaseController {
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody SettleMaintenancePremiumDTO request,
-            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 64) String tenantId,
-            @RequestHeader("X-Operator-Id") @NotBlank @Size(max = 64) String operatorId,
             HttpServletRequest servletRequest) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        String operatorId = RequestContextHolder.requireOperatorId();
         MaintenancePremiumSettlementGateInput input = new MaintenancePremiumSettlementGateInput(
                 caseId, taskId, request.operationId(), request.paymentMethod(), request.reason(),
                 operatorId, tenantId, source(servletRequest));

@@ -3,7 +3,7 @@ package com.titanium.maintenance.web.interceptor;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.HandlerInterceptor;
 
-import com.titanium.maintenance.common.context.TenantContext;
+import com.titanium.common.context.RequestContextHolder;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,7 +16,7 @@ public class TenantInterceptor implements HandlerInterceptor {
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         String tenantId = request.getHeader(TENANT_HEADER);
         if (tenantId != null) {
-            TenantContext.setCurrentTenant(tenantId);
+            RequestContextHolder.setTenantId(tenantId);
         }
         return true;
     }
@@ -24,6 +24,6 @@ public class TenantInterceptor implements HandlerInterceptor {
     @Override
     public void afterCompletion(HttpServletRequest request, HttpServletResponse response,
                               Object handler, Exception ex) {
-        TenantContext.clear();
+        RequestContextHolder.setTenantId(null);
     }
 }

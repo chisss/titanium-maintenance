@@ -85,7 +85,7 @@ class MaintenanceConfigurationManagementApplicationServiceTest {
         when(validator.validateAndRequire(eq("tenant-1"), any(), eq(criteria()), eq(OPERATED_AT)))
                 .thenReturn(new MaintenanceConfigurationValidationResult(
                         true, List.of(), "catalog-v1", "a".repeat(64), "reference-v1", OPERATED_AT));
-        when(featurePort.isWriteEnabled("tenant-1")).thenReturn(true);
+        when(featurePort.isWriteEnabled()).thenReturn(true);
         when(repository.existsPublishedOverlap(eq("tenant-1"), eq("CONTACT_CHANGE"), eq("config-1"),
                 any(), any())).thenReturn(true);
 

@@ -61,7 +61,7 @@ class MaintenanceApplicationServiceSearchTest {
 
     @Test
     void shouldRejectLegacyCreationBeforeCallingDependenciesWhenFeatureIsDisabled() {
-        when(legacyCreationFeaturePort.isEnabled("tenant-1")).thenReturn(false);
+        when(legacyCreationFeaturePort.isEnabled()).thenReturn(false);
 
         assertThrows(MaintenanceLegacyCreationDisabledException.class,
                 () -> service.createMaintenanceCase(
@@ -73,7 +73,7 @@ class MaintenanceApplicationServiceSearchTest {
 
     @Test
     void shouldRejectLegacyPremiumCalculationBeforeReadingCaseWhenFeatureIsDisabled() {
-        when(legacyPremiumCalculationFeaturePort.isEnabled("tenant-1")).thenReturn(false);
+        when(legacyPremiumCalculationFeaturePort.isEnabled()).thenReturn(false);
 
         assertThrows(MaintenanceLegacyPremiumCalculationDisabledException.class,
                 () -> service.calculateMaintenancePremium(
@@ -85,7 +85,7 @@ class MaintenanceApplicationServiceSearchTest {
 
     @Test
     void shouldPreserveLegacyPremiumCalculationWhenFeatureIsEnabled() {
-        when(legacyPremiumCalculationFeaturePort.isEnabled("tenant-1")).thenReturn(true);
+        when(legacyPremiumCalculationFeaturePort.isEnabled()).thenReturn(true);
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "tenant-1"))
                 .thenReturn(Optional.of(view("maintenance-1")));
         when(commandGateway.send(any(CalculateMaintenancePremiumCommand.class)))
@@ -102,7 +102,7 @@ class MaintenanceApplicationServiceSearchTest {
 
     @Test
     void shouldRejectLegacyExecutionBeforeReadingCaseWhenFeatureIsDisabled() {
-        when(legacyExecutionFeaturePort.isEnabled("tenant-1")).thenReturn(false);
+        when(legacyExecutionFeaturePort.isEnabled()).thenReturn(false);
 
         assertThrows(MaintenanceLegacyExecutionDisabledException.class,
                 () -> service.executeMaintenance(
@@ -114,7 +114,7 @@ class MaintenanceApplicationServiceSearchTest {
 
     @Test
     void shouldPreserveLegacyExecutionWhenFeatureIsEnabled() {
-        when(legacyExecutionFeaturePort.isEnabled("tenant-1")).thenReturn(true);
+        when(legacyExecutionFeaturePort.isEnabled()).thenReturn(true);
         MaintenanceView approved = view("maintenance-1");
         approved.setStatus(MaintenanceStatus.APPROVED);
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "tenant-1"))
@@ -133,7 +133,7 @@ class MaintenanceApplicationServiceSearchTest {
 
     @Test
     void shouldRejectLegacyExecutionForIndependentCase() {
-        when(legacyExecutionFeaturePort.isEnabled("tenant-1")).thenReturn(true);
+        when(legacyExecutionFeaturePort.isEnabled()).thenReturn(true);
         MaintenanceView independent = independentView("maintenance-1", true);
         independent.setStatus(MaintenanceStatus.APPROVED);
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "tenant-1"))

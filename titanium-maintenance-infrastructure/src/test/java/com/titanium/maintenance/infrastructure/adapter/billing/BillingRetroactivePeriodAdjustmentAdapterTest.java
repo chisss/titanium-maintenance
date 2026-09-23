@@ -29,7 +29,7 @@ class BillingRetroactivePeriodAdjustmentAdapterTest {
     @Test
     void shouldAcceptFullyReconciledBillingFact() {
         RetroactivePeriodAdjustmentApi api = mock(RetroactivePeriodAdjustmentApi.class);
-        when(api.post(any(), org.mockito.ArgumentMatchers.eq("tenant-1")))
+        when(api.post(any()))
                 .thenReturn(ApiResponse.success(response("case-1")));
 
         var fact = new BillingRetroactivePeriodAdjustmentAdapter(api).adjust(request());
@@ -41,7 +41,7 @@ class BillingRetroactivePeriodAdjustmentAdapterTest {
     @Test
     void shouldRejectBillingFactWithDifferentCaseEcho() {
         RetroactivePeriodAdjustmentApi api = mock(RetroactivePeriodAdjustmentApi.class);
-        when(api.post(any(), org.mockito.ArgumentMatchers.eq("tenant-1")))
+        when(api.post(any()))
                 .thenReturn(ApiResponse.success(response("case-other")));
 
         assertThrows(BusinessException.class,

@@ -17,7 +17,7 @@ public class PropertyMaintenanceLegacyExecutionFeatureAdapter implements Mainten
     }
 
     @Override
-    public boolean isEnabled(String tenantId) {
+    public boolean isEnabled() {
         return enabled;
     }
 }

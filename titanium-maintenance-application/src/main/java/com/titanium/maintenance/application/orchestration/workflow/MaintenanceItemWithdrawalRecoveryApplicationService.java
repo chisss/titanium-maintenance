@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.command.withdrawal.MaintenanceItemWithdrawalInput;
 import com.titanium.maintenance.application.configuration.MaintenanceWithdrawalRecoveryProperties;
 import com.titanium.maintenance.port.maintenance.MaintenanceItemWithdrawalRecoveryLeasePort;
@@ -41,9 +42,14 @@ public class MaintenanceItemWithdrawalRecoveryApplicationService {
 
     private void recover(WithdrawalRecoveryLease lease) {
         try {
-            withdrawalApplicationService.withdraw(new MaintenanceItemWithdrawalInput(
-                    lease.maintenanceId(), lease.itemCode(), lease.operationId(), lease.reason(),
-                    lease.paymentMethod(), RECOVERY_OPERATOR, lease.tenantId())).join();
+            // 定时任务线程无请求身份上下文，且本批次跨租户：逐租约建立作用域（退出即还原，
+            // 不污染线程池复用线程），使撤销退款链路出站 Feign（Payment 退款/收款客户端，
+            // 路径 /api/v1/** 强制准入）带得上租户头。置于 try 内：租约缺租户时 runAsTenant
+            // 快速失败，由下方 catch 捕获记录，不中断整批。
+            RequestContextHolder.runAsTenant(lease.tenantId(), () ->
+                    withdrawalApplicationService.withdraw(new MaintenanceItemWithdrawalInput(
+                            lease.maintenanceId(), lease.itemCode(), lease.operationId(), lease.reason(),
+                            lease.paymentMethod(), RECOVERY_OPERATOR, lease.tenantId())).join());
         } catch (RuntimeException exception) {
             log.warn("项目撤销自动恢复失败: maintenanceId={}, itemCode={}, retryCount={}, error={}",
                     lease.maintenanceId(), lease.itemCode(), lease.retryCount(), safeMessage(exception));

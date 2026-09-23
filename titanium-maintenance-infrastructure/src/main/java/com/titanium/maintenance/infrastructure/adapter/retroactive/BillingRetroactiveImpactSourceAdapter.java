@@ -36,7 +36,7 @@ public class BillingRetroactiveImpactSourceAdapter
 
     @Override
     protected ApiResponse<List<BillResponse>> query(ImpactRequest request) {
-        return client.getBillsByPolicyId(request.policyId(), request.tenantId());
+        return client.getBillsByPolicyId(request.policyId());
     }
 
     @Override

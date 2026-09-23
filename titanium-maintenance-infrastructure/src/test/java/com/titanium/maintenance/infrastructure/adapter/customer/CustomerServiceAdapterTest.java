@@ -22,7 +22,7 @@ class CustomerServiceAdapterTest {
     void shouldReturnExistenceFromDedicatedEndpoint() {
         CustomerServiceAdapter adapter = new CustomerServiceAdapter(client(true));
 
-        assertTrue(adapter.customerExists("customer-1", "tenant-1"));
+        assertTrue(adapter.customerExists("customer-1"));
     }
 
     @Test
@@ -30,7 +30,7 @@ class CustomerServiceAdapterTest {
     void shouldReturnFalseWhenCustomerAbsentButServiceReachable() {
         CustomerServiceAdapter adapter = new CustomerServiceAdapter(client(false));
 
-        assertFalse(adapter.customerExists("customer-1", "tenant-1"));
+        assertFalse(adapter.customerExists("customer-1"));
     }
 
     @Test
@@ -38,12 +38,12 @@ class CustomerServiceAdapterTest {
     void shouldThrowRemoteCallExceptionWhenCustomerServiceUnreachable() {
         CustomerServiceAdapter adapter = new CustomerServiceAdapter(new CustomerServiceClient() {
             @Override
-            public CustomerResponse getCustomer(String customerId, String tenantId) {
+            public CustomerResponse getCustomer(String customerId) {
                 throw unreachable();
             }
 
             @Override
-            public boolean isCustomerExists(String customerId, String tenantId) {
+            public boolean isCustomerExists(String customerId) {
                 throw unreachable();
             }
 
@@ -53,19 +53,19 @@ class CustomerServiceAdapterTest {
         });
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
-                () -> adapter.customerExists("customer-1", "tenant-1"));
+                () -> adapter.customerExists("customer-1"));
         assertEquals(MaintenanceErrorCode.MAINTENANCE_CUSTOMER_REMOTE_ERROR.getCode(), error.getErrorCode());
     }
 
     private CustomerServiceClient client(boolean exists) {
         return new CustomerServiceClient() {
             @Override
-            public CustomerResponse getCustomer(String customerId, String tenantId) {
+            public CustomerResponse getCustomer(String customerId) {
                 return null;
             }
 
             @Override
-            public boolean isCustomerExists(String customerId, String tenantId) {
+            public boolean isCustomerExists(String customerId) {
                 return exists;
             }
         };

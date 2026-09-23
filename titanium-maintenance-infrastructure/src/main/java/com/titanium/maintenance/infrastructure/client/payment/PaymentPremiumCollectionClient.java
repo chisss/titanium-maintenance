@@ -5,7 +5,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.request.payment.CreatePaymentOrderRequest;
@@ -20,11 +19,9 @@ public interface PaymentPremiumCollectionClient {
 
     @PostMapping
     ApiResponse<PaymentOrderResponse> create(
-            @RequestBody CreatePaymentOrderRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @RequestBody CreatePaymentOrderRequest request);
 
     @GetMapping("/{paymentId}")
     ApiResponse<PaymentOrderResponse> get(
-            @PathVariable("paymentId") String paymentId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String paymentId);
 }

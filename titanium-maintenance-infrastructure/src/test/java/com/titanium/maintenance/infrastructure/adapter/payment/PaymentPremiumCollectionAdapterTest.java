@@ -24,47 +24,47 @@ class PaymentPremiumCollectionAdapterTest {
     @Test
     void shouldReuseExistingDeterministicPaymentOrder() {
         PaymentPremiumCollectionClient client = mock(PaymentPremiumCollectionClient.class);
-        when(client.get("payment-1", "tenant-1")).thenReturn(ApiResponse.success(response("payment-1")));
+        when(client.get("payment-1")).thenReturn(ApiResponse.success(response("payment-1")));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 
         var fact = adapter.create(request());
 
         assertEquals("payment-1", fact.paymentOrderId());
         assertEquals("PENDING", fact.status());
-        verify(client, never()).create(any(), any());
+        verify(client, never()).create(any());
     }
 
     @Test
     void shouldCreateWhenDeterministicPaymentOrderDoesNotExist() {
         PaymentPremiumCollectionClient client = mock(PaymentPremiumCollectionClient.class);
-        when(client.get("payment-1", "tenant-1"))
+        when(client.get("payment-1"))
                 .thenReturn(ApiResponse.error(
                         PaymentErrorCode.PAYMENT_ORDER_NOT_EXIST, "支付订单不存在: payment-1"));
-        when(client.create(any(), any())).thenReturn(ApiResponse.success(response("payment-1")));
+        when(client.create(any())).thenReturn(ApiResponse.success(response("payment-1")));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 
         var fact = adapter.create(request());
 
         assertEquals(new BigDecimal("20"), fact.amount());
-        verify(client).create(any(), any());
+        verify(client).create(any());
     }
 
     @Test
     void shouldNotCreateWhenPaymentLookupFailsForAnotherReason() {
         PaymentPremiumCollectionClient client = mock(PaymentPremiumCollectionClient.class);
-        when(client.get("payment-1", "tenant-1"))
+        when(client.get("payment-1"))
                 .thenReturn(new ApiResponse<>("PAYMENT_REMOTE_ERROR", "payment unavailable", null));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 
         assertThrows(BusinessException.class, () -> adapter.create(request()));
 
-        verify(client, never()).create(any(), any());
+        verify(client, never()).create(any());
     }
 
     @Test
     void shouldRejectMismatchedPaymentOrderIdentity() {
         PaymentPremiumCollectionClient client = mock(PaymentPremiumCollectionClient.class);
-        when(client.get("payment-1", "tenant-1"))
+        when(client.get("payment-1"))
                 .thenReturn(ApiResponse.success(response("another-payment")));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 

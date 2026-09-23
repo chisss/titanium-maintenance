@@ -11,13 +11,13 @@ class PropertyMaintenanceConfigurationFeatureAdapterTest {
     void shouldEnableConfigurationWritesWhenPropertyIsTrue() {
         var adapter = new PropertyMaintenanceConfigurationFeatureAdapter(true);
 
-        assertTrue(adapter.isWriteEnabled("tenant-1"));
+        assertTrue(adapter.isWriteEnabled());
     }
 
     @Test
     void shouldDisableConfigurationWritesWhenPropertyIsFalse() {
         var adapter = new PropertyMaintenanceConfigurationFeatureAdapter(false);
 
-        assertFalse(adapter.isWriteEnabled("tenant-1"));
+        assertFalse(adapter.isWriteEnabled());
     }
 }

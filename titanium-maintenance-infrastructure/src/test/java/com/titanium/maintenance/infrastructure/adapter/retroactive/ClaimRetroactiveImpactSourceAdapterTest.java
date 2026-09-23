@@ -24,7 +24,7 @@ class ClaimRetroactiveImpactSourceAdapterTest {
     @Test
     void shouldClassifyClaimsAndBenefitsWithoutInventingCurrency() {
         ClaimRetroactiveImpactClient client = mock(ClaimRetroactiveImpactClient.class);
-        when(client.getClaimsByPolicyId("policy-1", "tenant-1")).thenReturn(ApiResponse.success(List.of(
+        when(client.getClaimsByPolicyId("policy-1")).thenReturn(ApiResponse.success(List.of(
                 claim("claim-1", "MEDICAL", LocalDateTime.parse("2026-08-10T10:00:00"), "policy-1"),
                 claim("claim-2", "DEATH_BENEFIT", LocalDateTime.parse("2026-08-20T10:00:00"), "policy-1"),
                 claim("claim-before", "MEDICAL", LocalDateTime.parse("2026-07-31T10:00:00"), "policy-1"))));
@@ -45,7 +45,7 @@ class ClaimRetroactiveImpactSourceAdapterTest {
     @Test
     void shouldRejectAuthorityResponseForDifferentPolicy() {
         ClaimRetroactiveImpactClient client = mock(ClaimRetroactiveImpactClient.class);
-        when(client.getClaimsByPolicyId("policy-1", "tenant-1")).thenReturn(ApiResponse.success(List.of(
+        when(client.getClaimsByPolicyId("policy-1")).thenReturn(ApiResponse.success(List.of(
                 claim("claim-1", "MEDICAL", LocalDateTime.parse("2026-08-10T10:00:00"), "policy-2"))));
 
         assertThrows(MaintenanceValidationException.class,

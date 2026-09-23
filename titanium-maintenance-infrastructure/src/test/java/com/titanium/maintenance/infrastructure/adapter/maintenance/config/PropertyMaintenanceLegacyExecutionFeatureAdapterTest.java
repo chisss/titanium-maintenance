@@ -11,13 +11,13 @@ class PropertyMaintenanceLegacyExecutionFeatureAdapterTest {
     void shouldEnableLegacyExecutionWhenPropertyIsTrue() {
         var adapter = new PropertyMaintenanceLegacyExecutionFeatureAdapter(true);
 
-        assertTrue(adapter.isEnabled("tenant-1"));
+        assertTrue(adapter.isEnabled());
     }
 
     @Test
     void shouldDisableLegacyExecutionWhenPropertyIsFalse() {
         var adapter = new PropertyMaintenanceLegacyExecutionFeatureAdapter(false);
 
-        assertFalse(adapter.isEnabled("tenant-1"));
+        assertFalse(adapter.isEnabled());
     }
 }

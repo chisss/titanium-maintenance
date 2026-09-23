@@ -17,7 +17,7 @@ public class PropertyMaintenanceConfigurationFeatureAdapter implements Maintenan
     }
 
     @Override
-    public boolean isWriteEnabled(String tenantId) {
+    public boolean isWriteEnabled() {
         return writeEnabled;
     }
 }

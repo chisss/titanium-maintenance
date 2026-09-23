@@ -4,5 +4,5 @@ package com.titanium.maintenance.port.maintenance;
 public interface MaintenanceLegacyCreationFeaturePort {
 
     /** 判断指定租户是否允许通过旧版入口创建保全案件。 */
-    boolean isEnabled(String tenantId);
+    boolean isEnabled();
 }

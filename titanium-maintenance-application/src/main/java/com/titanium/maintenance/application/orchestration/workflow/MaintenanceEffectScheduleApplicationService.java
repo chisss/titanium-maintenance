@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.command.effect.MaintenanceEffectApplicationInput;
 import com.titanium.maintenance.application.command.effect.MaintenanceEffectScheduleOperationInput;
 import com.titanium.maintenance.application.configuration.MaintenanceEffectSchedulingProperties;
@@ -149,7 +150,12 @@ public class MaintenanceEffectScheduleApplicationService {
                 schedulerOwner, now, now.plus(properties.getLeaseDuration()), properties.getBatchSize());
         for (ScheduleLease lease : leases) {
             try {
-                executeLease(lease, schedulerOwner, SCHEDULER_OPERATOR, MaintenanceChannel.API);
+                // 定时任务线程无请求身份上下文，且本批次跨租户：逐租约建立作用域（退出即还原，
+                // 不污染线程池复用线程），使生效链路出站 Feign（Payment/Billing/Policy 客户端，
+                // 路径均 /api/v1/** 强制准入）带得上租户头。租约缺租户时 runAsTenant 快速失败，
+                // 由下方 catch 捕获记录，不中断整批。
+                RequestContextHolder.runAsTenant(lease.tenantId(),
+                        () -> executeLease(lease, schedulerOwner, SCHEDULER_OPERATOR, MaintenanceChannel.API));
             } catch (RuntimeException exception) {
                 log.warn("未来生效计划执行失败: maintenanceId={}, error={}",
                         lease.maintenanceId(), safeMessage(rootCause(exception)));

@@ -60,7 +60,7 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
     private PolicyMaintenanceSnapshot captureOnce(PolicyMaintenanceSnapshotRequest request) {
         try {
             ApiResponse<PolicyMaintenanceSnapshotResponse> response = policyServiceClient
-                    .getMaintenanceSnapshot(request.policyId(), request.tenantId());
+                    .getMaintenanceSnapshot(request.policyId());
             if (response == null) {
                 throw failure(PolicyMaintenanceSnapshotFailureReason.UNAVAILABLE, "Policy建案快照服务未返回响应");
             }

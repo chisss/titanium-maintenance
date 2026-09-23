@@ -10,7 +10,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import com.titanium.maintenance.common.context.TenantContext;
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
 import com.titanium.maintenance.common.exception.MaintenanceForbiddenException;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
@@ -24,13 +24,13 @@ class MaintenanceConfigurationRequestContextResolverTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
-        TenantContext.clear();
+        RequestContextHolder.clear();
     }
 
     @Test
     void shouldBuildOperationContextFromAuthenticationAndRequest() {
         authenticate("operator-1", "maintenance:config:edit", "maintenance:sensitive:view");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
         MockHttpServletRequest request = new MockHttpServletRequest();
         request.setRemoteAddr("10.0.0.8");
         request.addHeader("X-Correlation-Id", "correlation-1");
@@ -48,7 +48,7 @@ class MaintenanceConfigurationRequestContextResolverTest {
     @Test
     void shouldFailClosedWhenPermissionIsMissing() {
         authenticate("operator-1", "maintenance:config:view");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
 
         assertThatThrownBy(() -> resolver.require(
                 new MockHttpServletRequest(), "maintenance:config:publish"))
@@ -59,7 +59,7 @@ class MaintenanceConfigurationRequestContextResolverTest {
 
     @Test
     void shouldFailClosedWhenAuthenticationIsMissing() {
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
 
         assertThatThrownBy(() -> resolver.require(
                 new MockHttpServletRequest(), "maintenance:config:view"))

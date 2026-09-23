@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.response.payment.PaymentOrderResponse;
@@ -16,6 +15,5 @@ public interface PaymentRetroactiveImpactClient {
 
     @GetMapping("/business/{businessId}")
     ApiResponse<List<PaymentOrderResponse>> getPaymentOrdersByBusinessId(
-            @PathVariable("businessId") String businessId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String businessId);
 }

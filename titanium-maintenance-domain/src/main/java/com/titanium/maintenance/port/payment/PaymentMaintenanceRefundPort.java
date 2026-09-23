@@ -8,7 +8,7 @@ public interface PaymentMaintenanceRefundPort {
 
     RefundFact create(RefundRequest request);
 
-    RefundFact get(String tenantId, String refundOrderId);
+    RefundFact get( String refundOrderId);
 
     record RefundRequest(
             String tenantId,

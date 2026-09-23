@@ -60,7 +60,7 @@ class BillingPremiumLifecycleAdapterTest {
                 "posting-1", "c".repeat(64), "policy-1", "customer-1",
                 "DEBIT", new BigDecimal("53.00"), "CNY", "POSTED",
                 "客户取消项目", "operator-1", LocalDateTime.of(2026, 8, 26, 14, 0));
-        when(client.reverse(anyString(), any(), anyString())).thenReturn(ApiResponse.success(response));
+        when(client.reverse(anyString(), any())).thenReturn(ApiResponse.success(response));
         BillingPremiumLifecycleAdapter adapter = new BillingPremiumLifecycleAdapter(client);
 
         BillingPremiumLifecyclePort.ReversalFact fact = adapter.reverse(
@@ -80,7 +80,7 @@ class BillingPremiumLifecycleAdapterTest {
                 "posting-1", "c".repeat(64), "policy-1", "customer-1",
                 "DEBIT", new BigDecimal("53.00"), "CNY", "PENDING",
                 "客户取消项目", "operator-1", LocalDateTime.of(2026, 8, 26, 14, 0));
-        when(client.reverse(anyString(), any(), anyString())).thenReturn(ApiResponse.success(response));
+        when(client.reverse(anyString(), any())).thenReturn(ApiResponse.success(response));
         BillingPremiumLifecycleAdapter adapter = new BillingPremiumLifecycleAdapter(client);
 
         assertThrows(BusinessException.class, () -> adapter.reverse(
@@ -95,7 +95,7 @@ class BillingPremiumLifecycleAdapterTest {
 
     private BillingPremiumLifecycleClient client(ApiResponse<PremiumLifecyclePostingResponse> response) {
         BillingPremiumLifecycleClient client = mock(BillingPremiumLifecycleClient.class);
-        when(client.post(any(), anyString())).thenReturn(response);
+        when(client.post(any())).thenReturn(response);
         return client;
     }
 }

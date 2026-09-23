@@ -74,7 +74,7 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
     /** 按保单解析账户列表；对端未正常应答一律失败关闭，空列表才是「无账户」 */
     private List<InvestmentAccountQueryResult> requireAccounts(InvestmentSwitchRequest request) {
         ApiResponse<List<InvestmentAccountQueryResult>> response = investmentAccountSwitchClient
-                .getAccountsByPolicy(request.policyId(), request.tenantId());
+                .getAccountsByPolicy(request.policyId());
         if (response == null || !response.isSuccess() || response.getData() == null) {
             throw new MaintenanceRemoteCallException(
                     "投资域账户查询未返回有效结果, policyId=" + request.policyId() + ", code="
@@ -87,7 +87,7 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
     /** 执行转换并校验回执完整性；转换后账户事实必须齐备，否则视为契约无效 */
     private InvestmentAccountQueryResult requireSwitched(String accountId, InvestmentSwitchRequest request) {
         ApiResponse<InvestmentAccountQueryResult> response = investmentAccountSwitchClient
-                .switchUnits(accountId, toSwitchRequest(request), request.tenantId());
+                .switchUnits(accountId, toSwitchRequest(request));
         InvestmentAccountQueryResult switched = response == null ? null : response.getData();
         if (response == null || !response.isSuccess() || switched == null
                 || switched.getAccountId() == null || switched.getUnitPrice() == null

@@ -66,7 +66,7 @@ class PolicyFieldCatalogAdapterTest {
     }
 
     private PolicyFieldCatalogAdapter adapter(ApiResponse<PolicyFieldCatalogResponse> response) {
-        PolicyFieldCatalogClient client = (tenantId, productType, policyType, businessDate) -> response;
+        PolicyFieldCatalogClient client = (productType, policyType, businessDate) -> response;
         return new PolicyFieldCatalogAdapter(client);
     }
 

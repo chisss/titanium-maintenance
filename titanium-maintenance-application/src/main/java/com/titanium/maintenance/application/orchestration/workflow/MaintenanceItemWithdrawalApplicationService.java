@@ -164,7 +164,7 @@ public class MaintenanceItemWithdrawalApplicationService {
             MaintenanceItemWithdrawalInput input,
             MaintenanceWorkflowTaskView feeTask,
             String orderId) {
-        RefundFact fact = refundPort.get(input.tenantId(), orderId);
+        RefundFact fact = refundPort.get( orderId);
         if (!Objects.equals(feeTask.getBillingPostingId(), fact.sourcePostingId())
                 || feeTask.getBillingPostingAmount().compareTo(fact.amount()) != 0
                 || !feeTask.getBillingPostingCurrency().equalsIgnoreCase(fact.currency())) {

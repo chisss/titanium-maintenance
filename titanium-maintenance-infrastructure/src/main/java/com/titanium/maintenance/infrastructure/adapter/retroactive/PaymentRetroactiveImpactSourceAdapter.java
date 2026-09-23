@@ -37,7 +37,7 @@ public class PaymentRetroactiveImpactSourceAdapter
 
     @Override
     protected ApiResponse<List<PaymentOrderResponse>> query(ImpactRequest request) {
-        return client.getPaymentOrdersByBusinessId(request.policyId(), request.tenantId());
+        return client.getPaymentOrdersByBusinessId(request.policyId());
     }
 
     @Override

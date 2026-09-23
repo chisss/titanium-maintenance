@@ -15,11 +15,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
 import com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
@@ -68,8 +68,8 @@ public class MaintenanceController {
 
     // 创建保全记录
     @PostMapping
-    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceDTO request,
-                                                    @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
         try {
             CompletableFuture<String> future = maintenanceApplicationService.createMaintenanceCase(
                     request.getPolicyId(),
@@ -91,9 +91,9 @@ public class MaintenanceController {
 
     // 变更保全记录状态
     @PutMapping("/{id}/status")
-    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                          @Valid @RequestBody ChangeMaintenanceStatusDTO request,
-                                                          @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable @NotBlank @Size(max = 36) String id,
+                                                          @Valid @RequestBody ChangeMaintenanceStatusDTO request) {
+        String tenantId = RequestContextHolder.requireTenantId();
         try {
             CompletableFuture<String> future = maintenanceApplicationService.changeMaintenanceStatus(
                     id,
@@ -111,8 +111,8 @@ public class MaintenanceController {
 
     // 根据ID查询保全记录
     @GetMapping("/{id}")
-    public ResponseEntity<MaintenanceVO> getMaintenanceById(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                            @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<MaintenanceVO> getMaintenanceById(@PathVariable @NotBlank @Size(max = 36) String id) {
+        String tenantId = RequestContextHolder.requireTenantId();
         MaintenanceVO vo = maintenanceWebMapper.toVO(maintenanceApplicationService.findMaintenanceById(id, tenantId));
         return ResponseEntity.ok(vo);
     }
@@ -120,8 +120,8 @@ public class MaintenanceController {
     // 根据保单ID查询保全记录
     @GetMapping("/policy/{policyId}")
     public ResponseEntity<List<MaintenanceVO>> getMaintenancesByPolicyId(
-            @PathVariable("policyId") @NotBlank @Size(max = 36) String policyId,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @PathVariable @NotBlank @Size(max = 36) String policyId) {
+        String tenantId = RequestContextHolder.requireTenantId();
         List<MaintenanceVO> vos = maintenanceApplicationService.findMaintenancesByPolicyId(policyId, tenantId).stream()
                 .map(maintenanceWebMapper::toVO)
                 .toList();
@@ -142,8 +142,8 @@ public class MaintenanceController {
             @RequestParam(required = false) String maintenanceType,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
+        String tenantId = RequestContextHolder.requireTenantId();
         List<MaintenanceVO> vos = maintenanceApplicationService
                 .searchMaintenances(policyId, customerId, maintenanceType, status, page, size, tenantId)
                 .stream()
@@ -160,8 +160,8 @@ public class MaintenanceController {
             @RequestParam(required = false) String maintenanceType,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
+        String tenantId = RequestContextHolder.requireTenantId();
         var result = maintenanceApplicationService.searchMaintenancePage(
                 policyId, customerId, maintenanceType, status, page, size, tenantId);
         return ResponseEntity.ok(new MaintenancePageVO(
@@ -175,12 +175,12 @@ public class MaintenanceController {
      * 返回处理中保全工单数（PENDING/PROCESSING）、今日新增保全数、保全总数，按租户隔离。
      * </p>
      *
-     * @param tenantId 租户ID（请求头 X-Tenant-Id）
      * @return 保全统计结果
      */
     @GetMapping("/statistics")
     public ResponseEntity<MaintenanceStatisticsResponse> getStatistics(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            ) {
+        String tenantId = RequestContextHolder.requireTenantId();
         return ResponseEntity.ok(
                 maintenanceStatisticsWebMapper.toResponse(maintenanceApplicationService.getStatistics(tenantId)));
     }
@@ -190,7 +190,8 @@ public class MaintenanceController {
      */
     @GetMapping("/pending")
     public ResponseEntity<List<MaintenanceVO>> getPendingMaintenances(
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            ) {
+        String tenantId = RequestContextHolder.requireTenantId();
         List<MaintenanceVO> vos = maintenanceApplicationService.findPendingMaintenances(tenantId).stream()
                 .map(maintenanceWebMapper::toVO)
                 .toList();
@@ -199,13 +200,13 @@ public class MaintenanceController {
 
     // 添加保全变更记录
     @PostMapping("/{id}/changes")
-    public ResponseEntity<String> addMaintenanceChange(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                       @RequestParam("changeType") @NotBlank String changeType,
-                                                       @RequestParam("fieldName") @NotBlank String fieldName,
-                                                       @RequestParam("oldValue") String oldValue,
-                                                       @RequestParam("newValue") String newValue,
-                                                       @RequestParam("createdBy") @NotBlank String createdBy,
-                                                       @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<String> addMaintenanceChange(@PathVariable @NotBlank @Size(max = 36) String id,
+                                                       @RequestParam @NotBlank String changeType,
+                                                       @RequestParam @NotBlank String fieldName,
+                                                       @RequestParam String oldValue,
+                                                       @RequestParam String newValue,
+                                                       @RequestParam @NotBlank String createdBy) {
+        String tenantId = RequestContextHolder.requireTenantId();
         try {
             CompletableFuture<String> future = maintenanceApplicationService.addMaintenanceChange(
                     id, changeType, fieldName, oldValue, newValue, createdBy, tenantId);
@@ -220,12 +221,12 @@ public class MaintenanceController {
 
     // 计算保全保费
     @PostMapping("/{id}/calculate-premium")
-    public ResponseEntity<String> calculateMaintenancePremium(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                              @RequestParam("totalAmount") BigDecimal totalAmount,
-                                                              @RequestParam("refundAmount") BigDecimal refundAmount,
-                                                              @RequestParam("calculationDetails") String calculationDetails,
-                                                              @RequestParam("updatedBy") @NotBlank String updatedBy,
-                                                              @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<String> calculateMaintenancePremium(@PathVariable @NotBlank @Size(max = 36) String id,
+                                                              @RequestParam BigDecimal totalAmount,
+                                                              @RequestParam BigDecimal refundAmount,
+                                                              @RequestParam String calculationDetails,
+                                                              @RequestParam @NotBlank String updatedBy) {
+        String tenantId = RequestContextHolder.requireTenantId();
         try {
             CompletableFuture<String> future = maintenanceApplicationService.calculateMaintenancePremium(
                     id, totalAmount, refundAmount, calculationDetails, updatedBy, tenantId);
@@ -241,9 +242,9 @@ public class MaintenanceController {
     /** 新权威入口：不接收人工金额，由 Maintenance 编排 Product 与 Billing。 */
     @PostMapping("/{id}/premium-settlements")
     public ResponseEntity<MaintenancePremiumSettlementResponse> settlePremium(
-            @PathVariable("id") @NotBlank @Size(max = 36) String id,
-            @Valid @RequestBody SettleMaintenancePremiumRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @PathVariable @NotBlank @Size(max = 36) String id,
+            @Valid @RequestBody SettleMaintenancePremiumRequest request) {
+        String tenantId = RequestContextHolder.requireTenantId();
         return ResponseEntity.ok(maintenanceWebMapper.toSettlementResponse(
                 premiumSettlementCommandService.settle(
                         id, tenantId, maintenanceWebMapper.toSettlementInput(request))));
@@ -252,9 +253,9 @@ public class MaintenanceController {
     /** 退保权威入口：现金价值由 Product 已发布策略计算，客户端不提交金额。 */
     @PostMapping("/{id}/surrender-settlements")
     public ResponseEntity<MaintenanceSurrenderSettlementResponse> settleSurrender(
-            @PathVariable("id") @NotBlank @Size(max = 36) String id,
-            @Valid @RequestBody SettleMaintenanceSurrenderRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId) {
+            @PathVariable @NotBlank @Size(max = 36) String id,
+            @Valid @RequestBody SettleMaintenanceSurrenderRequest request) {
+        String tenantId = RequestContextHolder.requireTenantId();
         return ResponseEntity.ok(maintenanceWebMapper.toSurrenderSettlementResponse(
                 premiumSettlementCommandService.settleSurrender(
                         id, tenantId, maintenanceWebMapper.toSurrenderSettlementInput(request))));
@@ -262,11 +263,11 @@ public class MaintenanceController {
 
     // 执行保全
     @PostMapping("/{id}/execute")
-    public ResponseEntity<String> executeMaintenance(@PathVariable("id") @NotBlank @Size(max = 36) String id,
-                                                     @RequestParam("effectiveTime") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveTime,
-                                                     @RequestParam("executionDetails") String executionDetails,
-                                                     @RequestParam("updatedBy") @NotBlank String updatedBy,
-                                                     @RequestHeader("X-Tenant-Id") String tenantId) {
+    public ResponseEntity<String> executeMaintenance(@PathVariable @NotBlank @Size(max = 36) String id,
+                                                     @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveTime,
+                                                     @RequestParam String executionDetails,
+                                                     @RequestParam @NotBlank String updatedBy) {
+        String tenantId = RequestContextHolder.requireTenantId();
         try {
             CompletableFuture<String> future = maintenanceApplicationService.executeMaintenance(
                     id, effectiveTime, executionDetails, updatedBy, tenantId);

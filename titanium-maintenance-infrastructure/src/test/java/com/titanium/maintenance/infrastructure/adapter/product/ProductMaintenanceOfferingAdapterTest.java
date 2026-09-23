@@ -76,7 +76,7 @@ class ProductMaintenanceOfferingAdapterTest {
         when(client.resolve(
                 request.productId(), request.productVersion(), request.planVersion(),
                 request.policyStatus().getCode(), request.source().getCode(),
-                request.businessEffectiveAt(), request.tenantId()))
+                request.businessEffectiveAt()))
                 .thenReturn(response);
     }
 

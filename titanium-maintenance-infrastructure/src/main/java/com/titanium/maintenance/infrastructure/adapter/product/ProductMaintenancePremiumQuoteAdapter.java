@@ -36,7 +36,7 @@ public class ProductMaintenancePremiumQuoteAdapter implements ProductMaintenance
     public QuoteFact quote(QuoteRequest request) {
         try {
             MaintenancePremiumQuoteResponse response = requireSuccess(
-                    api.quote(request.productId(), toApiRequest(request), request.tenantId()));
+                    api.quote(request.productId(), toApiRequest(request)));
             validateEcho(request, response);
             return new QuoteFact(
                     response.tenantId(), response.maintenanceId(), response.policyId(),

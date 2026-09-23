@@ -28,7 +28,7 @@ class ProductRetroactivePeriodRecalculationAdapterTest {
     @Test
     void shouldAcceptFullyReconciledProductFact() {
         ProductPremiumCalculationApi api = mock(ProductPremiumCalculationApi.class);
-        when(api.recalculateRetroactivePeriods(any(), org.mockito.ArgumentMatchers.eq("tenant-1")))
+        when(api.recalculateRetroactivePeriods(any()))
                 .thenReturn(ApiResponse.success(response("policy-1")));
 
         var fact = new ProductRetroactivePeriodRecalculationAdapter(api).recalculate(request());
@@ -41,7 +41,7 @@ class ProductRetroactivePeriodRecalculationAdapterTest {
     @Test
     void shouldRejectProductFactWithDifferentPolicyEcho() {
         ProductPremiumCalculationApi api = mock(ProductPremiumCalculationApi.class);
-        when(api.recalculateRetroactivePeriods(any(), org.mockito.ArgumentMatchers.eq("tenant-1")))
+        when(api.recalculateRetroactivePeriods(any()))
                 .thenReturn(ApiResponse.success(response("policy-other")));
 
         assertThrows(BusinessException.class,

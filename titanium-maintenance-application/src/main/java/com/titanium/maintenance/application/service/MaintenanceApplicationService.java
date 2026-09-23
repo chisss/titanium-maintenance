@@ -90,7 +90,7 @@ public class MaintenanceApplicationService {
                                                            EffectiveTimeType effectiveTimeType,
                                                            LocalDateTime specificEffectiveDate, String description,
                                                            String createdBy, String tenantId) {
-        if (!legacyCreationFeaturePort.isEnabled(tenantId)) {
+        if (!legacyCreationFeaturePort.isEnabled()) {
             throw new MaintenanceLegacyCreationDisabledException();
         }
         // 验证保单存在
@@ -123,7 +123,7 @@ public class MaintenanceApplicationService {
     public CompletableFuture<String> calculateMaintenancePremium(String maintenanceId, BigDecimal totalAmount,
                                                                  BigDecimal refundAmount, String calculationDetails,
                                                                  String updatedBy, String tenantId) {
-        if (!legacyPremiumCalculationFeaturePort.isEnabled(tenantId)) {
+        if (!legacyPremiumCalculationFeaturePort.isEnabled()) {
             throw new MaintenanceLegacyPremiumCalculationDisabledException();
         }
         requireMaintenanceExists(maintenanceId, tenantId);
@@ -135,7 +135,7 @@ public class MaintenanceApplicationService {
     // 执行保全
     public CompletableFuture<String> executeMaintenance(String maintenanceId, LocalDateTime effectiveTime,
                                                         String executionDetails, String updatedBy, String tenantId) {
-        if (!legacyExecutionFeaturePort.isEnabled(tenantId)) {
+        if (!legacyExecutionFeaturePort.isEnabled()) {
             throw new MaintenanceLegacyExecutionDisabledException();
         }
         MaintenanceView view = requireMaintenanceExists(maintenanceId, tenantId);
@@ -335,7 +335,7 @@ public class MaintenanceApplicationService {
     // 🔴 禁止 catch-all 归一为「保单不存在」：那会把保单服务故障伪装成数据问题（D13）。
     // 适配器已把技术故障抛为 MaintenanceRemoteCallException，此处原样上抛，由 Web 层映射 HTTP 502。
     private void validatePolicyStatusForMaintenance(String policyId, MaintenanceType maintenanceType, String tenantId) {
-        PolicyServicePort.PolicyStatusSnapshot policyStatus = policyServicePort.getPolicyStatus(policyId, tenantId);
+        PolicyServicePort.PolicyStatusSnapshot policyStatus = policyServicePort.getPolicyStatus(policyId);
 
         switch (maintenanceType) {
             case POLICY_REINSTATEMENT:
@@ -389,7 +389,7 @@ public class MaintenanceApplicationService {
 
     // 检查客户是否存在
     private void validateCustomer(String customerId, String tenantId) {
-        if (!customerServicePort.customerExists(customerId, tenantId)) {
+        if (!customerServicePort.customerExists(customerId)) {
             throw new CustomerNotFoundException();
         }
     }

@@ -45,25 +45,25 @@ public class PolicyServiceAdapter implements PolicyServicePort {
 
     @Override
     public boolean policyExists(String policyId, String tenantId) {
-        return validPolicy(loadPolicy(policyId, tenantId), tenantId);
+        return validPolicy(loadPolicy(policyId), tenantId);
     }
 
     @Override
     public String getPolicyProductId(String policyId, String tenantId) {
-        ApiResponse<PolicyResponse> response = loadPolicy(policyId, tenantId);
+        ApiResponse<PolicyResponse> response = loadPolicy(policyId);
         return validPolicy(response, tenantId) ? response.getData().getProductId() : null;
     }
 
     @Override
     public PolicyFinancialSnapshot getPolicyFinancialSnapshot(String policyId, String tenantId) {
-        ApiResponse<PolicyResponse> response = loadPolicy(policyId, tenantId);
+        ApiResponse<PolicyResponse> response = loadPolicy(policyId);
         if (!validPolicy(response, tenantId)) {
             return null;
         }
         PolicyResponse policy = response.getData();
         ApiResponse<InsuranceResponse> insuranceResponse;
         try {
-            insuranceResponse = insuranceServiceClient.getInsurance(policy.getApplicationId(), tenantId);
+            insuranceResponse = insuranceServiceClient.getInsurance(policy.getApplicationId());
         } catch (Exception exception) {
             throw policyServiceUnreachable("投保单查询", policyId, exception);
         }
@@ -79,10 +79,10 @@ public class PolicyServiceAdapter implements PolicyServicePort {
     }
 
     @Override
-    public PolicyStatusSnapshot getPolicyStatus(String policyId, String tenantId) {
+    public PolicyStatusSnapshot getPolicyStatus(String policyId) {
         ApiResponse<PolicyStatusResponse> response;
         try {
-            response = policyServiceClient.getPolicyStatus(policyId, tenantId);
+            response = policyServiceClient.getPolicyStatus(policyId);
         } catch (Exception exception) {
             throw policyServiceUnreachable("保单状态查询", policyId, exception);
         }
@@ -100,9 +100,9 @@ public class PolicyServiceAdapter implements PolicyServicePort {
      * {@link #validPolicy} 判定，两者不得混同。
      * </p>
      */
-    private ApiResponse<PolicyResponse> loadPolicy(String policyId, String tenantId) {
+    private ApiResponse<PolicyResponse> loadPolicy(String policyId) {
         try {
-            return policyServiceClient.getPolicyById(policyId, tenantId);
+            return policyServiceClient.getPolicyById(policyId);
         } catch (Exception exception) {
             throw policyServiceUnreachable("保单详情查询", policyId, exception);
         }

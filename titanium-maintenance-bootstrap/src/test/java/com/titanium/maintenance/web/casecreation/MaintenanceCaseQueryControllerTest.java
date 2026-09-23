@@ -18,6 +18,7 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.titanium.common.context.RequestContextInterceptor;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
 import com.titanium.maintenance.application.query.MaintenanceCaseQueryApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
@@ -59,6 +60,9 @@ class MaintenanceCaseQueryControllerTest {
                 new MaintenanceCaseQueryWebMapperImpl(), accessResolver);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new MaintenanceExceptionHandler())
+                // m18：显式注册请求上下文拦截器（standaloneSetup 不装配容器里的拦截器），
+                // 使 X-Tenant-Id 头经真实路径进入 RequestContextHolder
+                .addInterceptors(new RequestContextInterceptor())
                 .build();
     }
 

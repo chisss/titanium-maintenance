@@ -46,7 +46,7 @@ class ProductMaintenancePremiumQuoteAdapterTest {
     @Test
     void shouldMapAndValidateAllAuthoritativeQuoteFields() {
         QuoteRequest request = request();
-        when(api.quote(eq("product-1"), any(), eq("tenant-1")))
+        when(api.quote(eq("product-1"), any()))
                 .thenReturn(ApiResponse.success(response(request, "tenant-1")));
 
         QuoteFact fact = adapter.quote(request);
@@ -60,11 +60,11 @@ class ProductMaintenancePremiumQuoteAdapterTest {
     @Test
     void shouldRejectMismatchedEchoAndRemoteFailure() {
         QuoteRequest request = request();
-        when(api.quote(eq("product-1"), any(), eq("tenant-1")))
+        when(api.quote(eq("product-1"), any()))
                 .thenReturn(ApiResponse.success(response(request, "tenant-2")));
         assertThrows(BusinessException.class, () -> adapter.quote(request));
 
-        when(api.quote(eq("product-1"), any(), eq("tenant-1")))
+        when(api.quote(eq("product-1"), any()))
                 .thenThrow(new RuntimeException("timeout"));
         assertThrows(BusinessException.class, () -> adapter.quote(request));
     }
@@ -72,7 +72,7 @@ class ProductMaintenancePremiumQuoteAdapterTest {
     @Test
     void shouldPreserveStructuredProductValidationFailure() {
         QuoteRequest request = request();
-        when(api.quote(eq("product-1"), any(), eq("tenant-1")))
+        when(api.quote(eq("product-1"), any()))
                 .thenThrow(productValidationFailure());
 
         BusinessException exception = assertThrows(
@@ -87,7 +87,7 @@ class ProductMaintenancePremiumQuoteAdapterTest {
     @Test
     void shouldPreserveInBandProductValidationFailure() {
         QuoteRequest request = request();
-        when(api.quote(eq("product-1"), any(), eq("tenant-1")))
+        when(api.quote(eq("product-1"), any()))
                 .thenReturn(new ApiResponse<>(
                         "60000117", "定价方案校验失败: 原计算用途不受支持", null));
 

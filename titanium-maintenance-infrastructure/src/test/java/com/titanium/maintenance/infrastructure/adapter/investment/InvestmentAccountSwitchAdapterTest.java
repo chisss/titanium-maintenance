@@ -33,8 +33,8 @@ class InvestmentAccountSwitchAdapterTest {
     }
 
     @Test
-    @DisplayName("唯一账户：转换事实逐字段取对端应答，并透传租户与缺省币种")
-    void shouldReturnSwitchedFactAndPropagateTenantAndDefaultCurrency() {
+    @DisplayName("唯一账户：转换事实逐字段取对端应答，并透传缺省币种")
+    void shouldReturnSwitchedFactAndApplyDefaultCurrency() {
         InvestmentAccountQueryResult account = account("account-1", "account-1", "1.25000000", "800.00000000",
                 "1000.00000000", "CNY");
         RecordingClient recording = new RecordingClient(List.of(account("account-1", null, null, null, null, null)),
@@ -48,9 +48,9 @@ class InvestmentAccountSwitchAdapterTest {
         assertEquals(new BigDecimal("800.00000000"), fact.totalUnits());
         assertEquals(new BigDecimal("1000.00000000"), fact.accountValue());
         assertEquals("CNY", fact.currency());
-        assertEquals("tenant-1", recording.queryTenantId);
+        // 身份（租户/操作人）不再经本适配器逐参数透传，改由 RequestContextFeignInterceptor 按请求上下文注入
+        // 出站头；该注入由 titanium-common 的 RequestContextFeignInterceptorTest 专项守护，故此处不再重复断言。
         assertEquals("policy-1", recording.queryPolicyId);
-        assertEquals("tenant-1", recording.switchTenantId);
         assertEquals("account-1", recording.switchAccountId);
         assertEquals("CNY", recording.switchBody.getTargetCurrency(), "币种缺省应为 CNY");
         assertEquals("FUND-B", recording.switchBody.getTargetFund());
@@ -88,13 +88,13 @@ class InvestmentAccountSwitchAdapterTest {
         InvestmentAccountSwitchAdapter adapter = new InvestmentAccountSwitchAdapter(new InvestmentAccountSwitchClient() {
             @Override
             public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(
-                    String policyId, String tenantId) {
+                    String policyId) {
                 throw new RuntimeException(new ConnectException("Connection refused: titanium-investment"));
             }
 
             @Override
             public ApiResponse<InvestmentAccountQueryResult> switchUnits(
-                    String accountId, InvestmentAccountApi.SwitchUnitsRequest request, String tenantId) {
+                    String accountId, InvestmentAccountApi.SwitchUnitsRequest request) {
                 throw new IllegalStateException("查询已失败，不得再发起转换");
             }
         });
@@ -112,13 +112,13 @@ class InvestmentAccountSwitchAdapterTest {
         InvestmentAccountSwitchAdapter emptyData = new InvestmentAccountSwitchAdapter(new InvestmentAccountSwitchClient() {
             @Override
             public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(
-                    String policyId, String tenantId) {
+                    String policyId) {
                 return ApiResponse.success(null);
             }
 
             @Override
             public ApiResponse<InvestmentAccountQueryResult> switchUnits(
-                    String accountId, InvestmentAccountApi.SwitchUnitsRequest request, String tenantId) {
+                    String accountId, InvestmentAccountApi.SwitchUnitsRequest request) {
                 throw new IllegalStateException("查询未返回有效列表，不得再发起转换");
             }
         });
@@ -186,13 +186,13 @@ class InvestmentAccountSwitchAdapterTest {
         return new InvestmentAccountSwitchClient() {
             @Override
             public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(
-                    String policyId, String tenantId) {
+                    String policyId) {
                 return accounts == null ? null : ApiResponse.success(accounts);
             }
 
             @Override
             public ApiResponse<InvestmentAccountQueryResult> switchUnits(
-                    String accountId, InvestmentAccountApi.SwitchUnitsRequest request, String tenantId) {
+                    String accountId, InvestmentAccountApi.SwitchUnitsRequest request) {
                 return switchResponse != null ? switchResponse
                         : (switched == null ? ApiResponse.error(
                                 MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR) : ApiResponse.success(switched));
@@ -200,15 +200,13 @@ class InvestmentAccountSwitchAdapterTest {
         };
     }
 
-    /** 记录调用的客户端桩，用于断言租户头与请求体透传 */
+    /** 记录调用的客户端桩，用于断言保单寻址与请求体透传 */
     private static final class RecordingClient implements InvestmentAccountSwitchClient {
 
         private final List<InvestmentAccountQueryResult>  accounts;
         private final InvestmentAccountQueryResult        switched;
         private       String                              queryPolicyId;
-        private       String                              queryTenantId;
         private       String                              switchAccountId;
-        private       String                              switchTenantId;
         private       InvestmentAccountApi.SwitchUnitsRequest switchBody;
 
         private RecordingClient(List<InvestmentAccountQueryResult> accounts,
@@ -218,17 +216,15 @@ class InvestmentAccountSwitchAdapterTest {
         }
 
         @Override
-        public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId, String tenantId) {
+        public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId) {
             this.queryPolicyId = policyId;
-            this.queryTenantId = tenantId;
             return ApiResponse.success(accounts);
         }
 
         @Override
         public ApiResponse<InvestmentAccountQueryResult> switchUnits(String accountId,
-                InvestmentAccountApi.SwitchUnitsRequest request, String tenantId) {
+                InvestmentAccountApi.SwitchUnitsRequest request) {
             this.switchAccountId = accountId;
-            this.switchTenantId = tenantId;
             this.switchBody = request;
             assertNotNull(request, "转换请求体不得为空");
             return ApiResponse.success(switched);

@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.request.maintenance.ApplyPolicyMaintenanceRequest;
@@ -22,26 +21,20 @@ import com.titanium.policy.api.response.policy.PolicyStatusResponse;
 public interface PolicyServiceClient {
     @PostMapping("/{id}/maintenance-applications")
     ApiResponse<PolicyMaintenanceApplicationResponse> applyMaintenance(
-            @PathVariable("id") String id,
-            @RequestBody ApplyPolicyMaintenanceRequest request,
-            @RequestHeader("X-Operator-Id") String operatorId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String id,
+            @RequestBody ApplyPolicyMaintenanceRequest request);
 
     @GetMapping("/{id}")
-    ApiResponse<PolicyResponse> getPolicyById(@PathVariable("id") String id,
-                                              @RequestHeader("X-Tenant-Id") String tenantId);
+    ApiResponse<PolicyResponse> getPolicyById(@PathVariable String id);
 
     @GetMapping("/{id}/status")
-    ApiResponse<PolicyStatusResponse> getPolicyStatus(@PathVariable("id") String id,
-                                                      @RequestHeader("X-Tenant-Id") String tenantId);
+    ApiResponse<PolicyStatusResponse> getPolicyStatus(@PathVariable String id);
 
     @GetMapping("/{id}/maintenance-snapshot")
     ApiResponse<PolicyMaintenanceSnapshotResponse> getMaintenanceSnapshot(
-            @PathVariable("id") String id,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String id);
 
     @GetMapping("/{id}/endorsements")
     ApiResponse<List<PolicyEndorsementResponse>> getEndorsements(
-            @PathVariable("id") String id,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String id);
 }

@@ -3,7 +3,6 @@ package com.titanium.maintenance.infrastructure.client.product;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.request.premium.SurrenderValueCalculationRequest;
@@ -15,6 +14,5 @@ public interface ProductSurrenderValueClient {
 
     @PostMapping("/premium-calculations/surrender-values")
     ApiResponse<SurrenderValueCalculationResponse> calculate(
-            @RequestBody SurrenderValueCalculationRequest request,
-            @RequestHeader("X-Tenant-ID") String tenantId);
+            @RequestBody SurrenderValueCalculationRequest request);
 }

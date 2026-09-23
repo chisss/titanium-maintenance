@@ -34,7 +34,7 @@ public class ProductPremiumLifecycleAdapter implements ProductPremiumLifecyclePo
                         request.businessTime(), request.currency(), request.sumInsured(), request.age(),
                         request.gender(), request.paymentTermYears(), request.coverageTermYears(),
                         request.paymentPeriods(), request.requestSnapshot(), toApiAdjustments(request),
-                        request.channelId(), request.policyYear()), request.tenantId()), "Product 替代计算");
+                        request.channelId(), request.policyYear())), "Product 替代计算");
         return new CalculationFact(
                 response.calculationId(), response.calculationRequestId(), response.bizNo(), response.purpose(),
                 response.productId(), response.productVersion(), response.currency(), response.resultHash());
@@ -46,7 +46,7 @@ public class ProductPremiumLifecycleAdapter implements ProductPremiumLifecyclePo
                 new PremiumLifecycleAdjustmentRequest(
                         request.adjustmentRequestId(), request.bizNo(), request.lifecycleType(),
                         request.originalCalculationId(), request.replacementCalculationId(),
-                        request.businessTime(), request.reason()), request.tenantId()), "Product 生命周期差额");
+                        request.businessTime(), request.reason())), "Product 生命周期差额");
         return new AdjustmentFact(
                 response.adjustmentId(), response.adjustmentRequestId(), response.originalCalculationId(),
                 response.replacementCalculationId(), response.resultHash(),
@@ -58,7 +58,7 @@ public class ProductPremiumLifecycleAdapter implements ProductPremiumLifecyclePo
     public AdjustmentFact createReversal(ReversalRequest request) {
         PremiumLifecycleAdjustmentResponse response = requireSuccess(client.createReversal(
                 new PremiumLifecycleReversalRequest(request.adjustmentRequestId(), request.sourceAdjustmentId(),
-                        request.businessTime(), request.reason()), request.tenantId()), "Product 生命周期冲正");
+                        request.businessTime(), request.reason())), "Product 生命周期冲正");
         return new AdjustmentFact(
                 response.adjustmentId(), response.adjustmentRequestId(), response.originalCalculationId(),
                 response.replacementCalculationId(), response.resultHash(),

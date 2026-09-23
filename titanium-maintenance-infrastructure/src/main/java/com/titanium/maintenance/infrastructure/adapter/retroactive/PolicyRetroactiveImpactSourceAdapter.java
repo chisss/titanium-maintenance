@@ -34,7 +34,7 @@ public class PolicyRetroactiveImpactSourceAdapter
 
     @Override
     protected ApiResponse<List<PolicyEndorsementResponse>> query(ImpactRequest request) {
-        return client.getEndorsements(request.policyId(), request.tenantId());
+        return client.getEndorsements(request.policyId());
     }
 
     @Override

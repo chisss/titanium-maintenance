@@ -6,6 +6,7 @@ import java.util.concurrent.ExecutionException;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.api.MaintenanceApi;
 import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
@@ -44,7 +45,7 @@ public class MaintenanceApiProvider implements MaintenanceApi {
     private final MaintenanceWebMapper          maintenanceWebMapper;
 
     @Override
-    public String createMaintenance(CreateMaintenanceRequest request, String tenantId) {
+    public String createMaintenance(CreateMaintenanceRequest request) {
         try {
             // 协议转换：DTO 码值 → 领域枚举，收敛到同一应用层门面
             return maintenanceApplicationService.createMaintenanceCase(
@@ -55,7 +56,7 @@ public class MaintenanceApiProvider implements MaintenanceApi {
                     request.getSpecificEffectiveDate(),
                     request.getDescription(),
                     request.getCreatedBy(),
-                    tenantId).get();
+                    RequestContextHolder.requireTenantId()).get();
         } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
             log.error("远程创建保全案件失败: {}", e.getMessage(), e);
@@ -64,13 +65,13 @@ public class MaintenanceApiProvider implements MaintenanceApi {
     }
 
     @Override
-    public String changeMaintenanceStatus(String id, ChangeMaintenanceStatusRequest request, String tenantId) {
+    public String changeMaintenanceStatus(String id, ChangeMaintenanceStatusRequest request) {
         try {
             return maintenanceApplicationService.changeMaintenanceStatus(
                     id,
                     MaintenanceStatus.fromValue(request.getNewStatus()),
                     request.getChangeReason(),
-                    request.getChangedBy(), tenantId).get();
+                    request.getChangedBy(), RequestContextHolder.requireTenantId()).get();
         } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
             log.error("远程变更保全状态失败: {}", e.getMessage(), e);
@@ -80,28 +81,28 @@ public class MaintenanceApiProvider implements MaintenanceApi {
 
     @Override
     public MaintenancePremiumSettlementResponse settlePremium(
-            String id, SettleMaintenancePremiumRequest request, String tenantId) {
+            String id, SettleMaintenancePremiumRequest request) {
         return maintenanceWebMapper.toSettlementResponse(
-                premiumSettlementCommandService.settle(id, tenantId,
+                premiumSettlementCommandService.settle(id, RequestContextHolder.requireTenantId(),
                 maintenanceWebMapper.toSettlementInput(request)));
     }
 
     @Override
     public MaintenancePremiumSettlementResponse settleReversal(
-            String id, SettleMaintenanceReversalRequest request, String tenantId) {
+            String id, SettleMaintenanceReversalRequest request) {
         return maintenanceWebMapper.toSettlementResponse(
-                premiumSettlementCommandService.settleReversal(id, tenantId,
+                premiumSettlementCommandService.settleReversal(id, RequestContextHolder.requireTenantId(),
                         maintenanceWebMapper.toReversalSettlementInput(request)));
     }
 
     @Override
-    public MaintenanceResponse getMaintenanceById(String id, String tenantId) {
-        return maintenanceWebMapper.toApiResponse(maintenanceApplicationService.findMaintenanceById(id, tenantId));
+    public MaintenanceResponse getMaintenanceById(String id) {
+        return maintenanceWebMapper.toApiResponse(maintenanceApplicationService.findMaintenanceById(id, RequestContextHolder.requireTenantId()));
     }
 
     @Override
-    public List<MaintenanceResponse> getMaintenancesByPolicyId(String policyId, String tenantId) {
-        return maintenanceApplicationService.findMaintenancesByPolicyId(policyId, tenantId).stream()
+    public List<MaintenanceResponse> getMaintenancesByPolicyId(String policyId) {
+        return maintenanceApplicationService.findMaintenancesByPolicyId(policyId, RequestContextHolder.requireTenantId()).stream()
                 .map(maintenanceWebMapper::toApiResponse)
                 .toList();
     }

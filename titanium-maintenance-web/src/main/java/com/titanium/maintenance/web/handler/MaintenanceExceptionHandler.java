@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-import com.titanium.maintenance.common.context.TenantContext;
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.CustomerNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
@@ -201,7 +201,7 @@ public class MaintenanceExceptionHandler {
         }
         Object tenantId = valueOrDefault(
                 request.getAttribute(MaintenanceConfigurationRequestContextResolver.AUDIT_TENANT_ATTRIBUTE),
-                TenantContext.getCurrentTenant());
+                RequestContextHolder.getTenantId());
         Object sourceIp = valueOrDefault(
                 request.getAttribute(MaintenanceConfigurationRequestContextResolver.AUDIT_SOURCE_IP_ATTRIBUTE),
                 request.getRemoteAddr());

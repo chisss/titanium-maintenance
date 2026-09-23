@@ -30,6 +30,8 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import com.titanium.common.context.RequestContextInterceptor;
+import com.titanium.common.multitenant.MissingIdentityExceptionHandler;
 import com.titanium.maintenance.application.command.casecreation.CreateMaintenanceCaseInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceAutomaticReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
@@ -80,6 +82,7 @@ import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
 import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.errorcode.SystemErrorCode;
 
 class MaintenanceCaseControllerTest {
 
@@ -94,7 +97,11 @@ class MaintenanceCaseControllerTest {
                         mock(MaintenanceCaseQueryApplicationService.class),
                         new MaintenanceCaseQueryWebMapperImpl(),
                         mock(MaintenanceCaseQueryAccessResolver.class)))
-                .setControllerAdvice(new MaintenanceExceptionHandler())
+                .setControllerAdvice(new MaintenanceExceptionHandler(), new MissingIdentityExceptionHandler())
+                // m18：租户/操作人改由请求上下文承载。standaloneSetup 不会自动装配 Spring 容器里的
+                // 拦截器，须显式注册 RequestContextInterceptor，请求头才能进入 RequestContextHolder，
+                // 使本用例仍旧覆盖真实的「X-Tenant-Id → 上下文」路径
+                .addInterceptors(new RequestContextInterceptor())
                 .build();
     }
 
@@ -249,7 +256,11 @@ class MaintenanceCaseControllerTest {
                         .contentType("application/json")
                         .content(requestJson()))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
+                // m18：缺身份头不再由 Spring 的 MissingRequestHeaderException + 本域处理器渲染，
+                // 而是 RequestContextHolder.requireOperatorId() 抛 MissingIdentityException，
+                // 由 common 的 MissingIdentityExceptionHandler 统一渲染为 400 + OPERATOR_HEADER_MISSING
+                // （与 /api/v1/** 准入拦截器同码，各入口对同一缺失给同一响应）
+                .andExpect(jsonPath("$.code").value(SystemErrorCode.OPERATOR_HEADER_MISSING.getCode()));
     }
 
     @Test

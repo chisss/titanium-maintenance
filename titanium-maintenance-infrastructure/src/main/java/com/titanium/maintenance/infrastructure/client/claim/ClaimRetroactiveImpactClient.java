@@ -5,7 +5,6 @@ import java.util.List;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.claim.api.response.ClaimResponse;
 import com.titanium.metadata.response.ApiResponse;
@@ -16,6 +15,5 @@ public interface ClaimRetroactiveImpactClient {
 
     @GetMapping("/policy/{policyId}")
     ApiResponse<List<ClaimResponse>> getClaimsByPolicyId(
-            @PathVariable("policyId") String policyId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String policyId);
 }

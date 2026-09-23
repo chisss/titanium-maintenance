@@ -31,7 +31,7 @@ public class PaymentMaintenanceRefundAdapter implements PaymentMaintenanceRefund
         body.setCurrency(request.currency());
         body.setReason(request.reason());
         body.setRequestedBy(request.requestedBy());
-        RefundOrderResponse response = requireSuccess(client.create(body, request.tenantId()));
+        RefundOrderResponse response = requireSuccess(client.create(body));
         RefundFact fact = toFact(response);
         if (!Objects.equals(request.refundRequestId(), fact.refundRequestId())
                 || !Objects.equals(request.sourcePostingId(), fact.sourcePostingId())
@@ -44,8 +44,8 @@ public class PaymentMaintenanceRefundAdapter implements PaymentMaintenanceRefund
     }
 
     @Override
-    public RefundFact get(String tenantId, String refundOrderId) {
-        RefundFact fact = toFact(requireSuccess(client.get(refundOrderId, tenantId)));
+    public RefundFact get( String refundOrderId) {
+        RefundFact fact = toFact(requireSuccess(client.get(refundOrderId)));
         if (!refundOrderId.equals(fact.refundOrderId())) {
             throw remoteError("Payment 退款单回查结果单号不一致");
         }

@@ -29,8 +29,7 @@ public class MaintenanceUnderwritingAdapter implements MaintenanceUnderwritingPo
     @Override
     public AssessmentFact assess(AssessmentRequest request) {
         try {
-            ResponseEntity<MaintenanceUnderwritingResponse> response = api.assess(toApiRequest(request),
-                    request.tenantId());
+            ResponseEntity<MaintenanceUnderwritingResponse> response = api.assess(toApiRequest(request));
             MaintenanceUnderwritingResponse body = requireSuccess(response);
             validateEcho(request, body);
             return new AssessmentFact(

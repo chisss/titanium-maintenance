@@ -35,7 +35,7 @@ public class PolicyMaintenanceApplicationAdapter implements PolicyMaintenanceApp
                 request.stateAction(), request.stateReason(), request.terminationReason(),
                 toRemoteRetroactiveEvidence(request.retroactiveEvidence()));
         ApiResponse<PolicyMaintenanceApplicationResponse> response = policyServiceClient.applyMaintenance(
-                request.policyId(), remoteRequest, request.operatorId(), request.tenantId());
+                request.policyId(), remoteRequest);
         PolicyMaintenanceApplicationResponse data = requireData(response);
         validateReceipt(request, data);
         return new ApplicationFact(

@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.investment.api.InvestmentAccountApi;
 import com.titanium.investment.query.result.InvestmentAccountQueryResult;
@@ -37,8 +36,7 @@ public interface InvestmentAccountSwitchClient {
      * @return 账户列表（无账户时为空列表，非 null）
      */
     @GetMapping("/policy/{policyId}")
-    ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(@PathVariable("policyId") String policyId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+    ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(@PathVariable String policyId);
 
     /**
      * 账户转换（基金转换）
@@ -49,7 +47,6 @@ public interface InvestmentAccountSwitchClient {
      * @return 转换后账户读模型结果
      */
     @PostMapping("/{accountId}/switches")
-    ApiResponse<InvestmentAccountQueryResult> switchUnits(@PathVariable("accountId") String accountId,
-            @RequestBody InvestmentAccountApi.SwitchUnitsRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+    ApiResponse<InvestmentAccountQueryResult> switchUnits(@PathVariable String accountId,
+            @RequestBody InvestmentAccountApi.SwitchUnitsRequest request);
 }

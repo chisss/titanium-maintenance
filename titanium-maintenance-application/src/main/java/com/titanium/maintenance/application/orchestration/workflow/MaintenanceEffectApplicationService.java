@@ -607,8 +607,7 @@ public class MaintenanceEffectApplicationService {
                         != view.getRetroactiveBillingReviewCount()) {
             throw validation("retroactiveResolution", "关闭会计期间处理结论尚未完成或与当前批次不一致");
         }
-        ResolutionFact fact = billingResolutionPort.get(
-                input.tenantId(), view.getRetroactiveBillingBatchId());
+        ResolutionFact fact = billingResolutionPort.get( view.getRetroactiveBillingBatchId());
         if (fact == null || !Objects.equals("COMPLETED", fact.status())
                 || !Objects.equals(input.tenantId(), fact.tenantId())
                 || !Objects.equals(input.maintenanceId(), fact.maintenanceId())

@@ -263,7 +263,7 @@ class MaintenanceEffectApplicationServiceTest {
         var result = service.apply(input()).join();
 
         assertEquals("END-RETROACTIVE", result.endorsementNo());
-        verify(billingResolutionPort, never()).get(any(), any());
+        verify(billingResolutionPort, never()).get( any());
         assertEquals(MaintenanceRetroactivePeriodRecalculationStatus.COMPLETED,
                 caseView.getRetroactivePeriodRecalculationStatus());
     }
@@ -271,14 +271,14 @@ class MaintenanceEffectApplicationServiceTest {
     @Test
     void shouldReconcileClosedPeriodResolutionBeforeRetroactivePolicyCall() {
         retroactiveContext(true);
-        when(billingResolutionPort.get("tenant-1", "billing-batch-1"))
+        when(billingResolutionPort.get( "billing-batch-1"))
                 .thenReturn(resolutionFact());
         when(policyApplicationPort.apply(any())).thenAnswer(invocation ->
                 successfulPolicyFact(invocation.getArgument(0)));
 
         service.apply(input()).join();
 
-        verify(billingResolutionPort).get("tenant-1", "billing-batch-1");
+        verify(billingResolutionPort).get( "billing-batch-1");
         verify(policyApplicationPort).apply(any());
     }
 

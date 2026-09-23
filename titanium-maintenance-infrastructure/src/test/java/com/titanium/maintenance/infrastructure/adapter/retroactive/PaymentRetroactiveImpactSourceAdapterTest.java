@@ -24,7 +24,7 @@ class PaymentRetroactiveImpactSourceAdapterTest {
     @Test
     void shouldExposeCompletedCollectionAndRefundAsBlockingItems() {
         PaymentRetroactiveImpactClient client = mock(PaymentRetroactiveImpactClient.class);
-        when(client.getPaymentOrdersByBusinessId("policy-1", "tenant-1"))
+        when(client.getPaymentOrdersByBusinessId("policy-1"))
                 .thenReturn(ApiResponse.success(List.of(order("payment-1", "policy-1"))));
 
         var evidence = new PaymentRetroactiveImpactSourceAdapter(client).collect(request());
@@ -41,7 +41,7 @@ class PaymentRetroactiveImpactSourceAdapterTest {
     @Test
     void shouldRejectAuthorityResponseForDifferentPolicy() {
         PaymentRetroactiveImpactClient client = mock(PaymentRetroactiveImpactClient.class);
-        when(client.getPaymentOrdersByBusinessId("policy-1", "tenant-1"))
+        when(client.getPaymentOrdersByBusinessId("policy-1"))
                 .thenReturn(ApiResponse.success(List.of(order("payment-1", "policy-2"))));
 
         assertThrows(MaintenanceValidationException.class,

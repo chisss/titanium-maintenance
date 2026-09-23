@@ -28,7 +28,7 @@ public class ProductRetroactivePeriodRecalculationAdapter
     @Override
     public RecalculationFact recalculate(RecalculationRequest request) {
         RetroactivePremiumPeriodRecalculationResponse response = requireSuccess(
-                api.recalculateRetroactivePeriods(toApiRequest(request), request.tenantId()));
+                api.recalculateRetroactivePeriods(toApiRequest(request)));
         validateEcho(request, response);
         return new RecalculationFact(
                 response.tenantId(), response.maintenanceId(), response.policyId(), response.analysisId(),

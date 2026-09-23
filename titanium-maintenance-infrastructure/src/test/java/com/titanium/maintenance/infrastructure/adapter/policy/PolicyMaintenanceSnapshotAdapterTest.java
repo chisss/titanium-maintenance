@@ -27,7 +27,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
     @Test
     void shouldCaptureFormalPolicySnapshot() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response("tenant-1", 7L, "TEXT", "13800000000")));
 
         var snapshot = new PolicyMaintenanceSnapshotAdapter(client)
@@ -42,7 +42,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
     @Test
     void shouldRetryTransientPolicySnapshotFailure() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(new ApiResponse<>("POLICY_TEMPORARILY_UNAVAILABLE", "temporary", null))
                 .thenReturn(ApiResponse.success(response("tenant-1", 7L, "TEXT", "13800000000")));
 
@@ -50,13 +50,13 @@ class PolicyMaintenanceSnapshotAdapterTest {
                 .capture(new PolicyMaintenanceSnapshotRequest("policy-1", "tenant-1"));
 
         assertEquals(7L, snapshot.policyVersion());
-        verify(client, times(2)).getMaintenanceSnapshot("policy-1", "tenant-1");
+        verify(client, times(2)).getMaintenanceSnapshot("policy-1");
     }
 
     @Test
     void shouldNotRetryNonTransientPolicySnapshotFailure() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(new ApiResponse<>("POLICY_NOT_FOUND", "not found", null));
 
         PolicyMaintenanceSnapshotException exception = assertThrows(
@@ -65,13 +65,13 @@ class PolicyMaintenanceSnapshotAdapterTest {
                         .capture(new PolicyMaintenanceSnapshotRequest("policy-1", "tenant-1")));
 
         assertEquals(PolicyMaintenanceSnapshotFailureReason.NOT_FOUND, exception.getReason());
-        verify(client).getMaintenanceSnapshot("policy-1", "tenant-1");
+        verify(client).getMaintenanceSnapshot("policy-1");
     }
 
     @Test
     void shouldPreserveSuspendedStatusForProductOfferingDecision() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response(
                         "tenant-1", 8L, "TEXT", "13800000000", PolicyStatus.SUSPENDED)));
 
@@ -92,7 +92,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
                 "axon-event://policy/tenant-1/policy-1?version=7", "a".repeat(64), capturedAt,
                 Map.of("policy.coverage.sumInsured",
                         new PolicySnapshotFieldValueResponse("DECIMAL", "100000", "policy-product-1")));
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response));
 
         var snapshot = new PolicyMaintenanceSnapshotAdapter(client)
@@ -115,7 +115,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
                         new PolicySnapshotFieldValueResponse("TEXT", "李四", "beneficiary-1"),
                         "beneficiary-2:policy.beneficiary.name",
                         new PolicySnapshotFieldValueResponse("TEXT", "王五", "beneficiary-2")));
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response));
 
         var snapshot = new PolicyMaintenanceSnapshotAdapter(client)
@@ -130,7 +130,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
     @Test
     void shouldRejectCrossTenantSnapshot() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response("tenant-2", 7L, "TEXT", "13800000000")));
 
         PolicyMaintenanceSnapshotException exception = assertThrows(
@@ -145,7 +145,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
     void shouldRejectMissingVersionAndInvalidFieldType() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         PolicyMaintenanceSnapshotAdapter adapter = new PolicyMaintenanceSnapshotAdapter(client);
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response("tenant-1", null, "TEXT", "value")));
 
         PolicyMaintenanceSnapshotException missingVersion = assertThrows(
@@ -154,7 +154,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
 
         assertEquals(PolicyMaintenanceSnapshotFailureReason.VERSION_MISSING, missingVersion.getReason());
 
-        when(client.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(client.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(response("tenant-1", 7L, "UNKNOWN", "value")));
         PolicyMaintenanceSnapshotException invalidType = assertThrows(
                 PolicyMaintenanceSnapshotException.class,

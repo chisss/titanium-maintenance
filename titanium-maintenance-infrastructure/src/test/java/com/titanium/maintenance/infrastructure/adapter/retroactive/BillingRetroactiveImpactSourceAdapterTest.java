@@ -25,7 +25,7 @@ class BillingRetroactiveImpactSourceAdapterTest {
     @Test
     void shouldClassifyPaidAndRenewalBillsAndFilterScope() {
         BillingRetroactiveImpactClient client = mock(BillingRetroactiveImpactClient.class);
-        when(client.getBillsByPolicyId("policy-1", "tenant-1")).thenReturn(ApiResponse.success(List.of(
+        when(client.getBillsByPolicyId("policy-1")).thenReturn(ApiResponse.success(List.of(
                 bill("bill-paid", "PREMIUM", LocalDate.of(2026, 8, 10), new BigDecimal("100")),
                 bill("bill-renewal", "RENEWAL", LocalDate.of(2026, 8, 20), BigDecimal.ZERO),
                 bill("bill-before", "PREMIUM", LocalDate.of(2026, 7, 31), BigDecimal.ZERO))));
@@ -46,7 +46,7 @@ class BillingRetroactiveImpactSourceAdapterTest {
         BillingRetroactiveImpactClient client = mock(BillingRetroactiveImpactClient.class);
         BillResponse bill = bill("bill-1", "PREMIUM", LocalDate.of(2026, 8, 10), BigDecimal.ZERO);
         bill.setPolicyId("policy-2");
-        when(client.getBillsByPolicyId("policy-1", "tenant-1"))
+        when(client.getBillsByPolicyId("policy-1"))
                 .thenReturn(ApiResponse.success(List.of(bill)));
 
         assertThrows(MaintenanceValidationException.class,

@@ -3,7 +3,6 @@ package com.titanium.maintenance.infrastructure.adapter.underwriting;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -36,7 +35,7 @@ class MaintenanceUnderwritingAdapterTest {
     @Test
     void shouldMapAndValidateAuthoritativeUnderwritingFact() {
         AssessmentRequest request = request();
-        when(api.assess(any(), eq("tenant-1")))
+        when(api.assess(any()))
                 .thenReturn(ResponseEntity.ok(response(request, "CONDITIONAL_APPROVED")));
 
         AssessmentFact fact = adapter.assess(request);
@@ -53,10 +52,10 @@ class MaintenanceUnderwritingAdapterTest {
                 "underwriting-1", request.idempotencyKey(), request.payloadHash(),
                 "rule-v1", "model-v1", "APPROVED", List.of(), "通过",
                 LocalDateTime.parse("2026-08-25T12:00:00"));
-        when(api.assess(any(), eq("tenant-1"))).thenReturn(ResponseEntity.ok(mismatched));
+        when(api.assess(any())).thenReturn(ResponseEntity.ok(mismatched));
         assertThrows(BusinessException.class, () -> adapter.assess(request));
 
-        when(api.assess(any(), eq("tenant-1"))).thenThrow(new RuntimeException("timeout"));
+        when(api.assess(any())).thenThrow(new RuntimeException("timeout"));
         assertThrows(BusinessException.class, () -> adapter.assess(request));
     }
 

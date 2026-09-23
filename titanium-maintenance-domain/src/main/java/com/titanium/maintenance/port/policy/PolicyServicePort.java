@@ -40,7 +40,7 @@ public interface PolicyServicePort {
      * @param tenantId 租户ID
      * @return 保单状态快照
      */
-    PolicyStatusSnapshot getPolicyStatus(String policyId, String tenantId);
+    PolicyStatusSnapshot getPolicyStatus(String policyId);
 
     /**
      * 保单状态快照（领域侧类型化视图，屏蔽远程响应细节）

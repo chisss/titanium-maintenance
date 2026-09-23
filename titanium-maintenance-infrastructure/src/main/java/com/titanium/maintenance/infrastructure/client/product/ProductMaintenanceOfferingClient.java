@@ -6,7 +6,6 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.titanium.metadata.response.ApiResponse;
@@ -21,12 +20,11 @@ public interface ProductMaintenanceOfferingClient {
 
     @GetMapping("/{productId}/maintenance-offering")
     ApiResponse<ProductMaintenanceOfferingResolutionResponse> resolve(
-            @PathVariable("productId") String productId,
-            @RequestParam("productVersion") String productVersion,
-            @RequestParam("planVersion") String planVersion,
-            @RequestParam("policyStatus") String policyStatus,
-            @RequestParam("source") String source,
-            @RequestParam("businessEffectiveAt")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime businessEffectiveAt,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String productId,
+            @RequestParam String productVersion,
+            @RequestParam String planVersion,
+            @RequestParam String policyStatus,
+            @RequestParam String source,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) OffsetDateTime businessEffectiveAt);
 }

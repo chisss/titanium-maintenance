@@ -18,7 +18,7 @@ public class PropertyMaintenanceLegacyPremiumCalculationFeatureAdapter
     }
 
     @Override
-    public boolean isEnabled(String tenantId) {
+    public boolean isEnabled() {
         return enabled;
     }
 }

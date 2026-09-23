@@ -5,7 +5,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.request.refund.CreateRefundOrderRequest;
@@ -20,11 +19,9 @@ public interface PaymentMaintenanceRefundClient {
 
     @PostMapping
     ApiResponse<RefundOrderResponse> create(
-            @RequestBody CreateRefundOrderRequest request,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @RequestBody CreateRefundOrderRequest request);
 
     @GetMapping("/{refundOrderId}")
     ApiResponse<RefundOrderResponse> get(
-            @PathVariable("refundOrderId") String refundOrderId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String refundOrderId);
 }

@@ -27,7 +27,7 @@ public class BillingRetroactivePeriodAdjustmentAdapter implements BillingRetroac
     @Override
     public AdjustmentFact adjust(AdjustmentRequest request) {
         RetroactivePeriodAdjustmentResponse response = requireSuccess(
-                api.post(toApiRequest(request), request.tenantId()));
+                api.post(toApiRequest(request)));
         validateEcho(request, response);
         return new AdjustmentFact(
                 response.tenantId(), response.maintenanceId(), response.policyId(), response.customerId(),

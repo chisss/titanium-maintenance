@@ -18,7 +18,7 @@ public interface BillingRetroactivePeriodResolutionPort {
 
     ResolutionFact resolve(ResolutionRequest request);
 
-    ResolutionFact get(String tenantId, String billingBatchId);
+    ResolutionFact get( String billingBatchId);
 
     record ResolutionRequest(
             String tenantId,

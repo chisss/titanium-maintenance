@@ -4,5 +4,5 @@ package com.titanium.maintenance.port.maintenance;
 public interface MaintenanceConfigurationFeaturePort {
 
     /** 判断指定租户是否允许创建或发布保全配置。 */
-    boolean isWriteEnabled(String tenantId);
+    boolean isWriteEnabled();
 }

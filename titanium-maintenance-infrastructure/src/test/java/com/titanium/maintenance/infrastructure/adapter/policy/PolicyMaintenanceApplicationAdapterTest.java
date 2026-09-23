@@ -3,6 +3,7 @@ package com.titanium.maintenance.infrastructure.adapter.policy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -30,9 +31,7 @@ class PolicyMaintenanceApplicationAdapterTest {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         ApplicationRequest request = request();
         when(client.applyMaintenance(
-                org.mockito.ArgumentMatchers.eq("policy-1"), any(),
-                org.mockito.ArgumentMatchers.eq("operator-1"),
-                org.mockito.ArgumentMatchers.eq("tenant-1")))
+                eq("policy-1"), any()))
                 .thenReturn(ApiResponse.success(response(request, 8)));
 
         var fact = new PolicyMaintenanceApplicationAdapter(client).apply(request);
@@ -46,7 +45,7 @@ class PolicyMaintenanceApplicationAdapterTest {
     void shouldRejectReceiptWithMismatchedSnapshotVersion() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         ApplicationRequest request = request();
-        when(client.applyMaintenance(any(), any(), any(), any()))
+        when(client.applyMaintenance(any(), any()))
                 .thenReturn(ApiResponse.success(response(request, 9)));
 
         assertThrows(MaintenanceValidationException.class,
@@ -65,7 +64,7 @@ class PolicyMaintenanceApplicationAdapterTest {
                         "POLICY_INFO_CHANGE", "policy-1", "policy.holder.mobile",
                         "ENUM", "13900000000")),
                 valid.appliedAt());
-        when(client.applyMaintenance(any(), any(), any(), any()))
+        when(client.applyMaintenance(any(), any()))
                 .thenReturn(ApiResponse.success(invalid));
 
         assertThrows(MaintenanceValidationException.class,
@@ -76,7 +75,7 @@ class PolicyMaintenanceApplicationAdapterTest {
     void shouldRoundTripRetroactiveEvidence() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         ApplicationRequest request = retroactiveRequest();
-        when(client.applyMaintenance(any(), any(), any(), any()))
+        when(client.applyMaintenance(any(), any()))
                 .thenReturn(ApiResponse.success(retroactiveResponse(request, "e".repeat(64))));
 
         var fact = new PolicyMaintenanceApplicationAdapter(client).apply(request);
@@ -88,7 +87,7 @@ class PolicyMaintenanceApplicationAdapterTest {
     void shouldRejectMismatchedRetroactiveEvidenceInReceipt() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         ApplicationRequest request = retroactiveRequest();
-        when(client.applyMaintenance(any(), any(), any(), any()))
+        when(client.applyMaintenance(any(), any()))
                 .thenReturn(ApiResponse.success(retroactiveResponse(request, "f".repeat(64))));
 
         assertThrows(MaintenanceValidationException.class,

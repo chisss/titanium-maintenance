@@ -36,7 +36,7 @@ public class ProductMaintenanceOfferingAdapter implements ProductMaintenanceOffe
             ApiResponse<ProductMaintenanceOfferingResolutionResponse> response = client.resolve(
                     request.productId(), request.productVersion(), request.planVersion(),
                     request.policyStatus().getCode(), request.source().getCode(),
-                    request.businessEffectiveAt(), request.tenantId());
+                    request.businessEffectiveAt());
             if (response == null) {
                 throw failure(ProductMaintenanceOfferingFailureReason.UNAVAILABLE,
                         "Product保全Offering服务未返回响应");

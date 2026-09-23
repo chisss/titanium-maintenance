@@ -3,7 +3,6 @@ package com.titanium.maintenance.infrastructure.client.insurance;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.response.issuance.InsuranceResponse;
@@ -14,6 +13,5 @@ public interface InsuranceServiceClient {
 
     @GetMapping("/{insuranceId}")
     ApiResponse<InsuranceResponse> getInsurance(
-            @PathVariable("insuranceId") String insuranceId,
-            @RequestHeader("X-Tenant-Id") String tenantId);
+            @PathVariable String insuranceId);
 }

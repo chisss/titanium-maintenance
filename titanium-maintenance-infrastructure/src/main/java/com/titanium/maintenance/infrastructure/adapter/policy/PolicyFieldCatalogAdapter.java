@@ -30,8 +30,7 @@ public class PolicyFieldCatalogAdapter implements PolicyFieldCatalogPort {
             throw new PolicyFieldCatalogUnavailableException("Policy字段目录查询请求不能为空");
         }
         try {
-            ApiResponse<PolicyFieldCatalogResponse> response = client.getCurrentCatalog(
-                    request.tenantId(), request.productType(), request.policyType(), request.businessDate());
+            ApiResponse<PolicyFieldCatalogResponse> response = client.getCurrentCatalog(request.productType(), request.policyType(), request.businessDate());
             PolicyFieldCatalogResponse data = requireSuccessfulResponse(response);
             validateEcho(request, data);
             List<PolicyFieldDescriptorEvidence> fields = data.fields().stream().map(this::toEvidence).toList();

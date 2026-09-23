@@ -44,7 +44,7 @@ class PolicyServiceAdapterTest {
 
         assertTrue(adapter.policyExists("policy-1", "tenant-1"));
         assertEquals("product-1", adapter.getPolicyProductId("policy-1", "tenant-1"));
-        assertTrue(adapter.getPolicyStatus("policy-1", "tenant-1").active());
+        assertTrue(adapter.getPolicyStatus("policy-1").active());
     }
 
     @Test
@@ -59,7 +59,7 @@ class PolicyServiceAdapterTest {
 
         assertFalse(adapter.policyExists("policy-1", "tenant-1"));
         assertNull(adapter.getPolicyProductId("policy-1", "tenant-1"));
-        assertFalse(adapter.getPolicyStatus("policy-1", "tenant-1").active());
+        assertFalse(adapter.getPolicyStatus("policy-1").active());
     }
 
     @Test
@@ -75,7 +75,7 @@ class PolicyServiceAdapterTest {
         assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.getPolicyProductId("policy-1", "tenant-1"));
         assertThrows(MaintenanceRemoteCallException.class,
-                () -> adapter.getPolicyStatus("policy-1", "tenant-1"));
+                () -> adapter.getPolicyStatus("policy-1"));
         assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.getPolicyFinancialSnapshot("policy-1", "tenant-1"));
     }
@@ -88,7 +88,7 @@ class PolicyServiceAdapterTest {
         policy.setApplicationId("insurance-1");
         policy.setProductId("product-1");
         policy.setTenantId("tenant-1");
-        InsuranceServiceClient unreachableInsurance = (insuranceId, tenantId) -> {
+        InsuranceServiceClient unreachableInsurance = insuranceId -> {
             throw new RuntimeException(new ConnectException("Connection refused: titanium-policy"));
         };
         PolicyServiceAdapter adapter = new PolicyServiceAdapter(
@@ -108,7 +108,7 @@ class PolicyServiceAdapterTest {
 
         assertFalse(adapter.policyExists("policy-1", "tenant-1"));
         assertNull(adapter.getPolicyProductId("policy-1", "tenant-1"));
-        assertFalse(adapter.getPolicyStatus("policy-1", "tenant-1").active());
+        assertFalse(adapter.getPolicyStatus("policy-1").active());
         assertNull(adapter.getPolicyFinancialSnapshot("policy-1", "tenant-1"));
     }
 
@@ -144,33 +144,29 @@ class PolicyServiceAdapterTest {
             @Override
             public ApiResponse<PolicyMaintenanceApplicationResponse> applyMaintenance(
                     String id,
-                    ApplyPolicyMaintenanceRequest request,
-                    String operatorId,
-                    String tenantId) {
+                    ApplyPolicyMaintenanceRequest request) {
                 throw unreachable();
             }
 
             @Override
-            public ApiResponse<PolicyResponse> getPolicyById(String id, String tenantId) {
+            public ApiResponse<PolicyResponse> getPolicyById(String id) {
                 throw unreachable();
             }
 
             @Override
-            public ApiResponse<PolicyStatusResponse> getPolicyStatus(String id, String tenantId) {
+            public ApiResponse<PolicyStatusResponse> getPolicyStatus(String id) {
                 throw unreachable();
             }
 
             @Override
             public ApiResponse<PolicyMaintenanceSnapshotResponse> getMaintenanceSnapshot(
-                    String id,
-                    String tenantId) {
+                    String id) {
                 throw unreachable();
             }
 
             @Override
             public ApiResponse<List<PolicyEndorsementResponse>> getEndorsements(
-                    String id,
-                    String tenantId) {
+                    String id) {
                 throw unreachable();
             }
 
@@ -187,39 +183,35 @@ class PolicyServiceAdapterTest {
             @Override
             public ApiResponse<PolicyMaintenanceApplicationResponse> applyMaintenance(
                     String id,
-                    ApplyPolicyMaintenanceRequest request,
-                    String operatorId,
-                    String tenantId) {
+                    ApplyPolicyMaintenanceRequest request) {
                 return null;
             }
 
             @Override
-            public ApiResponse<PolicyResponse> getPolicyById(String id, String tenantId) {
+            public ApiResponse<PolicyResponse> getPolicyById(String id) {
                 return policyResponse;
             }
 
             @Override
-            public ApiResponse<PolicyStatusResponse> getPolicyStatus(String id, String tenantId) {
+            public ApiResponse<PolicyStatusResponse> getPolicyStatus(String id) {
                 return statusResponse;
             }
 
             @Override
             public ApiResponse<PolicyMaintenanceSnapshotResponse> getMaintenanceSnapshot(
-                    String id,
-                    String tenantId) {
+                    String id) {
                 return null;
             }
 
             @Override
             public ApiResponse<List<PolicyEndorsementResponse>> getEndorsements(
-                    String id,
-                    String tenantId) {
+                    String id) {
                 return null;
             }
         };
     }
 
     private InsuranceServiceClient insuranceClient(ApiResponse<InsuranceResponse> response) {
-        return (insuranceId, tenantId) -> response;
+        return insuranceId -> response;
     }
 }

@@ -27,7 +27,7 @@ public class ProductSurrenderValueAdapter implements ProductSurrenderValuePort {
                         request.surrenderRequestId(), request.bizNo(), request.originalBizNo(),
                         request.originalCalculationId(),
                         request.policyEffectiveDate(), request.surrenderDate(), request.policyYear(),
-                        request.businessTime(), request.reason()), request.tenantId());
+                        request.businessTime(), request.reason()));
         if (apiResponse == null || !apiResponse.isSuccess() || apiResponse.getData() == null) {
             String detail = apiResponse == null ? "空响应" : apiResponse.getCode() + ":" + apiResponse.getMessage();
             throw new MaintenanceRemoteCallException(

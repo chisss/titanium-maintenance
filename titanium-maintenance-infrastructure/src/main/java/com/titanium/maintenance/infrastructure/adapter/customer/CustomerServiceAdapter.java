@@ -32,9 +32,9 @@ public class CustomerServiceAdapter implements CustomerServicePort {
     private final CustomerServiceClient customerServiceClient;
 
     @Override
-    public boolean customerExists(String customerId, String tenantId) {
+    public boolean customerExists(String customerId) {
         try {
-            return customerServiceClient.isCustomerExists(customerId, tenantId);
+            return customerServiceClient.isCustomerExists(customerId);
         } catch (Exception exception) {
             log.warn("客户域远程调用失败(服务不可达), action=客户存在性校验, customerId={}, 原因={}", customerId,
                     exception.getMessage());

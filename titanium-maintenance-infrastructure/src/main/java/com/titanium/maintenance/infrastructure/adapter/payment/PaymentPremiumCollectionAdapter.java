@@ -37,14 +37,14 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
         body.setDescription(request.description());
         try {
             ApiResponse<PaymentOrderResponse> existing = client.get(
-                    request.paymentOrderId(), request.tenantId());
+                    request.paymentOrderId());
             if (existing != null && existing.isSuccess() && existing.getData() != null) {
                 return toFact(existing.getData(), request);
             }
             if (!paymentOrderMissing(existing)) {
                 throw remoteError("Payment 保全收款单回查失败: " + responseDetail(existing));
             }
-            return toFact(requireSuccess(client.create(body, request.tenantId())), request);
+            return toFact(requireSuccess(client.create(body)), request);
         } catch (BusinessException exception) {
             throw exception;
         } catch (RuntimeException exception) {
@@ -57,7 +57,7 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
     @Override
     public CollectionFact get(String tenantId, String paymentOrderId) {
         try {
-            CollectionFact fact = toFact(requireSuccess(client.get(paymentOrderId, tenantId)), null);
+            CollectionFact fact = toFact(requireSuccess(client.get(paymentOrderId)), null);
             if (!paymentOrderId.equals(fact.paymentOrderId())) {
                 throw remoteError("Payment 保全收款单回查结果单号不一致");
             }

@@ -31,10 +31,10 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.command.configuration.MaintenanceConfigurationCommandService;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
 import com.titanium.maintenance.application.query.MaintenanceConfigurationQueryService;
-import com.titanium.maintenance.common.context.TenantContext;
 import com.titanium.maintenance.common.exception.MaintenanceConfigurationPreconditionFailedException;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationPage;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationSearchCriteria;
@@ -68,13 +68,13 @@ class MaintenanceConfigurationControllerTest {
     @AfterEach
     void tearDown() {
         SecurityContextHolder.clearContext();
-        TenantContext.clear();
+        RequestContextHolder.clear();
     }
 
     @Test
     void shouldReturnTenantScopedDetailWithEtagAndRedaction() throws Exception {
         authenticate("operator-1", "maintenance:config:view");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
         when(queryService.get("tenant-1", "config-1"))
                 .thenReturn(MaintenanceConfigurationWebTestFixture.stored(7L));
 
@@ -90,7 +90,7 @@ class MaintenanceConfigurationControllerTest {
     @Test
     void shouldMapStaleIfMatchToPreconditionFailed() throws Exception {
         authenticate("operator-1", "maintenance:config:retire");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
         when(commandService.retire(
                 eq("config-1"), eq(6L), any(MaintenanceConfigurationOperationContext.class)))
                 .thenThrow(new MaintenanceConfigurationPreconditionFailedException());
@@ -104,7 +104,7 @@ class MaintenanceConfigurationControllerTest {
 
     @Test
     void shouldRejectUnauthenticatedConfigurationRequest() throws Exception {
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
 
         mockMvc.perform(get("/api/v1/maintenance/configurations/config-1"))
                 .andExpect(status().isUnauthorized())
@@ -116,7 +116,7 @@ class MaintenanceConfigurationControllerTest {
     @Test
     void shouldRejectMissingIfMatchAsBadRequest() throws Exception {
         authenticate("operator-1", "maintenance:config:retire");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
 
         mockMvc.perform(post("/api/v1/maintenance/configurations/config-1/retire"))
                 .andExpect(status().isBadRequest())
@@ -128,7 +128,7 @@ class MaintenanceConfigurationControllerTest {
     @Test
     void shouldDeleteDraftWithCurrentEtag() throws Exception {
         authenticate("operator-1", "maintenance:config:edit");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
 
         mockMvc.perform(delete("/api/v1/maintenance/configurations/config-1")
                         .header(HttpHeaders.IF_MATCH, "\"4\""))
@@ -141,7 +141,7 @@ class MaintenanceConfigurationControllerTest {
     @Test
     void shouldResolveEffectiveConfigurationByBusinessTime() throws Exception {
         authenticate("operator-1", "maintenance:config:view");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
         LocalDateTime businessTime = LocalDateTime.of(2026, 8, 25, 0, 0);
         when(queryService.resolveEffective("tenant-1", "CONTACT_CHANGE", businessTime))
                 .thenReturn(MaintenanceConfigurationWebTestFixture.stored(8L));
@@ -158,7 +158,7 @@ class MaintenanceConfigurationControllerTest {
     @Test
     void shouldExposeWorkflowAndFeeSummaryInConfigurationList() throws Exception {
         authenticate("operator-1", "maintenance:config:view");
-        TenantContext.setCurrentTenant("tenant-1");
+        RequestContextHolder.setTenantId("tenant-1");
         when(queryService.search(eq("tenant-1"), any(ConfigurationSearchCriteria.class)))
                 .thenReturn(new ConfigurationPage(
                         List.of(MaintenanceConfigurationWebTestFixture.stored(7L)), 1, 0, 20));

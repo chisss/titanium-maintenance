@@ -4,7 +4,6 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.billing.api.request.retroactive.PostPremiumLifecycleAdjustmentRequest;
 import com.titanium.billing.api.request.retroactive.ReversePremiumLifecyclePostingRequest;
@@ -21,12 +20,10 @@ public interface BillingPremiumLifecycleClient {
 
     @PostMapping
     ApiResponse<PremiumLifecyclePostingResponse> post(
-            @RequestBody PostPremiumLifecycleAdjustmentRequest request,
-            @RequestHeader("X-Tenant-ID") String tenantId);
+            @RequestBody PostPremiumLifecycleAdjustmentRequest request);
 
     @PostMapping("/{postingId}/reversals")
     ApiResponse<PremiumLifecycleReversalResponse> reverse(
-            @PathVariable("postingId") String postingId,
-            @RequestBody ReversePremiumLifecyclePostingRequest request,
-            @RequestHeader("X-Tenant-ID") String tenantId);
+            @PathVariable String postingId,
+            @RequestBody ReversePremiumLifecyclePostingRequest request);
 }

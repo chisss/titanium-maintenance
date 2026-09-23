@@ -28,14 +28,14 @@ public class BillingRetroactivePeriodResolutionAdapter implements BillingRetroac
         RetroactivePeriodAdjustmentResolutionResponse response = requireSuccess(
                 api.resolveClosedPeriods(request.billingBatchId(), new ResolveClosedRetroactivePeriodsRequest(
                         request.resolutionRequestId(), request.targetAccountingPeriod().toString(),
-                        request.reason(), request.operatorId(), request.tenantId()), request.tenantId()));
+                        request.reason(), request.operatorId(), request.tenantId())));
         validateEcho(request, response);
         return toFact(response);
     }
 
     @Override
-    public ResolutionFact get(String tenantId, String billingBatchId) {
-        return toFact(requireSuccess(api.getClosedPeriodResolution(billingBatchId, tenantId)));
+    public ResolutionFact get( String billingBatchId) {
+        return toFact(requireSuccess(api.getClosedPeriodResolution(billingBatchId)));
     }
 
     private ResolutionFact toFact(RetroactivePeriodAdjustmentResolutionResponse response) {

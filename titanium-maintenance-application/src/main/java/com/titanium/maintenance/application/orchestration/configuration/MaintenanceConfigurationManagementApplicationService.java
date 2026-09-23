@@ -182,7 +182,7 @@ public class MaintenanceConfigurationManagementApplicationService {
     }
 
     private void requireWriteEnabled(String tenantId) {
-        if (!featurePort.isWriteEnabled(tenantId)) {
+        if (!featurePort.isWriteEnabled()) {
             throw new MaintenanceConfigurationFeatureDisabledException();
         }
     }

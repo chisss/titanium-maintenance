@@ -8,8 +8,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
-import com.titanium.maintenance.common.context.TenantContext;
 import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
 import com.titanium.maintenance.common.exception.MaintenanceForbiddenException;
@@ -40,7 +40,7 @@ public class MaintenanceConfigurationRequestContextResolver {
     private static final int MAX_CORRELATION_LENGTH = 128;
 
     public ResolvedRequestContext require(HttpServletRequest request, String permission) {
-        String tenantId = TenantContext.getCurrentTenant();
+        String tenantId = RequestContextHolder.getTenantId();
         String sourceIp = hasText(request.getRemoteAddr()) ? request.getRemoteAddr().trim() : "UNKNOWN";
         String correlationId = correlationId(request.getHeader(CORRELATION_HEADER));
         request.setAttribute(AUDIT_TENANT_ATTRIBUTE, tenantId);

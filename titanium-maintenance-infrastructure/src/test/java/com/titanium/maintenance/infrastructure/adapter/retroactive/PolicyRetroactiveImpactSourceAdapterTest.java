@@ -23,7 +23,7 @@ class PolicyRetroactiveImpactSourceAdapterTest {
     @Test
     void shouldReturnOnlySubsequentEndorsementsWithinFrozenScope() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getEndorsements("policy-1", "tenant-1")).thenReturn(ApiResponse.success(List.of(
+        when(client.getEndorsements("policy-1")).thenReturn(ApiResponse.success(List.of(
                 endorsement("END-BEFORE", LocalDateTime.parse("2026-07-31T23:59:59"), "tenant-1", "policy-1"),
                 endorsement("END-IN-SCOPE", LocalDateTime.parse("2026-08-20T10:00:00"), "tenant-1", "policy-1"),
                 endorsement("END-AFTER", LocalDateTime.parse("2026-08-26T00:00:00"), "tenant-1", "policy-1"))));
@@ -35,13 +35,13 @@ class PolicyRetroactiveImpactSourceAdapterTest {
         assertEquals("POLICY:END-IN-SCOPE", evidence.items().getFirst().itemId());
         assertEquals(MaintenanceRetroactiveImpactSeverity.BLOCKING,
                 evidence.items().getFirst().severity());
-        verify(client).getEndorsements("policy-1", "tenant-1");
+        verify(client).getEndorsements("policy-1");
     }
 
     @Test
     void shouldRejectAuthorityResponseWithDifferentTenant() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
-        when(client.getEndorsements("policy-1", "tenant-1")).thenReturn(ApiResponse.success(List.of(
+        when(client.getEndorsements("policy-1")).thenReturn(ApiResponse.success(List.of(
                 endorsement("END-001", LocalDateTime.parse("2026-08-20T10:00:00"),
                         "tenant-2", "policy-1"))));
 

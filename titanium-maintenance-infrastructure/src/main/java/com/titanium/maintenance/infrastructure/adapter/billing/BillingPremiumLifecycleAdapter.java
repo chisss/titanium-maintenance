@@ -30,7 +30,7 @@ public class BillingPremiumLifecycleAdapter implements BillingPremiumLifecyclePo
         ApiResponse<PremiumLifecyclePostingResponse> apiResponse = client.post(
                 new PostPremiumLifecycleAdjustmentRequest(
                         request.adjustmentId(), request.adjustmentResultHash(), request.policyId(),
-                        request.customerId(), request.createdBy(), request.tenantId()), request.tenantId());
+                        request.customerId(), request.createdBy(), request.tenantId()));
         if (apiResponse == null || !apiResponse.isSuccess() || apiResponse.getData() == null) {
             String detail = apiResponse == null
                     ? "空响应"
@@ -51,8 +51,7 @@ public class BillingPremiumLifecycleAdapter implements BillingPremiumLifecyclePo
         ApiResponse<PremiumLifecycleReversalResponse> apiResponse = client.reverse(
                 request.sourcePostingId(),
                 new ReversePremiumLifecyclePostingRequest(
-                        request.requestId(), request.reason(), request.createdBy()),
-                request.tenantId());
+                        request.requestId(), request.reason(), request.createdBy()));
         if (apiResponse == null || !apiResponse.isSuccess() || apiResponse.getData() == null) {
             String detail = apiResponse == null
                     ? "空响应"

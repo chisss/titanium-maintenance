@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import com.titanium.common.context.RequestContextInterceptor;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceCaseCreationApplicationService;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceFieldDraftApplicationService;
@@ -85,11 +86,11 @@ class MaintenanceCaseProductionPathTest {
         MaintenanceItemConfigurationRepository configurationRepository =
                 mock(MaintenanceItemConfigurationRepository.class);
         CommandGateway commandGateway = mock(CommandGateway.class);
-        when(policyClient.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(policyClient.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(policySnapshot()));
         when(productClient.resolve(
                 "product-1", "product-v3", "plan-v8", "EFFECTIVE", "API",
-                OffsetDateTime.parse("2026-08-01T00:00:00+08:00"), "tenant-1"))
+                OffsetDateTime.parse("2026-08-01T00:00:00+08:00")))
                 .thenReturn(ApiResponse.success(productOffering()));
         StoredConfiguration policyInfoConfiguration = storedConfiguration("POLICY_INFO_CHANGE");
         StoredConfiguration beneficiaryConfiguration = storedConfiguration("BENEFICIARY_CHANGE");
@@ -117,6 +118,9 @@ class MaintenanceCaseProductionPathTest {
                                 mock(MaintenanceRetroactivePeriodRecalculationApplicationService.class),
                                 mock(MaintenanceRetroactivePeriodResolutionApplicationService.class))))
                 .setControllerAdvice(new MaintenanceExceptionHandler())
+                // m18：显式注册请求上下文拦截器（standaloneSetup 不装配容器里的拦截器），
+                // 使 X-Tenant-Id / X-Operator-Id 头经真实路径进入 RequestContextHolder
+                .addInterceptors(new RequestContextInterceptor())
                 .build();
 
         MvcResult pending = mockMvc.perform(post("/api/v1/maintenance/cases")
@@ -138,10 +142,10 @@ class MaintenanceCaseProductionPathTest {
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.maintenanceId").isNotEmpty());
-        verify(policyClient).getMaintenanceSnapshot("policy-1", "tenant-1");
+        verify(policyClient).getMaintenanceSnapshot("policy-1");
         verify(productClient).resolve(
                 "product-1", "product-v3", "plan-v8", "EFFECTIVE", "API",
-                OffsetDateTime.parse("2026-08-01T00:00:00+08:00"), "tenant-1");
+                OffsetDateTime.parse("2026-08-01T00:00:00+08:00"));
         verify(commandGateway, times(4)).send(any());
     }
 
@@ -161,10 +165,9 @@ class MaintenanceCaseProductionPathTest {
                 .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
                         "maintenance-1", "tenant-1"))
                 .thenReturn(Optional.of(caseView));
-        when(policyClient.getMaintenanceSnapshot("policy-1", "tenant-1"))
+        when(policyClient.getMaintenanceSnapshot("policy-1"))
                 .thenReturn(ApiResponse.success(policySnapshot()));
-        when(fieldCatalogClient.getCurrentCatalog(
-                "tenant-1", null, null, LocalDate.of(2026, 8, 1)))
+        when(fieldCatalogClient.getCurrentCatalog(null, null, LocalDate.of(2026, 8, 1)))
                 .thenReturn(ApiResponse.success(fieldCatalog()));
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
         MaintenanceFieldDraftApplicationService fieldDraftService = new MaintenanceFieldDraftApplicationService(
@@ -183,6 +186,8 @@ class MaintenanceCaseProductionPathTest {
                 mock(MaintenanceRetroactivePeriodResolutionApplicationService.class));
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(controller(commandService))
                 .setControllerAdvice(new MaintenanceExceptionHandler())
+                // m18：同上，请求头须经拦截器进入请求上下文
+                .addInterceptors(new RequestContextInterceptor())
                 .build();
 
         MvcResult pending = mockMvc.perform(put(
@@ -206,9 +211,8 @@ class MaintenanceCaseProductionPathTest {
         verify(maintenanceViewRepository)
                 .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
                         "maintenance-1", "tenant-1");
-        verify(policyClient).getMaintenanceSnapshot("policy-1", "tenant-1");
-        verify(fieldCatalogClient).getCurrentCatalog(
-                "tenant-1", null, null, LocalDate.of(2026, 8, 1));
+        verify(policyClient).getMaintenanceSnapshot("policy-1");
+        verify(fieldCatalogClient).getCurrentCatalog(null, null, LocalDate.of(2026, 8, 1));
         verify(commandGateway).send(any());
     }
 

@@ -3,7 +3,6 @@ package com.titanium.maintenance.infrastructure.client.customer;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 
 import com.titanium.customer.api.response.CustomerResponse;
 
@@ -29,8 +28,7 @@ public interface CustomerServiceClient {
      * @return 客户详情 DTO，客户不存在时返回 null
      */
     @GetMapping("/{customerId}")
-    CustomerResponse getCustomer(@PathVariable("customerId") String customerId,
-                                    @RequestHeader("X-Tenant-Id") String tenantId);
+    CustomerResponse getCustomer(@PathVariable String customerId);
 
     /**
      * 判断客户是否存在（专用端点，比 getCustomer + 异常捕获更准确）
@@ -40,6 +38,5 @@ public interface CustomerServiceClient {
      * @return 存在返回 true
      */
     @GetMapping("/{customerId}/exists")
-    boolean isCustomerExists(@PathVariable("customerId") String customerId,
-                             @RequestHeader("X-Tenant-Id") String tenantId);
+    boolean isCustomerExists(@PathVariable String customerId);
 }
