@@ -41,4 +41,5 @@
     <!-- 历史保全单保全号回填：maintenance_no 于 2026-08-28 16:20 引入，之前的读模型行永久空号（详见脚本头注释） -->
     <include file="classpath:liquibase/dml/maintenance_view_backfill_no_202609201148_weisun_dml.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_do_version_column_202609231700_weisun_ddl.sql"/>
+    <include file="classpath:liquibase/ddl/maintenance_shedlock_202609231800_weisun_ddl.sql"/>
 </databaseChangeLog>
