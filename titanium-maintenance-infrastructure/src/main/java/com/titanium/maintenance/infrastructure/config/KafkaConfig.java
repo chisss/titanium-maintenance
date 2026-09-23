@@ -21,8 +21,11 @@ import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.core.ProducerFactory;
+import org.springframework.kafka.listener.DeadLetterPublishingRecoverer;
+import org.springframework.kafka.listener.DefaultErrorHandler;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
+import org.springframework.util.backoff.FixedBackOff;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
@@ -137,6 +140,23 @@ public class KafkaConfig {
     public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
+        // 🔴 必须显式挂载：本仓未引入 spring-boot-kafka，Boot 不会把 CommonErrorHandler 自动接到
+        //    容器工厂上；不挂载即退回 Spring Kafka 默认（10 次零间隔重试后丢弃），重试耗尽的消息静默丢失。
+        factory.setCommonErrorHandler(kafkaDefaultErrorHandler());
         return factory;
+    }
+
+    /**
+     * 入站消息错误处理器（m20-11 / 审查报告 MSG-01）。
+     * <p>
+     * 重试 3 次（间隔 2s）后由 {@link DeadLetterPublishingRecoverer} 把记录转发到
+     * {@code {原主题}-dlt}，不再静默丢弃。死信主题在 Broker 端按需创建
+     * （生产环境应显式建主题并配监控告警——见 policy 域的 INBOUND_TOPICS + KafkaAdmin 加强版）。
+     * </p>
+     */
+    @Bean
+    public DefaultErrorHandler kafkaDefaultErrorHandler() {
+        return new DefaultErrorHandler(new DeadLetterPublishingRecoverer(kafkaTemplate()),
+                new FixedBackOff(2000L, 3L));
     }
 }
