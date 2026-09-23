@@ -82,7 +82,9 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
                 "spring.jpa.hibernate.ddl-auto=create-drop",
                 "spring.liquibase.enabled=false",
                 "spring.task.scheduling.enabled=false",
-                "axon.axonserver.enabled=false"
+                "axon.axonserver.enabled=false",
+                // jwt.secret 主配置无默认值（SEC-04：密钥一律外部注入），测试须自带一个
+                "jwt.secret=test-only-jwt-secret-for-context-load-must-be-32b"
         })
 @MockitoBean(types = {
         // 域内契约（infrastructure.client，@EnableFeignClients basePackages 扫描面）

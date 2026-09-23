@@ -54,7 +54,7 @@ spring:
     change-log: classpath:liquibase/changelog-master.xml
 
 jwt:
-  secret: ${JWT_SECRET:titanium-admin-jwt-secret-key-2026-must-be-at-least-32-chars}
+  secret: ${TITANIUM_ADMIN_JWT_SECRET}
 
 maintenance:
   authentication:
