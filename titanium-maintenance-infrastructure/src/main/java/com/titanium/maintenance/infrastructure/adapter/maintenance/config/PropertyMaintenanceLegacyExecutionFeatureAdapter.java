@@ -1,8 +1,8 @@
 package com.titanium.maintenance.infrastructure.adapter.maintenance.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.titanium.maintenance.common.config.MaintenanceFeatureProperties;
 import com.titanium.maintenance.port.maintenance.MaintenanceLegacyExecutionFeaturePort;
 
 /** 使用部署配置控制旧版整案执行写能力，查询和独立案件任务级生效不受影响。 */
@@ -12,8 +12,8 @@ public class PropertyMaintenanceLegacyExecutionFeatureAdapter implements Mainten
     private final boolean enabled;
 
     public PropertyMaintenanceLegacyExecutionFeatureAdapter(
-            @Value("${titanium.maintenance.legacy-execution-enabled:true}") boolean enabled) {
-        this.enabled = enabled;
+            MaintenanceFeatureProperties properties) {
+        this.enabled = properties.isLegacyExecutionEnabled();
     }
 
     @Override

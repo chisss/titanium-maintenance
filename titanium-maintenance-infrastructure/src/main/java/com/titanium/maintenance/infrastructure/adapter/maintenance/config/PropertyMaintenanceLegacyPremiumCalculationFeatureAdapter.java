@@ -1,8 +1,8 @@
 package com.titanium.maintenance.infrastructure.adapter.maintenance.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.titanium.maintenance.common.config.MaintenanceFeatureProperties;
 import com.titanium.maintenance.port.maintenance.MaintenanceLegacyPremiumCalculationFeaturePort;
 
 /** 使用部署配置控制旧版人工保费金额写入能力，查询和新任务级收退费流程不受影响。 */
@@ -13,8 +13,8 @@ public class PropertyMaintenanceLegacyPremiumCalculationFeatureAdapter
     private final boolean enabled;
 
     public PropertyMaintenanceLegacyPremiumCalculationFeatureAdapter(
-            @Value("${titanium.maintenance.legacy-premium-calculation-enabled:true}") boolean enabled) {
-        this.enabled = enabled;
+            MaintenanceFeatureProperties properties) {
+        this.enabled = properties.isLegacyPremiumCalculationEnabled();
     }
 
     @Override

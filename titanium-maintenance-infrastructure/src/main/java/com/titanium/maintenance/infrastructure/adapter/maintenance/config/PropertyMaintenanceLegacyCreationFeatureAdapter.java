@@ -1,8 +1,8 @@
 package com.titanium.maintenance.infrastructure.adapter.maintenance.config;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import com.titanium.maintenance.common.config.MaintenanceFeatureProperties;
 import com.titanium.maintenance.port.maintenance.MaintenanceLegacyCreationFeaturePort;
 
 /** 使用部署配置控制旧版保全建案能力，旧版查询和案件后续操作不受影响。 */
@@ -12,8 +12,8 @@ public class PropertyMaintenanceLegacyCreationFeatureAdapter implements Maintena
     private final boolean enabled;
 
     public PropertyMaintenanceLegacyCreationFeatureAdapter(
-            @Value("${titanium.maintenance.legacy-creation-enabled:true}") boolean enabled) {
-        this.enabled = enabled;
+            MaintenanceFeatureProperties properties) {
+        this.enabled = properties.isLegacyCreationEnabled();
     }
 
     @Override
