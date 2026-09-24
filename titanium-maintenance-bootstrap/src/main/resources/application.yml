@@ -107,16 +107,10 @@ logging:
     org.springframework: INFO
     org.axonframework: DEBUG
 
-# Feign配置
-feign:
-  client:
-    config:
-      default:
-        connectTimeout: 5000
-        readTimeout: 5000
-        loggerLevel: basic
-  hystrix:
-    enabled: false
+# ✅ m21-06（审查报告 RPC-03）：原 feign.* 死配置段已删除——Spring Cloud OpenFeign 4.0 起前缀
+#    已迁到 spring.cloud.openfeign.*，且 hystrix 在 2020.0 已移除，故该段**从未生效**（读的人却会
+#    以为已配超时）。超时现由 titanium-common 的 FeignTimeoutAutoConfiguration 下发平台默认值
+#    （连接 1s / 读取 3s）；本域如需更宽超时，请用 spring.cloud.openfeign.client.config.<contextId>.*
 
 # Actuator配置
 management:
