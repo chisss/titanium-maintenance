@@ -19,7 +19,11 @@ public class JdbcMaintenanceEffectScheduleLeaseAdapter implements MaintenanceEff
 
     private static final String ACTIVE = "ACTIVE";
 
-    private final JdbcTemplate jdbcTemplate;
+        // ✅ m22-06（审查报告 PER-03）定性：本类用 JdbcTemplate 而**非绕过 JPA 的疏漏**——
+    // 租约的**条件更新**（UPDATE ... WHERE lease_owner IS NULL）需要数据库级原子性，JPA 的乐观锁无法表达
+    // 「抢到才执行」语义；且候选集**有意跨租户**扫描（多节点调度的固有需求），租户上下文由调用方
+    // 按每条 lease 的 tenantId 建立（见 MaintenanceEffectScheduleApplicationService 的 runAsTenant）。
+private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional

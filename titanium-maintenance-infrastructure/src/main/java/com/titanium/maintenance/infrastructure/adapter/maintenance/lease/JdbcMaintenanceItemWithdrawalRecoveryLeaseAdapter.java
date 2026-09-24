@@ -21,7 +21,10 @@ public class JdbcMaintenanceItemWithdrawalRecoveryLeaseAdapter
     private static final String REQUESTED = "REQUESTED";
     private static final String WAITING_FUNDS = "WAITING_FUNDS";
 
-    private final JdbcTemplate jdbcTemplate;
+        // ✅ m22-06（审查报告 PER-03）定性：本类用 JdbcTemplate 而**非绕过 JPA 的疏漏**——
+    // 同 JdbcMaintenanceEffectScheduleLeaseAdapter：条件更新实现多节点互斥租约，候选集有意跨租户扫描，
+    // 租户上下文由调用方按 lease 的 tenantId 建立。
+private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
