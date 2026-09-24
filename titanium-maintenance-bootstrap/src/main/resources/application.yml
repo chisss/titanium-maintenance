@@ -69,12 +69,8 @@ axon:
     messages: jackson
   eventhandling:
     processors:
-      # ⚠️ 死配置（m6-909 实读登记，m6-916 复核维持）：全仓无任何处理器声明组名 maintenance，本段不生效。
-      #    真实的读侧组名是 maintenance-query-group（见 MaintenanceProjectionEventHandler 等 8 处的
-      #    @ProcessingGroup），其配置见下方 maintenance-query-group 段。
-      maintenance:
-        mode: subscribing
-        threadCount: 4
+      # ✅ m21-04（审查报告 ORC-01）：原 maintenance 死配置已删除（m6-909 实读登记的死配置，
+      #    全仓无处理器声明该组名；真实读侧组名为 maintenance-query-group）。保留本行以留痕。
       # 读侧投影组（MaintenanceProjectionEventHandler / MaintenanceCaseProjectionEventHandler 等 8 处
       # 投影与查询处理器的 @ProcessingGroup）。
       # 🔴 m6-916：本组此前**零配置声明** —— Axon 对未声明组按**隐式 tracking** 装配（本项目 eventBus 为
