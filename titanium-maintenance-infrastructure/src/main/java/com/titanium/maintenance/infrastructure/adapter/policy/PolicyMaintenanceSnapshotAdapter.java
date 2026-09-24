@@ -83,6 +83,13 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
         }
     }
 
+    /**
+     * 重试前的退避等待。
+     * <p>🔴 m21-11（审查报告 ORC-03）**定性复核结论：本处不是缺陷**。报告把它与「写-等-读轮询」
+     * 并列为反模式，但它实为**标准重试退避**（指数式 {@code RETRY_DELAY_MILLIS * attempt}），
+     * 且外层有 {@code MAX_CAPTURE_ATTEMPTS} 次数上界、此处对中断恢复标记后抛出——三要素齐备，
+     * 正是可靠重试应有的形态。故本次不改其结构，仅补本说明以免后续按报告字面"重构"掉正确实现。</p>
+     */
     private void waitBeforeRetry(int attempt) {
         try {
             Thread.sleep(RETRY_DELAY_MILLIS * attempt);
