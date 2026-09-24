@@ -24,7 +24,7 @@ import com.titanium.metadata.response.ApiResponse;
  * {@code switchUnits} 执行转换。二者必须成对使用，中间不得插入其它账户状态假设。
  * </p>
  */
-@FeignClient(name = "titanium-investment", contextId = "maintenanceInvestmentAccountSwitchClient",
+@FeignClient(name = "titanium-investment-service", contextId = "maintenanceInvestmentAccountSwitchClient",
         path = "/api/v1/investment-accounts")
 public interface InvestmentAccountSwitchClient {
 

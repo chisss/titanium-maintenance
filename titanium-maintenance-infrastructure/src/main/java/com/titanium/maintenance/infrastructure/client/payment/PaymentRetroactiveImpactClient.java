@@ -10,7 +10,7 @@ import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 /** Payment 收退款权威查询客户端。 */
-@FeignClient(name = "titanium-payment", contextId = "maintenancePaymentImpactClient", path = "/api/v1/payments")
+@FeignClient(name = "titanium-payment-service", contextId = "maintenancePaymentImpactClient", path = "/api/v1/payments")
 public interface PaymentRetroactiveImpactClient {
 
     @GetMapping("/business/{businessId}")

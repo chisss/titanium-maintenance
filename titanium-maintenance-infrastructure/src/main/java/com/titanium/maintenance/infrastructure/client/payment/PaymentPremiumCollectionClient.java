@@ -12,7 +12,7 @@ import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
 /** Maintenance 调用 Payment 正式收款单契约的 Feign 客户端。 */
 @FeignClient(
-        name = "titanium-payment",
+        name = "titanium-payment-service",
         contextId = "maintenancePaymentPremiumCollectionClient",
         path = "/api/v1/payments")
 public interface PaymentPremiumCollectionClient {

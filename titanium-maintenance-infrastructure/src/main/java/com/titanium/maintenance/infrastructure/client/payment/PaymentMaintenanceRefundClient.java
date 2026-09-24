@@ -12,7 +12,7 @@ import com.titanium.payment.api.response.refund.RefundOrderResponse;
 
 /** Maintenance 调用 Payment 独立退款单契约的 Feign 客户端。 */
 @FeignClient(
-        name = "titanium-payment",
+        name = "titanium-payment-service",
         contextId = "maintenancePaymentRefundClient",
         path = "/api/v1/refund-orders")
 public interface PaymentMaintenanceRefundClient {
