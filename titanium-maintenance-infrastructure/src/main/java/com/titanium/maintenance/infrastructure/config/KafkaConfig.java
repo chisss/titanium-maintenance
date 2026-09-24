@@ -55,6 +55,8 @@ public class KafkaConfig {
      * 事件（如 MaintenanceExecutedEvent）携带 LocalDateTime 字段，裸 ObjectMapper 会抛
      * InvalidDefinitionException 导致发布失败。
      */
+    // ✅ m22-03（审查报告 SPR-04）定性：本处**有意独立构造**——Kafka 事件外发需要**确定的序列化配置**（显式注册 JavaTimeModule），
+    // 复用 Spring 全局实例会把消息格式绑到 Web 层的配置演进上，反而不稳。
     private ObjectMapper eventObjectMapper() {
         return new ObjectMapper().registerModule(new JavaTimeModule());
     }
