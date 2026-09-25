@@ -52,7 +52,7 @@ public class MaintenanceItemWithdrawalRecoveryApplicationService {
                             lease.paymentMethod(), RECOVERY_OPERATOR, lease.tenantId())).join());
         } catch (RuntimeException exception) {
             log.warn("项目撤销自动恢复失败: maintenanceId={}, itemCode={}, retryCount={}, error={}",
-                    lease.maintenanceId(), lease.itemCode(), lease.retryCount(), safeMessage(exception));
+                    lease.maintenanceId(), lease.itemCode(), lease.retryCount(), safeMessage(exception), exception);
         } finally {
             leasePort.release(lease.itemViewId(), recoveryOwner);
         }

@@ -42,7 +42,7 @@ public class MaintenanceUnderwritingAdapter implements MaintenanceUnderwritingPo
         } catch (RuntimeException exception) {
             log.warn("调用保全核保失败, tenantId={}, maintenanceId={}, itemCode={}, errorType={}",
                     request.tenantId(), request.maintenanceId(), request.itemCode(),
-                    exception.getClass().getSimpleName());
+                    exception.getClass().getSimpleName(), exception);
             throw remoteError("Underwriting 保全核保不可用或契约无效");
         }
     }

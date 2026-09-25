@@ -157,7 +157,7 @@ public class MaintenanceEffectScheduleApplicationService {
                         () -> executeLease(lease, schedulerOwner, SCHEDULER_OPERATOR, MaintenanceChannel.API));
             } catch (RuntimeException exception) {
                 log.warn("未来生效计划执行失败: maintenanceId={}, error={}",
-                        lease.maintenanceId(), safeMessage(rootCause(exception)));
+                        lease.maintenanceId(), safeMessage(rootCause(exception)), exception);
             }
         }
     }
@@ -281,7 +281,7 @@ public class MaintenanceEffectScheduleApplicationService {
                 cause.addSuppressed(failureCause);
             }
             log.error("未来生效计划失败事实记录失败: maintenanceId={}, attemptId={}, error={}",
-                    lease.maintenanceId(), attemptId, safeMessage(failureCause));
+                    lease.maintenanceId(), attemptId, safeMessage(failureCause), failureException);
         }
     }
 

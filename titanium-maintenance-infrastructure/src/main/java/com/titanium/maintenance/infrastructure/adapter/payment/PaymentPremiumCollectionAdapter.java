@@ -49,7 +49,7 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
             throw exception;
         } catch (RuntimeException exception) {
             log.warn("创建 Payment 保全收款单失败, tenantId={}, paymentOrderId={}, errorType={}",
-                    request.tenantId(), request.paymentOrderId(), exception.getClass().getSimpleName());
+                    request.tenantId(), request.paymentOrderId(), exception.getClass().getSimpleName(), exception);
             throw remoteError("Payment 保全收款单创建失败");
         }
     }
@@ -66,7 +66,7 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
             throw exception;
         } catch (RuntimeException exception) {
             log.warn("回查 Payment 保全收款单失败, tenantId={}, paymentOrderId={}, errorType={}",
-                    tenantId, paymentOrderId, exception.getClass().getSimpleName());
+                    tenantId, paymentOrderId, exception.getClass().getSimpleName(), exception);
             throw remoteError("Payment 保全收款单回查失败");
         }
     }

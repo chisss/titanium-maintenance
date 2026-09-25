@@ -58,7 +58,7 @@ public class ProductMaintenancePremiumQuoteAdapter implements ProductMaintenance
         } catch (RuntimeException exception) {
             log.warn("调用 Product 保全报价失败, tenantId={}, maintenanceId={}, itemCode={}, errorType={}",
                     request.tenantId(), request.maintenanceId(), request.itemCode(),
-                    exception.getClass().getSimpleName());
+                    exception.getClass().getSimpleName(), exception);
             throw remoteError("Product 保全报价不可用或契约无效");
         }
     }

@@ -47,7 +47,7 @@ public class PolicyFieldCatalogAdapter implements PolicyFieldCatalogPort {
         } catch (RuntimeException exception) {
             log.warn("获取Policy字段目录失败, tenantId={}, productType={}, policyType={}, businessDate={}, errorType={}",
                     request.tenantId(), request.productType(), request.policyType(), request.businessDate(),
-                    exception.getClass().getSimpleName());
+                    exception.getClass().getSimpleName(), exception);
             throw new PolicyFieldCatalogUnavailableException("Policy字段目录不可用或契约无效", exception);
         }
     }

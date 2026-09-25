@@ -64,7 +64,7 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
             throw exception;
         } catch (Exception exception) {
             log.warn("投资域远程调用失败(服务不可达), action=账户转换, policyId={}, 原因={}", request.policyId(),
-                    exception.getMessage());
+                    exception.getMessage(), exception);
             throw new MaintenanceRemoteCallException(
                     "投资域账户转换失败(服务不可达), policyId=" + request.policyId(),
                     MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR, exception);
