@@ -15,7 +15,7 @@ import com.titanium.metadata.response.ApiResponse;
 @FeignClient(
         name = "titanium-billing",
         contextId = "premiumLifecyclePostingApi",
-        path = "/api/premium-lifecycle-postings")
+        path = "/api/v1/premium-lifecycle-postings")
 public interface BillingPremiumLifecycleClient {
 
     @PostMapping
