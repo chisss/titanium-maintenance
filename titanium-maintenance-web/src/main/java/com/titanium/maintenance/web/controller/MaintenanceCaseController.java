@@ -81,6 +81,7 @@ import com.titanium.maintenance.web.response.retroactive.MaintenanceRetroactiveP
 import com.titanium.maintenance.web.response.underwriting.MaintenanceUnderwritingAssessmentVO;
 import com.titanium.maintenance.web.response.withdrawal.MaintenanceItemWithdrawalVO;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
+import com.titanium.metadata.response.ApiResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -103,34 +104,34 @@ public class MaintenanceCaseController {
 
     /** 独立案件列表；初始化未完成案件在查询层不可见。 */
     @GetMapping({"/api/v1/maintenance/cases", "/web/v1/maintenance/cases"})
-    public ResponseEntity<MaintenanceCasePageVO> search(
-            @RequestParam(required = false) @Size(max = 64) String caseId,
-            @RequestParam(required = false) @Size(max = 64) String policyNumber,
-            @RequestParam(required = false) @Size(max = 64) String customerId,
-            @RequestParam(required = false) @Size(max = 64) String itemCode,
-            @RequestParam(required = false) MaintenanceChannel source,
-            @RequestParam(required = false) MaintenanceStatus status,
-            @RequestParam(required = false) @Size(max = 64) String operatorId,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size) {
+    public ApiResponse<MaintenanceCasePageVO> search(
+         @RequestParam(required = false) @Size(max = 64) String caseId,
+         @RequestParam(required = false) @Size(max = 64) String policyNumber,
+         @RequestParam(required = false) @Size(max = 64) String customerId,
+         @RequestParam(required = false) @Size(max = 64) String itemCode,
+         @RequestParam(required = false) MaintenanceChannel source,
+         @RequestParam(required = false) MaintenanceStatus status,
+         @RequestParam(required = false) @Size(max = 64) String operatorId,
+         @RequestParam(required = false)
+         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdFrom,
+         @RequestParam(required = false)
+         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime createdTo,
+         @RequestParam(defaultValue = "0") @Min(0) int page,
+         @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size) {
         String tenantId = RequestContextHolder.requireTenantId();
         MaintenanceCaseSearchCriteria criteria = new MaintenanceCaseSearchCriteria(
                 caseId, policyNumber, customerId, itemCode, source, status, operatorId,
                 createdFrom, createdTo, page, size);
-        return ResponseEntity.ok(caseQueryWebMapper.toPageVO(caseQueryService.search(tenantId, criteria)));
+        return ApiResponse.success(caseQueryWebMapper.toPageVO(caseQueryService.search(tenantId, criteria)));
     }
 
     /** 独立案件详情；敏感字段默认脱敏。 */
     @GetMapping({"/api/v1/maintenance/cases/{caseId}", "/web/v1/maintenance/cases/{caseId}"})
-    public ResponseEntity<MaintenanceCaseDetailVO> detail(
-            @PathVariable @NotBlank @Size(max = 64) String caseId) {
+    public ApiResponse<MaintenanceCaseDetailVO> detail(
+         @PathVariable @NotBlank @Size(max = 64) String caseId) {
         String tenantId = RequestContextHolder.requireTenantId();
         boolean sensitiveDetailsVisible = queryAccessResolver.sensitiveDetailsVisible();
-        return ResponseEntity.ok(caseQueryWebMapper.toDetailVO(
+        return ApiResponse.success(caseQueryWebMapper.toDetailVO(
                 caseQueryService.findDetail(tenantId, caseId, sensitiveDetailsVisible)));
     }
 
@@ -139,14 +140,14 @@ public class MaintenanceCaseController {
             "/api/v1/maintenance/cases/{caseId}/retroactive-impact-analysis",
             "/web/v1/maintenance/cases/{caseId}/retroactive-impact-analysis"
     })
-    public ResponseEntity<MaintenanceRetroactiveImpactAnalysisVO> analyzeRetroactiveImpact(
-            @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody AnalyzeMaintenanceRetroactiveImpactDTO request) {
+    public ApiResponse<MaintenanceRetroactiveImpactAnalysisVO> analyzeRetroactiveImpact(
+         @PathVariable @NotBlank @Size(max = 64) String caseId,
+         @Valid @RequestBody AnalyzeMaintenanceRetroactiveImpactDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.analyzeRetroactiveImpact(new MaintenanceRetroactiveImpactAnalysisInput(
                 caseId, request.operationId(), operatorId, tenantId));
-        return ResponseEntity.ok(new MaintenanceRetroactiveImpactAnalysisVO(
+        return ApiResponse.success(new MaintenanceRetroactiveImpactAnalysisVO(
                 result.analysisId(), result.analysisVersion(), result.operationId(), result.status(),
                 result.scopeFrom(), result.scopeTo(), result.itemCount(), result.blockingItemCount(),
                 result.pendingItemCount(), result.resultHash(), result.failureCode(), result.failureMessage(),
@@ -158,15 +159,15 @@ public class MaintenanceCaseController {
             "/api/v1/maintenance/cases/{caseId}/retroactive-period-recalculation",
             "/web/v1/maintenance/cases/{caseId}/retroactive-period-recalculation"
     })
-    public ResponseEntity<MaintenanceRetroactivePeriodRecalculationVO> recalculateRetroactivePeriods(
-            @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody RecalculateMaintenanceRetroactivePeriodsDTO request) {
+    public ApiResponse<MaintenanceRetroactivePeriodRecalculationVO> recalculateRetroactivePeriods(
+         @PathVariable @NotBlank @Size(max = 64) String caseId,
+         @Valid @RequestBody RecalculateMaintenanceRetroactivePeriodsDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.recalculateRetroactivePeriods(
                 new MaintenanceRetroactivePeriodRecalculationInput(
                         caseId, request.operationId(), operatorId, tenantId));
-        return ResponseEntity.ok(new MaintenanceRetroactivePeriodRecalculationVO(
+        return ApiResponse.success(new MaintenanceRetroactivePeriodRecalculationVO(
                 result.periodRecalculationId(), result.periodRecalculationVersion(), result.operationId(),
                 result.status(), result.analysisId(), result.analysisVersion(), result.analysisResultHash(),
                 result.productRecalculationId(), result.direction(), result.amount(), result.currency(),
@@ -179,16 +180,16 @@ public class MaintenanceCaseController {
             "/api/v1/maintenance/cases/{caseId}/retroactive-period-resolution",
             "/web/v1/maintenance/cases/{caseId}/retroactive-period-resolution"
     })
-    public ResponseEntity<MaintenanceRetroactivePeriodResolutionVO> resolveRetroactivePeriods(
-            @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody ResolveMaintenanceRetroactivePeriodsDTO request) {
+    public ApiResponse<MaintenanceRetroactivePeriodResolutionVO> resolveRetroactivePeriods(
+         @PathVariable @NotBlank @Size(max = 64) String caseId,
+         @Valid @RequestBody ResolveMaintenanceRetroactivePeriodsDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.resolveRetroactivePeriods(
                 new MaintenanceRetroactivePeriodResolutionInput(
                         caseId, request.operationId(), request.targetAccountingPeriod(),
                         request.reason(), operatorId, tenantId));
-        return ResponseEntity.ok(new MaintenanceRetroactivePeriodResolutionVO(
+        return ApiResponse.success(new MaintenanceRetroactivePeriodResolutionVO(
                 result.periodResolutionId(), result.operationId(), result.status(),
                 result.billingResolutionId(), result.billingBatchId(), result.sourceBatchResultHash(),
                 result.targetAccountingPeriod(), result.resolvedLineCount(), result.resultHash(),
@@ -515,15 +516,15 @@ public class MaintenanceCaseController {
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/effect-schedule/execute-now",
             "/web/v1/maintenance/cases/{caseId}/effect-schedule/execute-now"})
-    public ResponseEntity<MaintenanceEffectApplicationVO> executeEffectScheduleNow(
-            @PathVariable @NotBlank @Size(max = 64) String caseId,
-            @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
-            HttpServletRequest servletRequest) {
+    public ApiResponse<MaintenanceEffectApplicationVO> executeEffectScheduleNow(
+         @PathVariable @NotBlank @Size(max = 64) String caseId,
+         @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
+         HttpServletRequest servletRequest) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
         var result = caseCommandService.executeEffectScheduleNow(scheduleInput(
                 caseId, request, tenantId, operatorId, source(servletRequest)));
-        return ResponseEntity.ok(new MaintenanceEffectApplicationVO(
+        return ApiResponse.success(new MaintenanceEffectApplicationVO(
                 result.requestId(), result.endorsementNo(), result.actualPolicyVersion(),
                 result.applicationHash(), result.appliedAt()));
     }

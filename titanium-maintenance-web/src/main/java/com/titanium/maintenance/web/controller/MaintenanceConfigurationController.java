@@ -38,6 +38,7 @@ import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestCont
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver.ResolvedRequestContext;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.exception.DomainException;
+import com.titanium.metadata.response.ApiResponse;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -69,26 +70,28 @@ public class MaintenanceConfigurationController {
     private final MaintenanceConfigurationRequestContextResolver contextResolver;
 
     @PostMapping
-    public ResponseEntity<MaintenanceConfigurationVO> create(
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> create(
             @Valid @RequestBody MaintenanceConfigurationDTO request,
             HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, CREATE);
         StoredConfiguration stored = commandService.createDraft(
                 UUID.randomUUID().toString(), mapper.toDefinition(request),
                 request.validFrom(), request.validTo(), context.toOperationContext());
+        // 保留 201：创建语义属 HTTP 传输层，不并入 ApiResponse.code；
+        // LOCATION/ETag 是资源定位与乐观锁契约，不因信封化省略
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header(HttpHeaders.LOCATION, "/api/v1/maintenance/configurations/"
                         + stored.configuration().getConfigurationId())
                 .eTag(etag(stored.rowVersion()))
-                .body(mapper.toVO(stored, context.sensitiveDetailsVisible()));
+                .body(ApiResponse.success(mapper.toVO(stored, context.sensitiveDetailsVisible())));
     }
 
     @PutMapping("/{configurationId}")
-    public ResponseEntity<MaintenanceConfigurationVO> replaceDraft(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            @Valid @RequestBody MaintenanceConfigurationDTO request,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> replaceDraft(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         @Valid @RequestBody MaintenanceConfigurationDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, EDIT);
         StoredConfiguration stored = commandService.updateDraft(
                 configurationId, expectedVersion(ifMatch), mapper.toDefinition(request),
@@ -97,32 +100,32 @@ public class MaintenanceConfigurationController {
     }
 
     @DeleteMapping("/{configurationId}")
-    public ResponseEntity<Void> deleteDraft(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            HttpServletRequest servletRequest) {
+    public ApiResponse<Void> deleteDraft(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, EDIT);
         commandService.deleteDraft(
                 configurationId, expectedVersion(ifMatch), context.toOperationContext());
-        return ResponseEntity.noContent().build();
+        return ApiResponse.success();
     }
 
     @PostMapping("/{configurationId}/validate")
-    public ResponseEntity<MaintenanceConfigurationValidationVO> validate(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
-            HttpServletRequest servletRequest) {
+    public ApiResponse<MaintenanceConfigurationValidationVO> validate(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, VIEW);
-        return ResponseEntity.ok(mapper.toValidationVO(commandService.validate(
+        return ApiResponse.success(mapper.toValidationVO(commandService.validate(
                 configurationId, mapper.toCriteria(request), context.toOperationContext())));
     }
 
     @PostMapping("/{configurationId}/submit")
-    public ResponseEntity<MaintenanceConfigurationVO> submit(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> submit(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, SUBMIT);
         StoredConfiguration stored = commandService.submitForApproval(
                 configurationId, expectedVersion(ifMatch), mapper.toCriteria(request),
@@ -131,11 +134,11 @@ public class MaintenanceConfigurationController {
     }
 
     @PostMapping("/{configurationId}/approve")
-    public ResponseEntity<MaintenanceConfigurationVO> approve(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> approve(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, APPROVE);
         StoredConfiguration stored = commandService.approve(
                 configurationId, expectedVersion(ifMatch), mapper.toCriteria(request),
@@ -144,11 +147,11 @@ public class MaintenanceConfigurationController {
     }
 
     @PostMapping("/{configurationId}/reject")
-    public ResponseEntity<MaintenanceConfigurationVO> reject(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            @Valid @RequestBody MaintenanceConfigurationDecisionDTO request,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> reject(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         @Valid @RequestBody MaintenanceConfigurationDecisionDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, APPROVE);
         StoredConfiguration stored = commandService.reject(
                 configurationId, expectedVersion(ifMatch), request.reason(),
@@ -157,11 +160,11 @@ public class MaintenanceConfigurationController {
     }
 
     @PostMapping("/{configurationId}/return-to-draft")
-    public ResponseEntity<MaintenanceConfigurationVO> returnToDraft(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            @Valid @RequestBody MaintenanceConfigurationDecisionDTO request,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> returnToDraft(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         @Valid @RequestBody MaintenanceConfigurationDecisionDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, APPROVE);
         StoredConfiguration stored = commandService.returnToDraft(
                 configurationId, expectedVersion(ifMatch), request.reason(),
@@ -170,11 +173,11 @@ public class MaintenanceConfigurationController {
     }
 
     @PostMapping("/{configurationId}/publish")
-    public ResponseEntity<MaintenanceConfigurationVO> publish(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> publish(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         @Valid @RequestBody MaintenanceConfigurationValidationDTO request,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, PUBLISH);
         StoredConfiguration stored = commandService.publish(
                 configurationId, expectedVersion(ifMatch), mapper.toCriteria(request),
@@ -183,10 +186,10 @@ public class MaintenanceConfigurationController {
     }
 
     @PostMapping("/{configurationId}/retire")
-    public ResponseEntity<MaintenanceConfigurationVO> retire(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
-            HttpServletRequest servletRequest) {
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> retire(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, RETIRE);
         StoredConfiguration stored = commandService.retire(
                 configurationId, expectedVersion(ifMatch), context.toOperationContext());
@@ -194,7 +197,7 @@ public class MaintenanceConfigurationController {
     }
 
     @PostMapping("/{configurationId}/revisions")
-    public ResponseEntity<MaintenanceConfigurationVO> createRevision(
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> createRevision(
             @PathVariable @NotBlank @Size(max = 64) String configurationId,
             @RequestHeader(HttpHeaders.IF_MATCH) String ifMatch,
             @Valid @RequestBody MaintenanceConfigurationRevisionDTO request,
@@ -203,26 +206,28 @@ public class MaintenanceConfigurationController {
         StoredConfiguration stored = commandService.createRevision(
                 configurationId, expectedVersion(ifMatch), UUID.randomUUID().toString(),
                 request.version(), request.validFrom(), request.validTo(), context.toOperationContext());
+        // 保留 201：创建语义属 HTTP 传输层，不并入 ApiResponse.code；
+        // LOCATION/ETag 是资源定位与乐观锁契约，不因信封化省略
         return ResponseEntity.status(HttpStatus.CREATED)
                 .header(HttpHeaders.LOCATION, "/api/v1/maintenance/configurations/"
                         + stored.configuration().getConfigurationId())
                 .eTag(etag(stored.rowVersion()))
-                .body(mapper.toVO(stored, context.sensitiveDetailsVisible()));
+                .body(ApiResponse.success(mapper.toVO(stored, context.sensitiveDetailsVisible())));
     }
 
     @GetMapping("/{configurationId}")
-    public ResponseEntity<MaintenanceConfigurationVO> get(
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> get(
             @PathVariable @NotBlank @Size(max = 64) String configurationId,
             HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, VIEW);
         StoredConfiguration stored = queryService.get(context.tenantId(), configurationId);
         return ResponseEntity.ok()
                 .eTag(etag(stored.rowVersion()))
-                .body(mapper.toVO(stored, context.sensitiveDetailsVisible()));
+                .body(ApiResponse.success(mapper.toVO(stored, context.sensitiveDetailsVisible())));
     }
 
     @GetMapping("/effective")
-    public ResponseEntity<MaintenanceConfigurationVO> resolveEffective(
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> resolveEffective(
             @RequestParam @NotBlank @Size(max = 64) String itemCode,
             @RequestParam @NotNull
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime businessTime,
@@ -232,52 +237,56 @@ public class MaintenanceConfigurationController {
                 context.tenantId(), itemCode, businessTime);
         return ResponseEntity.ok()
                 .eTag(etag(stored.rowVersion()))
-                .body(mapper.toVO(stored, context.sensitiveDetailsVisible()));
+                .body(ApiResponse.success(mapper.toVO(stored, context.sensitiveDetailsVisible())));
     }
 
     @GetMapping("/{configurationId}/preview")
-    public ResponseEntity<MaintenanceConfigurationPreviewVO> preview(
+    public ResponseEntity<ApiResponse<MaintenanceConfigurationPreviewVO>> preview(
             @PathVariable @NotBlank @Size(max = 64) String configurationId,
             HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, VIEW);
         StoredConfiguration stored = queryService.get(context.tenantId(), configurationId);
         return ResponseEntity.ok()
                 .eTag(etag(stored.rowVersion()))
-                .body(mapper.toPreviewVO(stored, context.sensitiveDetailsVisible()));
+                .body(ApiResponse.success(mapper.toPreviewVO(stored, context.sensitiveDetailsVisible())));
     }
 
     @GetMapping
-    public ResponseEntity<MaintenanceConfigurationPageVO> search(
-            @RequestParam(required = false) @Size(max = 64) String itemCode,
-            @RequestParam(required = false) MaintenanceItemConfigurationStatus status,
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveAt,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
-            HttpServletRequest servletRequest) {
+    public ApiResponse<MaintenanceConfigurationPageVO> search(
+         @RequestParam(required = false) @Size(max = 64) String itemCode,
+         @RequestParam(required = false) MaintenanceItemConfigurationStatus status,
+         @RequestParam(required = false)
+         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveAt,
+         @RequestParam(defaultValue = "0") @Min(0) int page,
+         @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, VIEW);
-        return ResponseEntity.ok(mapper.toPageVO(queryService.search(
+        return ApiResponse.success(mapper.toPageVO(queryService.search(
                 context.tenantId(), new ConfigurationSearchCriteria(
                         itemCode, status, effectiveAt, page, size))));
     }
 
     @GetMapping("/{configurationId}/audits")
-    public ResponseEntity<MaintenanceConfigurationAuditPageVO> auditHistory(
-            @PathVariable @NotBlank @Size(max = 64) String configurationId,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
-            HttpServletRequest servletRequest) {
+    public ApiResponse<MaintenanceConfigurationAuditPageVO> auditHistory(
+         @PathVariable @NotBlank @Size(max = 64) String configurationId,
+         @RequestParam(defaultValue = "0") @Min(0) int page,
+         @RequestParam(defaultValue = "20") @Min(1) @Max(200) int size,
+         HttpServletRequest servletRequest) {
         ResolvedRequestContext context = contextResolver.require(servletRequest, VIEW);
-        return ResponseEntity.ok(mapper.toAuditPageVO(
+        return ApiResponse.success(mapper.toAuditPageVO(
                 queryService.findAuditHistory(context.tenantId(), configurationId, page, size),
                 context.sensitiveDetailsVisible()));
     }
 
-    private ResponseEntity<MaintenanceConfigurationVO> ok(
+    /**
+     * 配置回执统一形态：200 + 强 ETag + 信封体。
+     * <p>ETag 承载乐观锁版本，是客户端下次 If-Match 的唯一来源，信封化不得吞掉它。</p>
+     */
+    private ResponseEntity<ApiResponse<MaintenanceConfigurationVO>> ok(
             StoredConfiguration stored, ResolvedRequestContext context) {
         return ResponseEntity.ok()
                 .eTag(etag(stored.rowVersion()))
-                .body(mapper.toVO(stored, context.sensitiveDetailsVisible()));
+                .body(ApiResponse.success(mapper.toVO(stored, context.sensitiveDetailsVisible())));
     }
 
     private long expectedVersion(String ifMatch) {

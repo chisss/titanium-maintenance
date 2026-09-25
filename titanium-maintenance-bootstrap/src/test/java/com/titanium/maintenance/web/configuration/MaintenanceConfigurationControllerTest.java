@@ -45,6 +45,7 @@ import com.titanium.maintenance.web.mapper.MaintenanceConfigurationWebMapper;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.errorcode.SystemErrorCode;
+import com.titanium.metadata.response.ApiResponse;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenanceConfigurationControllerTest {
@@ -83,8 +84,8 @@ class MaintenanceConfigurationControllerTest {
         mockMvc.perform(get("/api/v1/maintenance/configurations/config-1"))
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.ETAG, "\"7\""))
-                .andExpect(jsonPath("$.sensitiveDetailsVisible").value(false))
-                .andExpect(jsonPath("$.definition.fieldRules[0].detailsRedacted").value(true));
+                .andExpect(jsonPath("$.data.sensitiveDetailsVisible").value(false))
+                .andExpect(jsonPath("$.data.definition.fieldRules[0].detailsRedacted").value(true));
 
         verify(queryService).get("tenant-1", "config-1");
     }
@@ -134,7 +135,9 @@ class MaintenanceConfigurationControllerTest {
 
         mockMvc.perform(delete("/api/v1/maintenance/configurations/config-1")
                         .header(HttpHeaders.IF_MATCH, "\"4\""))
-                .andExpect(status().isNoContent());
+                // m24-01b：删除端点随信封统一由 204 改为 200（HTTP 204 不得携带响应体，与统一信封不相容）
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(ApiResponse.SUCCESS_CODE));
 
         verify(commandService).deleteDraft(
                 eq("config-1"), eq(4L), any(MaintenanceConfigurationOperationContext.class));
@@ -167,8 +170,8 @@ class MaintenanceConfigurationControllerTest {
 
         mockMvc.perform(get("/api/v1/maintenance/configurations"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.items[0].stepCount").value(3))
-                .andExpect(jsonPath("$.items[0].feeMode").value("NONE"));
+                .andExpect(jsonPath("$.data.items[0].stepCount").value(3))
+                .andExpect(jsonPath("$.data.items[0].feeMode").value("NONE"));
     }
 
     private void authenticate(String operatorId, String... authorities) {

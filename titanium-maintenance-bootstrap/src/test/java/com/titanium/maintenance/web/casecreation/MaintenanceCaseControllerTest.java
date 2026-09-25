@@ -124,9 +124,9 @@ class MaintenanceCaseControllerTest {
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.analysisId").value("analysis-1"))
-                .andExpect(jsonPath("$.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.blockingItemCount").value(2));
+                .andExpect(jsonPath("$.data.analysisId").value("analysis-1"))
+                .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.data.blockingItemCount").value(2));
         mockMvc.perform(post("/web/v1/maintenance/cases/case-1/retroactive-impact-analysis")
                         .header("X-Tenant-Id", "tenant-1")
                         .header("X-Operator-Id", "operator-1")
@@ -160,9 +160,9 @@ class MaintenanceCaseControllerTest {
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.periodRecalculationId").value("period-recalculation-1"))
-                .andExpect(jsonPath("$.status").value("REVIEW_REQUIRED"))
-                .andExpect(jsonPath("$.reviewCount").value(1));
+                .andExpect(jsonPath("$.data.periodRecalculationId").value("period-recalculation-1"))
+                .andExpect(jsonPath("$.data.status").value("REVIEW_REQUIRED"))
+                .andExpect(jsonPath("$.data.reviewCount").value(1));
         mockMvc.perform(post("/web/v1/maintenance/cases/case-1/retroactive-period-recalculation")
                         .header("X-Tenant-Id", "tenant-1")
                         .header("X-Operator-Id", "operator-1")
@@ -200,8 +200,8 @@ class MaintenanceCaseControllerTest {
                         .contentType("application/json")
                         .content(body))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.billingResolutionId").value("billing-resolution-1"))
-                .andExpect(jsonPath("$.targetAccountingPeriod").value("2026-08"));
+                .andExpect(jsonPath("$.data.billingResolutionId").value("billing-resolution-1"))
+                .andExpect(jsonPath("$.data.targetAccountingPeriod").value("2026-08"));
         mockMvc.perform(post("/web/v1/maintenance/cases/case-1/retroactive-period-resolution")
                         .header("X-Tenant-Id", "tenant-1")
                         .header("X-Operator-Id", "operator-1")
@@ -459,8 +459,8 @@ class MaintenanceCaseControllerTest {
                         .contentType("application/json")
                         .content("{\"operationId\":\"schedule-execute-1\",\"reason\":\"立即执行\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.endorsementNo").value("END-002"))
-                .andExpect(jsonPath("$.actualPolicyVersion").value(9));
+                .andExpect(jsonPath("$.data.endorsementNo").value("END-002"))
+                .andExpect(jsonPath("$.data.actualPolicyVersion").value(9));
 
         ArgumentCaptor<MaintenanceEffectScheduleOperationInput> captor = ArgumentCaptor.forClass(
                 MaintenanceEffectScheduleOperationInput.class);

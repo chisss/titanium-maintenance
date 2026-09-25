@@ -83,10 +83,10 @@ class MaintenanceCaseQueryControllerTest {
                         .param("source", "MANUAL")
                         .param("status", "PENDING"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.total").value(1))
-                .andExpect(jsonPath("$.list[0].caseId").value("case-1"))
-                .andExpect(jsonPath("$.list[0].effectStatus").value("NOT_STARTED"))
-                .andExpect(jsonPath("$.list[0].itemCodes[0]").value("POLICY_INFO_CHANGE"));
+                .andExpect(jsonPath("$.data.total").value(1))
+                .andExpect(jsonPath("$.data.list[0].caseId").value("case-1"))
+                .andExpect(jsonPath("$.data.list[0].effectStatus").value("NOT_STARTED"))
+                .andExpect(jsonPath("$.data.list[0].itemCodes[0]").value("POLICY_INFO_CHANGE"));
         ArgumentCaptor<MaintenanceCaseSearchCriteria> captor =
                 ArgumentCaptor.forClass(MaintenanceCaseSearchCriteria.class);
         verify(queryService).search(org.mockito.ArgumentMatchers.eq("tenant-1"), captor.capture());
@@ -102,19 +102,19 @@ class MaintenanceCaseQueryControllerTest {
         mockMvc.perform(get("/api/v1/maintenance/cases/case-1")
                         .header("X-Tenant-Id", "tenant-1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.caseId").value("case-1"))
-                .andExpect(jsonPath("$.maintenanceNo").value("MNT202608240000001"))
-                .andExpect(jsonPath("$.effectStatus").value("FAILED"))
-                .andExpect(jsonPath("$.effectCompensation.required").value(true))
-                .andExpect(jsonPath("$.effectCompensation.compensationId").value("compensation-1"))
-                .andExpect(jsonPath("$.effectCompensation.requestId").value("request-1"))
-                .andExpect(jsonPath("$.effectCompensation.endorsementNo").value("END-20260825-001"))
-                .andExpect(jsonPath("$.effectCompensation.actualPolicyVersion").value(8))
-                .andExpect(jsonPath("$.effectCompensation.failureReason").value("案件回执写入失败"))
-                .andExpect(jsonPath("$.workflowTasks[0].stepType").value("DATA_ENTRY"))
-                .andExpect(jsonPath("$.workflowTasks[0].status").value("READY"))
-                .andExpect(jsonPath("$.fieldChanges[0].baseValue").value("138****0000"))
-                .andExpect(jsonPath("$.fieldChanges[0].proposedValue").value("139****0000"));
+                .andExpect(jsonPath("$.data.caseId").value("case-1"))
+                .andExpect(jsonPath("$.data.maintenanceNo").value("MNT202608240000001"))
+                .andExpect(jsonPath("$.data.effectStatus").value("FAILED"))
+                .andExpect(jsonPath("$.data.effectCompensation.required").value(true))
+                .andExpect(jsonPath("$.data.effectCompensation.compensationId").value("compensation-1"))
+                .andExpect(jsonPath("$.data.effectCompensation.requestId").value("request-1"))
+                .andExpect(jsonPath("$.data.effectCompensation.endorsementNo").value("END-20260825-001"))
+                .andExpect(jsonPath("$.data.effectCompensation.actualPolicyVersion").value(8))
+                .andExpect(jsonPath("$.data.effectCompensation.failureReason").value("案件回执写入失败"))
+                .andExpect(jsonPath("$.data.workflowTasks[0].stepType").value("DATA_ENTRY"))
+                .andExpect(jsonPath("$.data.workflowTasks[0].status").value("READY"))
+                .andExpect(jsonPath("$.data.fieldChanges[0].baseValue").value("138****0000"))
+                .andExpect(jsonPath("$.data.fieldChanges[0].proposedValue").value("139****0000"));
         verify(queryService).findDetail("tenant-1", "case-1", false);
     }
 

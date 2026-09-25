@@ -36,6 +36,8 @@ import com.titanium.maintenance.web.mapper.MaintenanceWebMapper;
 import com.titanium.maintenance.web.response.casecreation.MaintenancePageVO;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceVO;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
+import com.titanium.metadata.errorcode.SystemErrorCode;
+import com.titanium.metadata.response.ApiResponse;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
@@ -68,7 +70,7 @@ public class MaintenanceController {
 
     // 创建保全记录
     @PostMapping
-    public ResponseEntity<String> createMaintenance(@Valid @RequestBody CreateMaintenanceDTO request) {
+    public ResponseEntity<ApiResponse<String>> createMaintenance(@Valid @RequestBody CreateMaintenanceDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         try {
             CompletableFuture<String> future = maintenanceApplicationService.createMaintenanceCase(
@@ -81,17 +83,20 @@ public class MaintenanceController {
                     request.getCreatedBy(),
                     tenantId);
             String maintenanceId = future.get();
-            return ResponseEntity.status(HttpStatus.CREATED).body(maintenanceId);
+            // 保留 201：创建语义属 HTTP 传输层，不并入 ApiResponse.code
+            return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(maintenanceId));
         } catch (InterruptedException | ExecutionException e) {
             log.error("创建保全案件失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 500 保留（属 HTTP 传输层）；body 仍带信封，空体会让调用方无从诊断
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(SystemErrorCode.SYSTEM_ERROR));
         }
     }
 
     // 变更保全记录状态
     @PutMapping("/{id}/status")
-    public ResponseEntity<String> changeMaintenanceStatus(@PathVariable @NotBlank @Size(max = 36) String id,
+    public ResponseEntity<ApiResponse<String>> changeMaintenanceStatus(@PathVariable @NotBlank @Size(max = 36) String id,
                                                           @Valid @RequestBody ChangeMaintenanceStatusDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         try {
@@ -101,31 +106,33 @@ public class MaintenanceController {
                     request.getChangeReason(),
                     request.getChangedBy(), tenantId);
             future.get();
-            return ResponseEntity.ok(id);
+            return ResponseEntity.ok(ApiResponse.success(id));
         } catch (InterruptedException | ExecutionException e) {
             log.error("变更保全状态失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 500 保留（属 HTTP 传输层）；body 仍带信封，空体会让调用方无从诊断
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(SystemErrorCode.SYSTEM_ERROR));
         }
     }
 
     // 根据ID查询保全记录
     @GetMapping("/{id}")
-    public ResponseEntity<MaintenanceVO> getMaintenanceById(@PathVariable @NotBlank @Size(max = 36) String id) {
+    public ApiResponse<MaintenanceVO> getMaintenanceById(@PathVariable @NotBlank @Size(max = 36) String id) {
         String tenantId = RequestContextHolder.requireTenantId();
         MaintenanceVO vo = maintenanceWebMapper.toVO(maintenanceApplicationService.findMaintenanceById(id, tenantId));
-        return ResponseEntity.ok(vo);
+        return ApiResponse.success(vo);
     }
 
     // 根据保单ID查询保全记录
     @GetMapping("/policy/{policyId}")
-    public ResponseEntity<List<MaintenanceVO>> getMaintenancesByPolicyId(
-            @PathVariable @NotBlank @Size(max = 36) String policyId) {
+    public ApiResponse<List<MaintenanceVO>> getMaintenancesByPolicyId(
+         @PathVariable @NotBlank @Size(max = 36) String policyId) {
         String tenantId = RequestContextHolder.requireTenantId();
         List<MaintenanceVO> vos = maintenanceApplicationService.findMaintenancesByPolicyId(policyId, tenantId).stream()
                 .map(maintenanceWebMapper::toVO)
                 .toList();
-        return ResponseEntity.ok(vos);
+        return ApiResponse.success(vos);
     }
 
     /**
@@ -136,35 +143,35 @@ public class MaintenanceController {
      * </p>
      */
     @GetMapping("/search")
-    public ResponseEntity<List<MaintenanceVO>> searchMaintenances(
-            @RequestParam(required = false) String policyId,
-            @RequestParam(required = false) String customerId,
-            @RequestParam(required = false) String maintenanceType,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
+    public ApiResponse<List<MaintenanceVO>> searchMaintenances(
+         @RequestParam(required = false) String policyId,
+         @RequestParam(required = false) String customerId,
+         @RequestParam(required = false) String maintenanceType,
+         @RequestParam(required = false) String status,
+         @RequestParam(defaultValue = "0") @Min(0) int page,
+         @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         String tenantId = RequestContextHolder.requireTenantId();
         List<MaintenanceVO> vos = maintenanceApplicationService
                 .searchMaintenances(policyId, customerId, maintenanceType, status, page, size, tenantId)
                 .stream()
                 .map(maintenanceWebMapper::toVO)
                 .toList();
-        return ResponseEntity.ok(vos);
+        return ApiResponse.success(vos);
     }
 
     /** 保全后台真实分页查询；旧 search 裸列表契约继续保留兼容。 */
     @GetMapping("/search-page")
-    public ResponseEntity<MaintenancePageVO> searchMaintenancePage(
-            @RequestParam(required = false) String policyId,
-            @RequestParam(required = false) String customerId,
-            @RequestParam(required = false) String maintenanceType,
-            @RequestParam(required = false) String status,
-            @RequestParam(defaultValue = "0") @Min(0) int page,
-            @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
+    public ApiResponse<MaintenancePageVO> searchMaintenancePage(
+         @RequestParam(required = false) String policyId,
+         @RequestParam(required = false) String customerId,
+         @RequestParam(required = false) String maintenanceType,
+         @RequestParam(required = false) String status,
+         @RequestParam(defaultValue = "0") @Min(0) int page,
+         @RequestParam(defaultValue = "10") @Min(1) @Max(200) int size) {
         String tenantId = RequestContextHolder.requireTenantId();
         var result = maintenanceApplicationService.searchMaintenancePage(
                 policyId, customerId, maintenanceType, status, page, size, tenantId);
-        return ResponseEntity.ok(new MaintenancePageVO(
+        return ApiResponse.success(new MaintenancePageVO(
                 result.list().stream().map(maintenanceWebMapper::toVO).toList(),
                 result.total(), result.pageNum(), result.pageSize(), result.totalPages()));
     }
@@ -178,10 +185,10 @@ public class MaintenanceController {
      * @return 保全统计结果
      */
     @GetMapping("/statistics")
-    public ResponseEntity<MaintenanceStatisticsResponse> getStatistics(
-            ) {
+    public ApiResponse<MaintenanceStatisticsResponse> getStatistics(
+         ) {
         String tenantId = RequestContextHolder.requireTenantId();
-        return ResponseEntity.ok(
+        return ApiResponse.success(
                 maintenanceStatisticsWebMapper.toResponse(maintenanceApplicationService.getStatistics(tenantId)));
     }
 
@@ -189,18 +196,18 @@ public class MaintenanceController {
      * 查询待处理保全案件列表（状态为 PENDING）
      */
     @GetMapping("/pending")
-    public ResponseEntity<List<MaintenanceVO>> getPendingMaintenances(
-            ) {
+    public ApiResponse<List<MaintenanceVO>> getPendingMaintenances(
+         ) {
         String tenantId = RequestContextHolder.requireTenantId();
         List<MaintenanceVO> vos = maintenanceApplicationService.findPendingMaintenances(tenantId).stream()
                 .map(maintenanceWebMapper::toVO)
                 .toList();
-        return ResponseEntity.ok(vos);
+        return ApiResponse.success(vos);
     }
 
     // 添加保全变更记录
     @PostMapping("/{id}/changes")
-    public ResponseEntity<String> addMaintenanceChange(@PathVariable @NotBlank @Size(max = 36) String id,
+    public ResponseEntity<ApiResponse<String>> addMaintenanceChange(@PathVariable @NotBlank @Size(max = 36) String id,
                                                        @RequestParam @NotBlank String changeType,
                                                        @RequestParam @NotBlank String fieldName,
                                                        @RequestParam String oldValue,
@@ -211,17 +218,19 @@ public class MaintenanceController {
             CompletableFuture<String> future = maintenanceApplicationService.addMaintenanceChange(
                     id, changeType, fieldName, oldValue, newValue, createdBy, tenantId);
             future.get();
-            return ResponseEntity.ok(id);
+            return ResponseEntity.ok(ApiResponse.success(id));
         } catch (InterruptedException | ExecutionException e) {
             log.error("添加保全变更记录失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 500 保留（属 HTTP 传输层）；body 仍带信封，空体会让调用方无从诊断
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(SystemErrorCode.SYSTEM_ERROR));
         }
     }
 
     // 计算保全保费
     @PostMapping("/{id}/calculate-premium")
-    public ResponseEntity<String> calculateMaintenancePremium(@PathVariable @NotBlank @Size(max = 36) String id,
+    public ResponseEntity<ApiResponse<String>> calculateMaintenancePremium(@PathVariable @NotBlank @Size(max = 36) String id,
                                                               @RequestParam BigDecimal totalAmount,
                                                               @RequestParam BigDecimal refundAmount,
                                                               @RequestParam String calculationDetails,
@@ -231,39 +240,41 @@ public class MaintenanceController {
             CompletableFuture<String> future = maintenanceApplicationService.calculateMaintenancePremium(
                     id, totalAmount, refundAmount, calculationDetails, updatedBy, tenantId);
             future.get();
-            return ResponseEntity.ok(id);
+            return ResponseEntity.ok(ApiResponse.success(id));
         } catch (InterruptedException | ExecutionException e) {
             log.error("计算保全保费失败: {}", e.getMessage(), e);
             Thread.currentThread().interrupt();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 500 保留（属 HTTP 传输层）；body 仍带信封，空体会让调用方无从诊断
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(SystemErrorCode.SYSTEM_ERROR));
         }
     }
 
     /** 新权威入口：不接收人工金额，由 Maintenance 编排 Product 与 Billing。 */
     @PostMapping("/{id}/premium-settlements")
-    public ResponseEntity<MaintenancePremiumSettlementResponse> settlePremium(
-            @PathVariable @NotBlank @Size(max = 36) String id,
-            @Valid @RequestBody SettleMaintenancePremiumRequest request) {
+    public ApiResponse<MaintenancePremiumSettlementResponse> settlePremium(
+         @PathVariable @NotBlank @Size(max = 36) String id,
+         @Valid @RequestBody SettleMaintenancePremiumRequest request) {
         String tenantId = RequestContextHolder.requireTenantId();
-        return ResponseEntity.ok(maintenanceWebMapper.toSettlementResponse(
+        return ApiResponse.success(maintenanceWebMapper.toSettlementResponse(
                 premiumSettlementCommandService.settle(
                         id, tenantId, maintenanceWebMapper.toSettlementInput(request))));
     }
 
     /** 退保权威入口：现金价值由 Product 已发布策略计算，客户端不提交金额。 */
     @PostMapping("/{id}/surrender-settlements")
-    public ResponseEntity<MaintenanceSurrenderSettlementResponse> settleSurrender(
-            @PathVariable @NotBlank @Size(max = 36) String id,
-            @Valid @RequestBody SettleMaintenanceSurrenderRequest request) {
+    public ApiResponse<MaintenanceSurrenderSettlementResponse> settleSurrender(
+         @PathVariable @NotBlank @Size(max = 36) String id,
+         @Valid @RequestBody SettleMaintenanceSurrenderRequest request) {
         String tenantId = RequestContextHolder.requireTenantId();
-        return ResponseEntity.ok(maintenanceWebMapper.toSurrenderSettlementResponse(
+        return ApiResponse.success(maintenanceWebMapper.toSurrenderSettlementResponse(
                 premiumSettlementCommandService.settleSurrender(
                         id, tenantId, maintenanceWebMapper.toSurrenderSettlementInput(request))));
     }
 
     // 执行保全
     @PostMapping("/{id}/execute")
-    public ResponseEntity<String> executeMaintenance(@PathVariable @NotBlank @Size(max = 36) String id,
+    public ResponseEntity<ApiResponse<String>> executeMaintenance(@PathVariable @NotBlank @Size(max = 36) String id,
                                                      @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveTime,
                                                      @RequestParam String executionDetails,
                                                      @RequestParam @NotBlank String updatedBy) {
@@ -272,7 +283,7 @@ public class MaintenanceController {
             CompletableFuture<String> future = maintenanceApplicationService.executeMaintenance(
                     id, effectiveTime, executionDetails, updatedBy, tenantId);
             future.get();
-            return ResponseEntity.ok(id);
+            return ResponseEntity.ok(ApiResponse.success(id));
         } catch (InterruptedException | ExecutionException e) {
             log.error("执行保全失败: {}", e.getMessage(), e);
             if (e instanceof InterruptedException) {
@@ -285,7 +296,9 @@ public class MaintenanceController {
             if (cause instanceof RuntimeException runtimeException) {
                 throw runtimeException;
             }
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            // 500 保留（属 HTTP 传输层）；body 仍带信封，空体会让调用方无从诊断
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error(SystemErrorCode.SYSTEM_ERROR));
         }
     }
 }
