@@ -30,6 +30,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import com.titanium.common.boundary.BoundaryExceptionHandler;
 import com.titanium.common.context.RequestContextInterceptor;
 import com.titanium.common.multitenant.MissingIdentityExceptionHandler;
 import com.titanium.maintenance.application.command.casecreation.CreateMaintenanceCaseInput;
@@ -81,7 +82,6 @@ import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
 import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
-import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.errorcode.SystemErrorCode;
 
 class MaintenanceCaseControllerTest {
@@ -97,7 +97,8 @@ class MaintenanceCaseControllerTest {
                         mock(MaintenanceCaseQueryApplicationService.class),
                         new MaintenanceCaseQueryWebMapperImpl(),
                         mock(MaintenanceCaseQueryAccessResolver.class)))
-                .setControllerAdvice(new MaintenanceExceptionHandler(), new MissingIdentityExceptionHandler())
+                .setControllerAdvice(new BoundaryExceptionHandler(), new MaintenanceExceptionHandler(),
+                        new MissingIdentityExceptionHandler())
                 // m18：租户/操作人改由请求上下文承载。standaloneSetup 不会自动装配 Spring 容器里的
                 // 拦截器，须显式注册 RequestContextInterceptor，请求头才能进入 RequestContextHolder，
                 // 使本用例仍旧覆盖真实的「X-Tenant-Id → 上下文」路径
@@ -487,7 +488,7 @@ class MaintenanceCaseControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
+                .andExpect(jsonPath("$.code").value(SystemErrorCode.PARAM_INVALID.getCode()));
     }
 
     @Test
@@ -763,7 +764,7 @@ class MaintenanceCaseControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
+                .andExpect(jsonPath("$.code").value(SystemErrorCode.PARAM_INVALID.getCode()));
     }
 
     @Test
@@ -846,7 +847,7 @@ class MaintenanceCaseControllerTest {
                                 }
                                 """))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
+                .andExpect(jsonPath("$.code").value(SystemErrorCode.PARAM_INVALID.getCode()));
 
         verify(commandService, never()).settlePremium(any());
     }

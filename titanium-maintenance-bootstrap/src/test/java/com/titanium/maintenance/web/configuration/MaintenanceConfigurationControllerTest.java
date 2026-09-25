@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import com.titanium.common.boundary.BoundaryExceptionHandler;
 import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.command.configuration.MaintenanceConfigurationCommandService;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
@@ -43,6 +44,7 @@ import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceConfigurationWebMapper;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.errorcode.SystemErrorCode;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenanceConfigurationControllerTest {
@@ -61,7 +63,7 @@ class MaintenanceConfigurationControllerTest {
                 commandService, queryService, new MaintenanceConfigurationWebMapper(objectMapper),
                 new MaintenanceConfigurationRequestContextResolver());
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
-                .setControllerAdvice(new MaintenanceExceptionHandler())
+                .setControllerAdvice(new BoundaryExceptionHandler(), new MaintenanceExceptionHandler())
                 .build();
     }
 
@@ -120,7 +122,7 @@ class MaintenanceConfigurationControllerTest {
 
         mockMvc.perform(post("/api/v1/maintenance/configurations/config-1/retire"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value(MaintenanceErrorCode.MAINTENANCE_INVALID_REQUEST.getCode()));
+                .andExpect(jsonPath("$.code").value(SystemErrorCode.PARAM_INVALID.getCode()));
 
         verify(commandService, never()).retire(any(), any(Long.class), any());
     }
