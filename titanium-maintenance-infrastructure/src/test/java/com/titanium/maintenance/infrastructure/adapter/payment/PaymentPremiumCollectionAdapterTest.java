@@ -53,7 +53,7 @@ class PaymentPremiumCollectionAdapterTest {
     void shouldNotCreateWhenPaymentLookupFailsForAnotherReason() {
         PaymentPremiumCollectionClient client = mock(PaymentPremiumCollectionClient.class);
         when(client.get("payment-1"))
-                .thenReturn(new ApiResponse<>("PAYMENT_REMOTE_ERROR", "payment unavailable", null));
+                .thenReturn(ApiResponse.passthrough("PAYMENT_REMOTE_ERROR", "payment unavailable"));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 
         assertThrows(DomainException.class, () -> adapter.create(request()));

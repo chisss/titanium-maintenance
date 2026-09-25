@@ -54,7 +54,7 @@ class PolicyServiceAdapterTest {
         policy.setProductId("product-1");
         policy.setTenantId("another-tenant");
         PolicyServiceAdapter adapter = new PolicyServiceAdapter(
-                client(ApiResponse.success(policy), new ApiResponse<>("20001000", "not found", null)),
+                client(ApiResponse.success(policy), ApiResponse.passthrough("20001000", "not found")),
                 insuranceClient(null));
 
         assertFalse(adapter.policyExists("policy-1", "tenant-1"));
@@ -103,7 +103,7 @@ class PolicyServiceAdapterTest {
     @DisplayName("保单域正常应答但业务码非成功：仍判为『不存在/事实无效』，不升级为不可达")
     void shouldKeepBusinessNotFoundDistinctFromUnreachable() {
         PolicyServiceAdapter adapter = new PolicyServiceAdapter(
-                client(new ApiResponse<>("20001000", "保单不存在", null), new ApiResponse<>("20001000", "保单不存在", null)),
+                client(ApiResponse.passthrough("20001000", "保单不存在"), ApiResponse.passthrough("20001000", "保单不存在")),
                 insuranceClient(null));
 
         assertFalse(adapter.policyExists("policy-1", "tenant-1"));

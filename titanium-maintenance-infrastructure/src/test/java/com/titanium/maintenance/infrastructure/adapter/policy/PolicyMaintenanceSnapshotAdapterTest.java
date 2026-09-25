@@ -43,7 +43,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
     void shouldRetryTransientPolicySnapshotFailure() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         when(client.getMaintenanceSnapshot("policy-1"))
-                .thenReturn(new ApiResponse<>("POLICY_TEMPORARILY_UNAVAILABLE", "temporary", null))
+                .thenReturn(ApiResponse.passthrough("POLICY_TEMPORARILY_UNAVAILABLE", "temporary"))
                 .thenReturn(ApiResponse.success(response("tenant-1", 7L, "TEXT", "13800000000")));
 
         var snapshot = new PolicyMaintenanceSnapshotAdapter(client)
@@ -57,7 +57,7 @@ class PolicyMaintenanceSnapshotAdapterTest {
     void shouldNotRetryNonTransientPolicySnapshotFailure() {
         PolicyServiceClient client = mock(PolicyServiceClient.class);
         when(client.getMaintenanceSnapshot("policy-1"))
-                .thenReturn(new ApiResponse<>("POLICY_NOT_FOUND", "not found", null));
+                .thenReturn(ApiResponse.passthrough("POLICY_NOT_FOUND", "not found"));
 
         PolicyMaintenanceSnapshotException exception = assertThrows(
                 PolicyMaintenanceSnapshotException.class,

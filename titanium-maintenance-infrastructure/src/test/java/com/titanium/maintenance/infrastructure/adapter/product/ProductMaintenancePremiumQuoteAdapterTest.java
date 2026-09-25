@@ -88,8 +88,8 @@ class ProductMaintenancePremiumQuoteAdapterTest {
     void shouldPreserveInBandProductValidationFailure() {
         QuoteRequest request = request();
         when(api.quote(eq("product-1"), any()))
-                .thenReturn(new ApiResponse<>(
-                        "60000117", "定价方案校验失败: 原计算用途不受支持", null));
+                .thenReturn(ApiResponse.passthrough(
+                        "60000117", "定价方案校验失败: 原计算用途不受支持"));
 
         DomainException exception = assertThrows(
                 DomainException.class, () -> adapter.quote(request));

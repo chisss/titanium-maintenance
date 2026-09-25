@@ -50,7 +50,7 @@ class PolicyFieldCatalogAdapterTest {
     @Test
     void shouldFailClosedWhenRemoteResponseFailsOrContractIsInvalid() {
         PolicyFieldCatalogAdapter failedAdapter =
-                adapter(new ApiResponse<>("20000000", "catalog unavailable", null));
+                adapter(ApiResponse.passthrough("20000000", "catalog unavailable"));
         PolicyFieldCatalogResponse invalidCatalog = new PolicyFieldCatalogResponse(
                 "tenant-1", "LIFE", "INDIVIDUAL", BUSINESS_DATE, "2026.08.24.1", "bad-hash",
                 response("tenant-1").fields());

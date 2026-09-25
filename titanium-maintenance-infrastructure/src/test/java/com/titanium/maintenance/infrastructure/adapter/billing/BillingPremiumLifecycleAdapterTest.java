@@ -45,7 +45,7 @@ class BillingPremiumLifecycleAdapterTest {
     @Test
     void shouldRejectFailedOrEmptyBillingResponse() {
         BillingPremiumLifecycleAdapter failed = new BillingPremiumLifecycleAdapter(
-                client(new ApiResponse<>("50000001", "failed", null)));
+                client(ApiResponse.passthrough("50000001", "failed")));
         BillingPremiumLifecycleAdapter empty = new BillingPremiumLifecycleAdapter(client(null));
 
         assertThrows(DomainException.class, () -> failed.post(request()));

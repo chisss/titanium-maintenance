@@ -63,7 +63,7 @@ class ProductMaintenanceOfferingAdapterTest {
 
     @Test
     void shouldMapProductNotApplicableFailure() {
-        whenResolve(new ApiResponse<>("60000203", "Offering不适用", null));
+        whenResolve(ApiResponse.passthrough("60000203", "Offering不适用"));
 
         ProductMaintenanceOfferingException exception = assertThrows(
                 ProductMaintenanceOfferingException.class, () -> adapter.resolve(request()));
