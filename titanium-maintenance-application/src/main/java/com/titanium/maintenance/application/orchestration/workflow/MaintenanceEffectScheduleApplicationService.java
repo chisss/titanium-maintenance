@@ -485,8 +485,8 @@ public class MaintenanceEffectScheduleApplicationService {
      * </p>
      */
     private String errorCode(Throwable cause) {
-        if (cause instanceof DomainException domainException && domainException.getErrorCode() != null) {
-            return domainException.getErrorCode();
+        if (cause instanceof DomainException domainException && domainException.getErrorCodeValue() != null) {
+            return domainException.getErrorCodeValue();
         }
         return cause instanceof BusinessException businessException
                 ? businessException.getErrorCode() : cause.getClass().getSimpleName();

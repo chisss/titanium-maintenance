@@ -88,7 +88,7 @@ public class MaintenanceExceptionHandler {
     @ExceptionHandler(MaintenanceConfigurationStateException.class)
     public ResponseEntity<MaintenanceErrorVO> handleConfigurationStateException(
             MaintenanceConfigurationStateException exception, HttpServletRequest request) {
-        return respond(exception.getErrorCode(), exception.getMessage(), HttpStatus.CONFLICT, request);
+        return respond(exception.getErrorCodeValue(), exception.getMessage(), HttpStatus.CONFLICT, request);
     }
 
     @ExceptionHandler(MaintenanceConfigurationConflictException.class)
@@ -101,7 +101,7 @@ public class MaintenanceExceptionHandler {
     @ExceptionHandler(MaintenanceConflictException.class)
     public ResponseEntity<MaintenanceErrorVO> handleMaintenanceConflict(
             MaintenanceConflictException exception, HttpServletRequest request) {
-        return respond(exception.getErrorCode(), exception.getMessage(), HttpStatus.CONFLICT, request);
+        return respond(exception.getErrorCodeValue(), exception.getMessage(), HttpStatus.CONFLICT, request);
     }
 
     @ExceptionHandler(MaintenanceConfigurationPreconditionFailedException.class)
@@ -150,9 +150,9 @@ public class MaintenanceExceptionHandler {
     @ExceptionHandler(DomainException.class)
     public ResponseEntity<MaintenanceErrorVO> handleDomainException(
             DomainException exception, HttpServletRequest request) {
-        auditFailure(request, exception.getErrorCode(), HttpStatus.BAD_REQUEST);
+        auditFailure(request, exception.getErrorCodeValue(), HttpStatus.BAD_REQUEST);
         return ResponseEntity.badRequest()
-                .body(new MaintenanceErrorVO(exception.getErrorCode(), exception.getMessage()));
+                .body(new MaintenanceErrorVO(exception.getErrorCodeValue(), exception.getMessage()));
     }
 
     @ExceptionHandler({
