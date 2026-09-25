@@ -47,7 +47,7 @@ public enum MaintenanceStatus implements BaseEnum {
      * @return 与 {@link #getCode()} 等价的码值
      * @deprecated 请改用 {@link #getCode()}，本方法仅为兼容既有调用点保留
      */
-    @Deprecated
+    @Deprecated(since = "2026-08", forRemoval = true)
     public String getValue() {
         return code;
     }
@@ -59,7 +59,7 @@ public enum MaintenanceStatus implements BaseEnum {
      * @return 匹配的枚举
      * @deprecated 请改用 {@link #fromCode(String)}，本方法仅为兼容既有调用点保留
      */
-    @Deprecated
+    @Deprecated(since = "2026-08", forRemoval = true)
     public static MaintenanceStatus fromValue(String value) {
         MaintenanceStatus status = fromCode(value);
         if (status == null) {
