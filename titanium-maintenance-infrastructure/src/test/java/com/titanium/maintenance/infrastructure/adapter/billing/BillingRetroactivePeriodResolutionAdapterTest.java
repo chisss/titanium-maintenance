@@ -17,8 +17,8 @@ import org.junit.jupiter.api.Test;
 import com.titanium.billing.api.RetroactivePeriodAdjustmentApi;
 import com.titanium.billing.api.response.retroactive.RetroactivePeriodAdjustmentResolutionResponse;
 import com.titanium.billing.api.response.retroactive.RetroactivePeriodAdjustmentResolutionResponse.ResolutionLineResponse;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionRequest;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 
 class BillingRetroactivePeriodResolutionAdapterTest {
@@ -41,7 +41,7 @@ class BillingRetroactivePeriodResolutionAdapterTest {
         when(api.resolveClosedPeriods(eq("billing-batch-1"), any()))
                 .thenReturn(ApiResponse.success(response("case-other")));
 
-        assertThrows(BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> new BillingRetroactivePeriodResolutionAdapter(api).resolve(request()));
     }
 

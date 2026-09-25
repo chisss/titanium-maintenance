@@ -13,9 +13,9 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.product.ProductRetroactivePeriodRecalculationPort.AffectedPeriod;
 import com.titanium.maintenance.port.product.ProductRetroactivePeriodRecalculationPort.RecalculationRequest;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.ProductPremiumCalculationApi;
 import com.titanium.product.api.response.premium.RetroactivePremiumPeriodRecalculationResponse;
@@ -44,7 +44,7 @@ class ProductRetroactivePeriodRecalculationAdapterTest {
         when(api.recalculateRetroactivePeriods(any()))
                 .thenReturn(ApiResponse.success(response("policy-other")));
 
-        assertThrows(BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> new ProductRetroactivePeriodRecalculationAdapter(api).recalculate(request()));
     }
 

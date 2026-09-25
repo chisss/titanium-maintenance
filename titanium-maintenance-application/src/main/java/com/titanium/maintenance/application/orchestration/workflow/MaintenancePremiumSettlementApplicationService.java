@@ -22,7 +22,6 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementS
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementType;
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
@@ -38,6 +37,7 @@ import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
+import com.titanium.metadata.exception.DomainException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -66,7 +66,7 @@ public class MaintenancePremiumSettlementApplicationService {
         requireSettlementReady(context.task());
         try {
             return settleAgainstExternalSystems(input, context);
-        } catch (BusinessException exception) {
+        } catch (DomainException exception) {
             return recordExternalFailure(input, exception);
         }
     }
@@ -154,7 +154,7 @@ public class MaintenancePremiumSettlementApplicationService {
             MaintenanceBillingPostingEvidence posting) {
         try {
             return fundEvidence(input, context, postingFact, posting);
-        } catch (BusinessException exception) {
+        } catch (DomainException exception) {
             return paymentFailureFunds(context, posting, exception);
         }
     }
@@ -288,7 +288,7 @@ public class MaintenancePremiumSettlementApplicationService {
     private MaintenanceFundSettlementEvidence paymentFailureFunds(
             SettlementContext context,
             MaintenanceBillingPostingEvidence posting,
-            BusinessException exception) {
+            DomainException exception) {
         if (posting.direction() != MaintenanceBalanceDirection.DEBIT) {
             throw exception;
         }
@@ -296,7 +296,7 @@ public class MaintenancePremiumSettlementApplicationService {
                 MaintenanceFundSettlementType.COLLECTION, MaintenanceFundSettlementStatus.FAILED,
                 posting.postingId(), null, context.task().getFundSettlementOrderId(),
                 MaintenanceFundSettlementStatus.FAILED.getCode(), posting.amount(), posting.currency(),
-                exception.getErrorCode(), safeReason(exception.getMessage()), LocalDateTime.now());
+                exception.getErrorCodeValue(), safeReason(exception.getMessage()), LocalDateTime.now());
     }
 
     private SettlementContext requireContext(MaintenancePremiumSettlementGateInput input) {
@@ -344,15 +344,15 @@ public class MaintenancePremiumSettlementApplicationService {
 
     private CompletableFuture<MaintenancePremiumSettlementGateResult> recordExternalFailure(
             MaintenancePremiumSettlementGateInput input,
-            BusinessException exception) {
+            DomainException exception) {
         String reason = safeReason(exception.getMessage());
         FailMaintenancePremiumSettlementCommand command = new FailMaintenancePremiumSettlementCommand(
                 MaintenanceId.of(input.maintenanceId()), input.taskId(), input.operationId(),
-                exception.getErrorCode(), reason, input.operatorId(), input.tenantId());
+                exception.getErrorCodeValue(), reason, input.operatorId(), input.tenantId());
         return send(command).thenApply(ignored -> new MaintenancePremiumSettlementGateResult(
                 MaintenanceWorkflowTaskStatus.FAILED, null, null, null, null, null,
                 null, MaintenanceFundSettlementStatus.FAILED, null, null, null,
-                exception.getErrorCode(), reason, LocalDateTime.now()));
+                exception.getErrorCodeValue(), reason, LocalDateTime.now()));
     }
 
     private MaintenancePremiumSettlementGateResult result(

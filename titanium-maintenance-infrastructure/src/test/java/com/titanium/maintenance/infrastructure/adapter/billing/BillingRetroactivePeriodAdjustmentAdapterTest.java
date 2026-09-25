@@ -16,10 +16,10 @@ import com.titanium.billing.api.RetroactivePeriodAdjustmentApi;
 import com.titanium.billing.api.response.retroactive.RetroactivePeriodAdjustmentResponse;
 import com.titanium.billing.api.response.retroactive.RetroactivePeriodAdjustmentResponse.PeriodAdjustmentLineResponse;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodAdjustmentPort.AdjustmentRequest;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveProductPeriodDifference;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveProductRecalculationEvidence;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 
 class BillingRetroactivePeriodAdjustmentAdapterTest {
@@ -44,7 +44,7 @@ class BillingRetroactivePeriodAdjustmentAdapterTest {
         when(api.post(any()))
                 .thenReturn(ApiResponse.success(response("case-other")));
 
-        assertThrows(BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> new BillingRetroactivePeriodAdjustmentAdapter(api).adjust(request()));
     }
 

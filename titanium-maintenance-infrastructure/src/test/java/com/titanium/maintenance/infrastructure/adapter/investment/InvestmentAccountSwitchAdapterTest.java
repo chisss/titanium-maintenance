@@ -79,7 +79,7 @@ class InvestmentAccountSwitchAdapterTest {
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.switchByPolicy(request()));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_AMBIGUOUS.getCode(), error.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_AMBIGUOUS.getCode(), error.getErrorCodeValue());
     }
 
     @Test
@@ -101,7 +101,7 @@ class InvestmentAccountSwitchAdapterTest {
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.switchByPolicy(request()));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(), error.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
     }
 
     @Test
@@ -125,10 +125,10 @@ class InvestmentAccountSwitchAdapterTest {
 
         assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(),
                 assertThrows(MaintenanceRemoteCallException.class, () -> failed.switchByPolicy(request()))
-                        .getErrorCode());
+                        .getErrorCodeValue());
         assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(),
                 assertThrows(MaintenanceRemoteCallException.class, () -> emptyData.switchByPolicy(request()))
-                        .getErrorCode());
+                        .getErrorCodeValue());
     }
 
     @Test
@@ -139,7 +139,7 @@ class InvestmentAccountSwitchAdapterTest {
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.switchByPolicy(request()));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(), error.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
     }
 
     @Test
@@ -151,7 +151,7 @@ class InvestmentAccountSwitchAdapterTest {
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.switchByPolicy(request()));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(), error.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
     }
 
     private InvestmentSwitchRequest request() {

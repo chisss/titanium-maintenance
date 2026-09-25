@@ -19,7 +19,6 @@ import com.titanium.maintenance.command.RecordMaintenanceSurrenderValueCommand;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
 import com.titanium.maintenance.common.enums.PaymentRefundStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.common.exception.MaintenanceSettlementConflictException;
@@ -32,6 +31,7 @@ import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -411,7 +411,7 @@ public class MaintenancePremiumSettlementOrchestrator {
                 || input.coverageTermYears() == null || input.coverageTermYears() < 1
                 || input.paymentPeriods() == null || input.paymentPeriods() < 1
                 || isBlank(input.reason()) || isBlank(input.updatedBy())) {
-            throw new BusinessException("保全替代计算参数不完整", MaintenanceErrorCode.MAINTENANCE_PREMIUM_INPUT_INVALID);
+            throw new DomainException(MaintenanceErrorCode.MAINTENANCE_PREMIUM_INPUT_INVALID, "保全替代计算参数不完整");
         }
     }
 
@@ -419,14 +419,14 @@ public class MaintenancePremiumSettlementOrchestrator {
         if (input == null || isBlank(input.originalCalculationId()) || input.surrenderDate() == null
                 || input.policyYear() == null || input.policyYear() < 1 || input.businessTime() == null
                 || isBlank(input.reason()) || isBlank(input.updatedBy())) {
-            throw new BusinessException("退保价值结算参数不完整", MaintenanceErrorCode.MAINTENANCE_SURRENDER_INPUT_INVALID);
+            throw new DomainException(MaintenanceErrorCode.MAINTENANCE_SURRENDER_INPUT_INVALID, "退保价值结算参数不完整");
         }
     }
 
     private void validateReversalInput(MaintenanceReversalSettlementInput input) {
         if (input == null || isBlank(input.sourceAdjustmentId()) || input.businessTime() == null
                 || isBlank(input.reason()) || isBlank(input.updatedBy())) {
-            throw new BusinessException("保全冲正参数不完整", MaintenanceErrorCode.MAINTENANCE_REVERSAL_INPUT_INVALID);
+            throw new DomainException(MaintenanceErrorCode.MAINTENANCE_REVERSAL_INPUT_INVALID, "保全冲正参数不完整");
         }
     }
 

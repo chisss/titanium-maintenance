@@ -12,10 +12,10 @@ import java.math.BigDecimal;
 
 import org.junit.jupiter.api.Test;
 
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentPremiumCollectionClient;
 import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort.CollectionRequest;
 import com.titanium.metadata.errorcode.PaymentErrorCode;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.response.payment.PaymentOrderResponse;
 
@@ -56,7 +56,7 @@ class PaymentPremiumCollectionAdapterTest {
                 .thenReturn(new ApiResponse<>("PAYMENT_REMOTE_ERROR", "payment unavailable", null));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 
-        assertThrows(BusinessException.class, () -> adapter.create(request()));
+        assertThrows(DomainException.class, () -> adapter.create(request()));
 
         verify(client, never()).create(any());
     }
@@ -68,7 +68,7 @@ class PaymentPremiumCollectionAdapterTest {
                 .thenReturn(ApiResponse.success(response("another-payment")));
         PaymentPremiumCollectionAdapter adapter = new PaymentPremiumCollectionAdapter(client);
 
-        assertThrows(BusinessException.class, () -> adapter.get("tenant-1", "payment-1"));
+        assertThrows(DomainException.class, () -> adapter.get("tenant-1", "payment-1"));
     }
 
     private CollectionRequest request() {

@@ -1,6 +1,7 @@
 package com.titanium.maintenance.common.exception;
 
 import com.titanium.metadata.errorcode.BaseErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 /**
  * 跨域远程调用失败异常。
@@ -10,10 +11,10 @@ import com.titanium.metadata.errorcode.BaseErrorCode;
  * 71 段标准业务码（如 {@code MAINTENANCE_BILLING_REMOTE_ERROR}）。
  * </p>
  */
-public class MaintenanceRemoteCallException extends BusinessException {
+public class MaintenanceRemoteCallException extends DomainException {
 
     public MaintenanceRemoteCallException(String message, BaseErrorCode errorCode) {
-        super(message, errorCode);
+        super(errorCode, message);
     }
 
     /**
@@ -24,6 +25,6 @@ public class MaintenanceRemoteCallException extends BusinessException {
      * @param cause     根因异常
      */
     public MaintenanceRemoteCallException(String message, BaseErrorCode errorCode, Throwable cause) {
-        super(message, errorCode, cause);
+        super(errorCode, message, cause);
     }
 }

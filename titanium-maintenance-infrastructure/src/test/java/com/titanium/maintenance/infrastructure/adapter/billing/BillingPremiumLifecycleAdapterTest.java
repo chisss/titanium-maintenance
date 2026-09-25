@@ -16,9 +16,9 @@ import org.junit.jupiter.api.Test;
 import com.titanium.billing.api.response.retroactive.PremiumLifecyclePostingResponse;
 import com.titanium.billing.api.response.retroactive.PremiumLifecycleReversalResponse;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.infrastructure.client.billing.BillingPremiumLifecycleClient;
 import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 
 class BillingPremiumLifecycleAdapterTest {
@@ -48,8 +48,8 @@ class BillingPremiumLifecycleAdapterTest {
                 client(new ApiResponse<>("50000001", "failed", null)));
         BillingPremiumLifecycleAdapter empty = new BillingPremiumLifecycleAdapter(client(null));
 
-        assertThrows(BusinessException.class, () -> failed.post(request()));
-        assertThrows(BusinessException.class, () -> empty.post(request()));
+        assertThrows(DomainException.class, () -> failed.post(request()));
+        assertThrows(DomainException.class, () -> empty.post(request()));
     }
 
     @Test
@@ -83,7 +83,7 @@ class BillingPremiumLifecycleAdapterTest {
         when(client.reverse(anyString(), any())).thenReturn(ApiResponse.success(response));
         BillingPremiumLifecycleAdapter adapter = new BillingPremiumLifecycleAdapter(client);
 
-        assertThrows(BusinessException.class, () -> adapter.reverse(
+        assertThrows(DomainException.class, () -> adapter.reverse(
                 new BillingPremiumLifecyclePort.ReversalRequest(
                         "1", "posting-1", "request-1", "客户取消项目", "operator-1")));
     }

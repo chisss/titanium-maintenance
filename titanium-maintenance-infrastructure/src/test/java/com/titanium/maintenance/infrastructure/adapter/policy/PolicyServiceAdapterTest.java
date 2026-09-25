@@ -69,7 +69,7 @@ class PolicyServiceAdapterTest {
 
         MaintenanceRemoteCallException existsError = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.policyExists("policy-1", "tenant-1"));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_POLICY_REMOTE_ERROR.getCode(), existsError.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_POLICY_REMOTE_ERROR.getCode(), existsError.getErrorCodeValue());
 
         // 同一故障下，其余三个查询同样不得降级为 null / 非生效快照
         assertThrows(MaintenanceRemoteCallException.class,
@@ -96,7 +96,7 @@ class PolicyServiceAdapterTest {
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.getPolicyFinancialSnapshot("policy-1", "tenant-1"));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_POLICY_REMOTE_ERROR.getCode(), error.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_POLICY_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
     }
 
     @Test

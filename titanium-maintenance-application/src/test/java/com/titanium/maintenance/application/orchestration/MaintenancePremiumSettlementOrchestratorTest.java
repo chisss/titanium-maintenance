@@ -41,6 +41,7 @@ import com.titanium.maintenance.port.product.ProductSurrenderValuePort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
+import com.titanium.metadata.exception.DomainException;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenancePremiumSettlementOrchestratorTest {
@@ -72,7 +73,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
         view.setMaintenanceType(MaintenanceType.POLICY_TERMINATION);
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "1")).thenReturn(Optional.of(view));
 
-        assertThrows(com.titanium.maintenance.common.exception.BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> orchestrator.settle("maintenance-1", "1", input()));
 
         verify(productPort, never()).calculateReplacement(any());
@@ -244,7 +245,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
         when(billingPort.post(any())).thenReturn(posting(
                 MaintenanceBalanceDirection.CREDIT, null, "refund-order-1", "PROCESSING"));
 
-        assertThrows(com.titanium.maintenance.common.exception.BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> orchestrator.settle("maintenance-1", "1", input()));
 
         verify(commandGateway, never()).sendAndWait(any(RecordMaintenanceFinancialSettlementCommand.class));
@@ -261,7 +262,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
                 "PROCESSING", 2);
         when(billingPort.post(any())).thenReturn(posting);
 
-        assertThrows(com.titanium.maintenance.common.exception.BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> orchestrator.settle("maintenance-1", "1", input()));
 
         verify(commandGateway, never()).sendAndWait(any(RecordMaintenancePremiumPostingCommand.class));
@@ -274,7 +275,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
         view.setBalanceCurrency(null);
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "1")).thenReturn(Optional.of(view));
 
-        assertThrows(com.titanium.maintenance.common.exception.BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> orchestrator.settle("maintenance-1", "1", input()));
 
         verify(billingPort, never()).post(any());
@@ -297,7 +298,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
                 .thenReturn(Optional.of(view(MaintenancePremiumSettlementStatus.NOT_STARTED)));
         when(policyPort.getPolicyProductId("policy-1", "1")).thenReturn("another-product");
 
-        assertThrows(com.titanium.maintenance.common.exception.BusinessException.class,
+        assertThrows(DomainException.class,
                 () -> orchestrator.settle("maintenance-1", "1", input()));
 
         verify(productPort, never()).calculateReplacement(any());

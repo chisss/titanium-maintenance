@@ -1,6 +1,7 @@
 package com.titanium.maintenance.common.exception;
 
 import com.titanium.metadata.errorcode.BaseErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 /**
  * 保全结算类请求与案件状态冲突异常（HTTP 409）。
@@ -10,9 +11,9 @@ import com.titanium.metadata.errorcode.BaseErrorCode;
  * 71 段对应标准业务码。
  * </p>
  */
-public class MaintenanceSettlementConflictException extends BusinessException {
+public class MaintenanceSettlementConflictException extends DomainException {
 
     public MaintenanceSettlementConflictException(String message, BaseErrorCode errorCode) {
-        super(message, errorCode);
+        super(errorCode, message);
     }
 }

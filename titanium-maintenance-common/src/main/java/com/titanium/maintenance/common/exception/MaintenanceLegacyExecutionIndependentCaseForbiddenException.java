@@ -1,6 +1,7 @@
 package com.titanium.maintenance.common.exception;
 
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 /**
  * 独立保全案件误用旧版整案执行入口的通道冲突异常（HTTP 409）。
@@ -15,12 +16,12 @@ import com.titanium.metadata.errorcode.MaintenanceErrorCode;
  * 独立案件若再走旧入口，同一保单会被两条通道重复施加影响（缺陷 D9），故在旧入口前置拒绝。
  * </p>
  */
-public class MaintenanceLegacyExecutionIndependentCaseForbiddenException extends BusinessException {
+public class MaintenanceLegacyExecutionIndependentCaseForbiddenException extends DomainException {
 
     private static final MaintenanceErrorCode ERROR_CODE =
             MaintenanceErrorCode.MAINTENANCE_LEGACY_EXECUTION_INDEPENDENT_CASE_FORBIDDEN;
 
     public MaintenanceLegacyExecutionIndependentCaseForbiddenException() {
-        super(ERROR_CODE.getMessage(), ERROR_CODE);
+        super(ERROR_CODE, ERROR_CODE.getMessage());
     }
 }

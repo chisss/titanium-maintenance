@@ -9,10 +9,10 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.ProductMaintenancePremiumQuoteApi;
 import com.titanium.product.api.request.config.UnderwritingAdjustmentRequest;
@@ -49,7 +49,7 @@ public class ProductMaintenancePremiumQuoteAdapter implements ProductMaintenance
                     response.idempotencyKey(), response.payloadHash(), response.resultHash(),
                     response.detailSummary(), MaintenanceBalanceDirection.fromCode(response.direction()),
                     response.amount(), response.currency(), response.quotedAt(), response.validUntil());
-        } catch (BusinessException exception) {
+        } catch (DomainException exception) {
             throw exception;
         } catch (FeignException exception) {
             log.warn("调用 Product 保全报价失败, tenantId={}, maintenanceId={}, itemCode={}, status={}",
@@ -100,7 +100,7 @@ public class ProductMaintenancePremiumQuoteAdapter implements ProductMaintenance
         return response.getData();
     }
 
-    private BusinessException feignFailure(FeignException exception) {
+    private DomainException feignFailure(FeignException exception) {
         try {
             JSONObject body = JSON.parseObject(exception.contentUTF8());
             String errorCode = body == null ? null : body.getString("code");
@@ -146,13 +146,11 @@ public class ProductMaintenancePremiumQuoteAdapter implements ProductMaintenance
      * <p>下游字符串错误码不允许作为本域业务错误码外泄（红线 19），统一携带
      * {@code MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR}，下游码与 HTTP 状态并入消息供排查。</p>
      */
-    private BusinessException downstreamError(String message, String errorCode, HttpStatus status) {
+    private DomainException downstreamError(String message, String errorCode, HttpStatus status) {
         if (!hasText(message) || !hasText(errorCode)) {
             return remoteError("Product 未返回有效保全报价结果");
         }
-        return new BusinessException(
-                "Product 保全报价下游拒绝: " + message + " [code=" + errorCode
-                        + ", httpStatus=" + (status == null ? "unknown" : status.value()) + "]",
-                MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR);
+        return new DomainException(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR, "Product 保全报价下游拒绝: " + message + " [code=" + errorCode
+                        + ", httpStatus=" + (status == null ? "unknown" : status.value()) + "]");
     }
 }

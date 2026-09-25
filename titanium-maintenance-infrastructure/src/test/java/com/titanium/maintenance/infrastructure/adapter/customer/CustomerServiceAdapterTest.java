@@ -54,7 +54,7 @@ class CustomerServiceAdapterTest {
 
         MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
                 () -> adapter.customerExists("customer-1"));
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_CUSTOMER_REMOTE_ERROR.getCode(), error.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_CUSTOMER_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
     }
 
     private CustomerServiceClient client(boolean exists) {

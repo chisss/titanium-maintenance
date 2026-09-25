@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 
 import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.model.configuration.MaintenanceConfigurationOperationContext;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
 import com.titanium.maintenance.common.exception.MaintenanceForbiddenException;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -70,9 +70,7 @@ public class MaintenanceConfigurationRequestContextResolver {
         if (tenantId.trim().length() > MAX_ID_LENGTH
                 || authentication.getName().trim().length() > MAX_ID_LENGTH) {
             throw accessDenied(request, tenantId, authentication.getName(), sourceIp, correlationId,
-                    new BusinessException(
-                            "认证主体或租户标识超过长度限制",
-                            MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_IDENTITY_INVALID));
+                    new DomainException(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_IDENTITY_INVALID, "认证主体或租户标识超过长度限制"));
         }
         boolean sensitiveDetailsVisible = authentication.getAuthorities().stream()
                 .anyMatch(authority -> SENSITIVE_VIEW_PERMISSION.equals(authority.getAuthority()));
@@ -99,12 +97,12 @@ public class MaintenanceConfigurationRequestContextResolver {
         return value != null && !value.isBlank();
     }
 
-    private <T extends BusinessException> T accessDenied(HttpServletRequest request, String tenantId, String operatorId,
+    private <T extends DomainException> T accessDenied(HttpServletRequest request, String tenantId, String operatorId,
             String sourceIp, String correlationId, T exception) {
         log.warn("保全配置访问审计: method={}, path={}, tenantId={}, operatorId={}, sourceIp={}, "
                         + "correlationId={}, errorCode={}, result=DENIED",
                 request.getMethod(), request.getRequestURI(), tenantId, operatorId,
-                sourceIp, correlationId, exception.getErrorCode());
+                sourceIp, correlationId, exception.getErrorCodeValue());
         return exception;
     }
 

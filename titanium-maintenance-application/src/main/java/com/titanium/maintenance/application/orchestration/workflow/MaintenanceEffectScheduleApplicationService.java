@@ -36,7 +36,6 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceEffectStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenancePremiumQuoteStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
@@ -478,18 +477,14 @@ public class MaintenanceEffectScheduleApplicationService {
     /**
      * 受控失败原因抽取（红线 20）：异常携带业务码时落 8 位码，否则落异常类名。
      * <p>
-     * 🔴 {@link DomainException}（{@link MaintenanceValidationException} 经 {@code CommandValidationException}
-     * 即属此类，携 {@code MaintenanceErrorCode}）与本域 {@link BusinessException}（独立继承自
-     * {@code RuntimeException}）<b>无继承关系</b>，须并列判定——此前只判后者，校验类失败一律被降级为异常类名
-     * `MaintenanceValidationException`，保全域各校验点无从定位（与 product 域 D-501-36 同型）。
+     * m30-03 起本域自建异常根已删除，{@link MaintenanceValidationException} 等一律继承
+     * {@link DomainException}，故只需一次判定——此前「两套异常根无继承关系、须并列判定」的写法
+     * 随迁移失效（两分支指向同一类型，后者恒不可达）。
      * </p>
      */
     private String errorCode(Throwable cause) {
-        if (cause instanceof DomainException domainException && domainException.getErrorCodeValue() != null) {
-            return domainException.getErrorCodeValue();
-        }
-        return cause instanceof BusinessException businessException
-                ? businessException.getErrorCode() : cause.getClass().getSimpleName();
+        return cause instanceof DomainException domainException && domainException.getErrorCodeValue() != null
+                ? domainException.getErrorCodeValue() : cause.getClass().getSimpleName();
     }
 
     private Throwable rootCause(Throwable throwable) {

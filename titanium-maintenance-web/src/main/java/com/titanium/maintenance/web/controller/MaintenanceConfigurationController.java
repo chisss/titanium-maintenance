@@ -22,7 +22,6 @@ import org.springframework.web.bind.annotation.RestController;
 import com.titanium.maintenance.application.command.configuration.MaintenanceConfigurationCommandService;
 import com.titanium.maintenance.application.query.MaintenanceConfigurationQueryService;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemConfigurationStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationSearchCriteria;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
 import com.titanium.maintenance.web.dto.configuration.MaintenanceConfigurationDTO;
@@ -38,6 +37,7 @@ import com.titanium.maintenance.web.response.configuration.MaintenanceConfigurat
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver;
 import com.titanium.maintenance.web.security.MaintenanceConfigurationRequestContextResolver.ResolvedRequestContext;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -299,10 +299,8 @@ public class MaintenanceConfigurationController {
         }
     }
 
-    private BusinessException invalidEtag() {
-        return new BusinessException(
-                "If-Match 必须是当前响应返回的强 ETag",
-                MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_INVALID_ETAG);
+    private DomainException invalidEtag() {
+        return new DomainException(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_INVALID_ETAG, "If-Match 必须是当前响应返回的强 ETag");
     }
 
     private String etag(long rowVersion) {

@@ -53,7 +53,7 @@ class MaintenanceConfigurationRequestContextResolverTest {
         assertThatThrownBy(() -> resolver.require(
                 new MockHttpServletRequest(), "maintenance:config:publish"))
                 .isInstanceOfSatisfying(MaintenanceForbiddenException.class,
-                        exception -> assertThat(exception.getErrorCode())
+                        exception -> assertThat(exception.getErrorCodeValue())
                                 .isEqualTo(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_FORBIDDEN.getCode()));
     }
 
@@ -64,7 +64,7 @@ class MaintenanceConfigurationRequestContextResolverTest {
         assertThatThrownBy(() -> resolver.require(
                 new MockHttpServletRequest(), "maintenance:config:view"))
                 .isInstanceOfSatisfying(MaintenanceAuthenticationException.class,
-                        exception -> assertThat(exception.getErrorCode())
+                        exception -> assertThat(exception.getErrorCodeValue())
                                 .isEqualTo(MaintenanceErrorCode.MAINTENANCE_CONFIGURATION_UNAUTHENTICATED.getCode()));
     }
 

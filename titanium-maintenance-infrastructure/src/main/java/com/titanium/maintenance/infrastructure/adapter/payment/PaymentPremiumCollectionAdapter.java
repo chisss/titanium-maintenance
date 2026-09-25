@@ -4,12 +4,12 @@ import java.util.Objects;
 
 import org.springframework.stereotype.Component;
 
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentPremiumCollectionClient;
 import com.titanium.maintenance.port.payment.PaymentPremiumCollectionPort;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.errorcode.PaymentErrorCode;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.payment.api.request.payment.CreatePaymentOrderRequest;
 import com.titanium.payment.api.response.payment.PaymentOrderResponse;
@@ -45,7 +45,7 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
                 throw remoteError("Payment 保全收款单回查失败: " + responseDetail(existing));
             }
             return toFact(requireSuccess(client.create(body)), request);
-        } catch (BusinessException exception) {
+        } catch (DomainException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             log.warn("创建 Payment 保全收款单失败, tenantId={}, paymentOrderId={}, errorType={}",
@@ -62,7 +62,7 @@ public class PaymentPremiumCollectionAdapter implements PaymentPremiumCollection
                 throw remoteError("Payment 保全收款单回查结果单号不一致");
             }
             return fact;
-        } catch (BusinessException exception) {
+        } catch (DomainException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             log.warn("回查 Payment 保全收款单失败, tenantId={}, paymentOrderId={}, errorType={}",

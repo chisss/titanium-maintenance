@@ -12,7 +12,6 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import com.titanium.common.context.RequestContextHolder;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.CustomerNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceAuthenticationException;
 import com.titanium.maintenance.common.exception.MaintenanceConfigurationConflictException;
@@ -55,13 +54,6 @@ public class MaintenanceExceptionHandler {
 
     private static final String CONFIGURATION_PATH = "/api/v1/maintenance/configurations";
 
-    /** 默认业务异常映射为 400（参数/规则不满足）。 */
-    @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<MaintenanceErrorVO> handleBusinessException(
-            BusinessException exception, HttpServletRequest request) {
-        return respond(exception, HttpStatus.BAD_REQUEST, request);
-    }
-
     @ExceptionHandler({
             MaintenanceNotFoundException.class,
             PolicyNotFoundException.class,
@@ -69,7 +61,7 @@ public class MaintenanceExceptionHandler {
             MaintenanceConfigurationNotFoundException.class
     })
     public ResponseEntity<MaintenanceErrorVO> handleNotFoundException(
-            BusinessException exception, HttpServletRequest request) {
+            DomainException exception, HttpServletRequest request) {
         return respond(exception, HttpStatus.NOT_FOUND, request);
     }
 
@@ -124,14 +116,14 @@ public class MaintenanceExceptionHandler {
             MaintenanceLegacyPremiumCalculationDisabledException.class
     })
     public ResponseEntity<MaintenanceErrorVO> handleUnavailableException(
-            BusinessException exception, HttpServletRequest request) {
+            DomainException exception, HttpServletRequest request) {
         return respond(exception, HttpStatus.SERVICE_UNAVAILABLE, request);
     }
 
     /** 独立建案误用旧版整案执行入口：两代案件通道互斥（D9），客户端应改走案件任务级生效链。 */
     @ExceptionHandler(MaintenanceLegacyExecutionIndependentCaseForbiddenException.class)
     public ResponseEntity<MaintenanceErrorVO> handleLegacyExecutionIndependentCaseForbidden(
-            BusinessException exception, HttpServletRequest request) {
+            DomainException exception, HttpServletRequest request) {
         return respond(exception, HttpStatus.CONFLICT, request);
     }
 
@@ -184,8 +176,8 @@ public class MaintenanceExceptionHandler {
     }
 
     private ResponseEntity<MaintenanceErrorVO> respond(
-            BusinessException exception, HttpStatus status, HttpServletRequest request) {
-        return respond(exception.getErrorCode(), exception.getMessage(), status, request);
+            DomainException exception, HttpStatus status, HttpServletRequest request) {
+        return respond(exception.getErrorCodeValue(), exception.getMessage(), status, request);
     }
 
     private ResponseEntity<MaintenanceErrorVO> respond(

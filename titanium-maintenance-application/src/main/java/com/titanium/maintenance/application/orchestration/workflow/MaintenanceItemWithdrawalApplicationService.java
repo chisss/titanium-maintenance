@@ -28,7 +28,6 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementS
 import com.titanium.maintenance.common.enums.workflow.MaintenanceFundSettlementType;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalFundAction;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalStatus;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
@@ -51,6 +50,7 @@ import com.titanium.maintenance.valueobject.withdrawal.MaintenanceBillingReversa
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawalCompensation;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -107,15 +107,15 @@ public class MaintenanceItemWithdrawalApplicationService {
                                 input, context, feeTask, sourceFunds, reversal, withdrawal.retryCount())
                         : notRequired(reversal, sourceFunds.status());
                 return record(input, withdrawal, compensation);
-            } catch (BusinessException exception) {
+            } catch (DomainException exception) {
                 return record(input, withdrawal, failedFunds(feeTask, reversal,
-                        exception.getErrorCode(), exception.getMessage()));
+                        exception.getErrorCodeValue(), exception.getMessage()));
             } catch (RuntimeException exception) {
                 return record(input, withdrawal, failedFunds(feeTask, reversal,
                         MaintenanceErrorCode.MAINTENANCE_PAYMENT_COMPENSATION_ERROR.getCode(), exception.getMessage()));
             }
-        } catch (BusinessException exception) {
-            return fail(input, withdrawal, exception.getErrorCode(), exception.getMessage());
+        } catch (DomainException exception) {
+            return fail(input, withdrawal, exception.getErrorCodeValue(), exception.getMessage());
         } catch (RuntimeException exception) {
             return fail(input, withdrawal, MaintenanceErrorCode.MAINTENANCE_ITEM_WITHDRAWAL_ERROR.getCode(), exception.getMessage());
         }

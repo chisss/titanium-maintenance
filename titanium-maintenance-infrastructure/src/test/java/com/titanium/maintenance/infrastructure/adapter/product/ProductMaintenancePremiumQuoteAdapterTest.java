@@ -19,11 +19,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort.QuoteFact;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort.QuoteRequest;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort.SnapshotReference;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.product.api.ProductMaintenancePremiumQuoteApi;
 import com.titanium.product.api.response.premium.MaintenancePremiumQuoteResponse;
@@ -62,11 +62,11 @@ class ProductMaintenancePremiumQuoteAdapterTest {
         QuoteRequest request = request();
         when(api.quote(eq("product-1"), any()))
                 .thenReturn(ApiResponse.success(response(request, "tenant-2")));
-        assertThrows(BusinessException.class, () -> adapter.quote(request));
+        assertThrows(DomainException.class, () -> adapter.quote(request));
 
         when(api.quote(eq("product-1"), any()))
                 .thenThrow(new RuntimeException("timeout"));
-        assertThrows(BusinessException.class, () -> adapter.quote(request));
+        assertThrows(DomainException.class, () -> adapter.quote(request));
     }
 
     @Test
@@ -75,11 +75,11 @@ class ProductMaintenancePremiumQuoteAdapterTest {
         when(api.quote(eq("product-1"), any()))
                 .thenThrow(productValidationFailure());
 
-        BusinessException exception = assertThrows(
-                BusinessException.class, () -> adapter.quote(request));
+        DomainException exception = assertThrows(
+                DomainException.class, () -> adapter.quote(request));
 
         // 下游字符串错误码不允许作为本域业务错误码外泄，收敛为本域远程调用错误码并保留下游信息于消息
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR.getCode(), exception.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR.getCode(), exception.getErrorCodeValue());
         assertEquals("Product 保全报价下游拒绝: 定价方案校验失败: 原计算用途不受支持 "
                 + "[code=60000117, httpStatus=422]", exception.getMessage());
     }
@@ -91,10 +91,10 @@ class ProductMaintenancePremiumQuoteAdapterTest {
                 .thenReturn(new ApiResponse<>(
                         "60000117", "定价方案校验失败: 原计算用途不受支持", null));
 
-        BusinessException exception = assertThrows(
-                BusinessException.class, () -> adapter.quote(request));
+        DomainException exception = assertThrows(
+                DomainException.class, () -> adapter.quote(request));
 
-        assertEquals(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR.getCode(), exception.getErrorCode());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_PRODUCT_QUOTE_REMOTE_ERROR.getCode(), exception.getErrorCodeValue());
         assertEquals("Product 保全报价下游拒绝: 定价方案校验失败: 原计算用途不受支持 "
                 + "[code=60000117, httpStatus=422]", exception.getMessage());
     }

@@ -13,11 +13,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.ResponseEntity;
 
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentFact;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentRequest;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.RiskFieldChange;
 import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.response.maintenance.MaintenanceUnderwritingResponse;
 
@@ -53,10 +53,10 @@ class MaintenanceUnderwritingAdapterTest {
                 "rule-v1", "model-v1", "APPROVED", List.of(), "通过",
                 LocalDateTime.parse("2026-08-25T12:00:00"));
         when(api.assess(any())).thenReturn(ResponseEntity.ok(mismatched));
-        assertThrows(BusinessException.class, () -> adapter.assess(request));
+        assertThrows(DomainException.class, () -> adapter.assess(request));
 
         when(api.assess(any())).thenThrow(new RuntimeException("timeout"));
-        assertThrows(BusinessException.class, () -> adapter.assess(request));
+        assertThrows(DomainException.class, () -> adapter.assess(request));
     }
 
     private AssessmentRequest request() {

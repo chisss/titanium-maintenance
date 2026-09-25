@@ -1,6 +1,7 @@
 package com.titanium.maintenance.common.exception;
 
 import com.titanium.metadata.errorcode.BaseErrorCode;
+import com.titanium.metadata.exception.DomainException;
 
 /**
  * 保全配置管理授权失败异常（HTTP 403）。
@@ -10,9 +11,9 @@ import com.titanium.metadata.errorcode.BaseErrorCode;
  * 71 段对应标准业务码。
  * </p>
  */
-public class MaintenanceForbiddenException extends BusinessException {
+public class MaintenanceForbiddenException extends DomainException {
 
     public MaintenanceForbiddenException(String message, BaseErrorCode errorCode) {
-        super(message, errorCode);
+        super(errorCode, message);
     }
 }

@@ -5,11 +5,11 @@ import java.util.Objects;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
-import com.titanium.maintenance.common.exception.BusinessException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
 import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.exception.DomainException;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest;
 import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest.RiskFieldChangeRequest;
@@ -37,7 +37,7 @@ public class MaintenanceUnderwritingAdapter implements MaintenanceUnderwritingPo
                     body.ruleVersion(), body.modelVersion(),
                     MaintenanceUnderwritingConclusion.fromCode(body.conclusion()),
                     body.additionalConditions(), body.summary(), body.completedAt());
-        } catch (BusinessException exception) {
+        } catch (DomainException exception) {
             throw exception;
         } catch (RuntimeException exception) {
             log.warn("调用保全核保失败, tenantId={}, maintenanceId={}, itemCode={}, errorType={}",
