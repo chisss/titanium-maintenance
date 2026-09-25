@@ -14,6 +14,8 @@ import com.titanium.customer.api.response.CustomerResponse;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.customer.CustomerServiceClient;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+import com.titanium.metadata.errorcode.SystemErrorCode;
+import com.titanium.metadata.response.ApiResponse;
 
 class CustomerServiceAdapterTest {
 
@@ -38,12 +40,12 @@ class CustomerServiceAdapterTest {
     void shouldThrowRemoteCallExceptionWhenCustomerServiceUnreachable() {
         CustomerServiceAdapter adapter = new CustomerServiceAdapter(new CustomerServiceClient() {
             @Override
-            public CustomerResponse getCustomer(String customerId) {
+            public ApiResponse<CustomerResponse> getCustomer(String customerId) {
                 throw unreachable();
             }
 
             @Override
-            public boolean isCustomerExists(String customerId) {
+            public ApiResponse<Boolean> isCustomerExists(String customerId) {
                 throw unreachable();
             }
 
@@ -57,16 +59,39 @@ class CustomerServiceAdapterTest {
         assertEquals(MaintenanceErrorCode.MAINTENANCE_CUSTOMER_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
     }
 
+    @Test
+    @DisplayName("🔴 错误信封（2xx + 错误码）按不可达失败关闭，不得并入『客户不存在』")
+    void shouldThrowRemoteCallExceptionWhenEnvelopeCarriesErrorCode() {
+        CustomerServiceAdapter adapter = new CustomerServiceAdapter(
+                fixedEnvelope(ApiResponse.error(SystemErrorCode.DEPENDENCY_SERVICE_ERROR)));
+
+        MaintenanceRemoteCallException error = assertThrows(MaintenanceRemoteCallException.class,
+                () -> adapter.customerExists("customer-1"));
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_CUSTOMER_REMOTE_ERROR.getCode(), error.getErrorCodeValue());
+    }
+
+    @Test
+    @DisplayName("🔴 成功信封但 data 缺失：同样失败关闭，不得当作『客户不存在』")
+    void shouldThrowRemoteCallExceptionWhenEnvelopeDataAbsent() {
+        CustomerServiceAdapter adapter = new CustomerServiceAdapter(fixedEnvelope(ApiResponse.success()));
+
+        assertThrows(MaintenanceRemoteCallException.class, () -> adapter.customerExists("customer-1"));
+    }
+
     private CustomerServiceClient client(boolean exists) {
+        return fixedEnvelope(ApiResponse.success(exists));
+    }
+
+    private CustomerServiceClient fixedEnvelope(ApiResponse<Boolean> response) {
         return new CustomerServiceClient() {
             @Override
-            public CustomerResponse getCustomer(String customerId) {
+            public ApiResponse<CustomerResponse> getCustomer(String customerId) {
                 return null;
             }
 
             @Override
-            public boolean isCustomerExists(String customerId) {
-                return exists;
+            public ApiResponse<Boolean> isCustomerExists(String customerId) {
+                return response;
             }
         };
     }

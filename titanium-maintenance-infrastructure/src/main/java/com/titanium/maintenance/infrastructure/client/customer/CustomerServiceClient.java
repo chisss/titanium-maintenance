@@ -5,6 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import com.titanium.customer.api.response.CustomerResponse;
+import com.titanium.metadata.response.ApiResponse;
 
 /**
  * 客户域 Feign 客户端（防腐适配，路径与响应类型严格对齐 customer 域 CustomerApi 真实契约）
@@ -16,6 +17,10 @@ import com.titanium.customer.api.response.CustomerResponse;
  * <p>
  * 存在性校验优先走专用 {@code /{customerId}/exists} 端点，避免通过异常捕获判断是否存在的"错误即false"模式。
  * </p>
+ * <p>
+ * 🔴 m24-01a 起 customer 域契约统一返回 {@link ApiResponse} 信封，本接口同步对齐：只改外层成形，
+ * 路径与失败语义（非 2xx ⇒ Feign 抛异常）不变。
+ * </p>
  */
 @FeignClient(name = "titanium-customer", contextId = "maintenanceCustomerClient", path = "/api/v1/customers")
 public interface CustomerServiceClient {
@@ -25,18 +30,18 @@ public interface CustomerServiceClient {
      *
      * @param customerId 客户ID
      * @param tenantId 租户ID
-     * @return 客户详情 DTO，客户不存在时返回 null
+     * @return 统一信封，{@code data} 为客户详情，客户不存在时为 {@code null}
      */
     @GetMapping("/{customerId}")
-    CustomerResponse getCustomer(@PathVariable String customerId);
+    ApiResponse<CustomerResponse> getCustomer(@PathVariable String customerId);
 
     /**
      * 判断客户是否存在（专用端点，比 getCustomer + 异常捕获更准确）
      *
      * @param customerId 客户ID
      * @param tenantId 租户ID
-     * @return 存在返回 true
+     * @return 统一信封，{@code data} 为存在返回 true
      */
     @GetMapping("/{customerId}/exists")
-    boolean isCustomerExists(@PathVariable String customerId);
+    ApiResponse<Boolean> isCustomerExists(@PathVariable String customerId);
 }

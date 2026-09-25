@@ -15,6 +15,7 @@ import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
 import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
+import com.titanium.metadata.response.ApiResponse;
 
 import jakarta.validation.Valid;
 
@@ -31,6 +32,10 @@ import jakarta.validation.Valid;
  * 启动报「Multiple @FeignClient with the same name」Bean 冲突。原 {@code MaintenanceApiClient}
  * （api/client）为 Client 后缀的老式命名，已重命名为本接口（命名主键=聚合根 Maintenance）。
  * </p>
+ * <p>
+ * 🔴 m24-01a 起统一返回 {@link ApiResponse} 信封：调用方先判 {@code isSuccess()} 再取 {@code getData()}；
+ * 失败仍由全局异常处理器以非 2xx 表达（Feign 抛 {@code FeignException}），信封化只改成功体的成形。
+ * </p>
  */
 @FeignClient(name = "titanium-maintenance", contextId = "maintenanceApi", path = "/api/v1/maintenances")
 public interface MaintenanceApi {
@@ -39,31 +44,31 @@ public interface MaintenanceApi {
      * 创建保全案件
      *
      * @param request 创建保全请求 DTO
-     * @return 保全案件ID
+     * @return 统一信封，data 为保全案件ID
      */
     @PostMapping
-    String createMaintenance(@RequestBody @Valid CreateMaintenanceRequest request);
+    ApiResponse<String> createMaintenance(@RequestBody @Valid CreateMaintenanceRequest request);
 
     /**
      * 变更保全案件状态
      *
      * @param id 保全案件ID
      * @param request 状态变更请求 DTO
-     * @return 保全案件ID
+     * @return 统一信封，data 为保全案件ID
      */
     @PutMapping("/{id}/status")
-    String changeMaintenanceStatus(@PathVariable String id,
-                                   @RequestBody @Valid ChangeMaintenanceStatusRequest request);
+    ApiResponse<String> changeMaintenanceStatus(@PathVariable String id,
+                                                @RequestBody @Valid ChangeMaintenanceStatusRequest request);
 
     /** 由 Maintenance 编排 Product 替代计算、差额确认与 Billing 余额登记。 */
     @PostMapping("/{id}/premium-settlements")
-    MaintenancePremiumSettlementResponse settlePremium(
+    ApiResponse<MaintenancePremiumSettlementResponse> settlePremium(
             @PathVariable String id,
             @RequestBody @Valid SettleMaintenancePremiumRequest request);
 
     /** 将既有 Product 生命周期差额生成反向事实并登记 Billing。 */
     @PostMapping("/{id}/reversal-settlements")
-    MaintenancePremiumSettlementResponse settleReversal(
+    ApiResponse<MaintenancePremiumSettlementResponse> settleReversal(
             @PathVariable String id,
             @RequestBody @Valid SettleMaintenanceReversalRequest request);
 
@@ -71,17 +76,17 @@ public interface MaintenanceApi {
      * 根据ID查询保全案件（跨域集成用）
      *
      * @param id 保全案件ID
-     * @return 保全案件详情
+     * @return 统一信封，data 为保全案件详情
      */
     @GetMapping("/{id}")
-    MaintenanceResponse getMaintenanceById(@PathVariable String id);
+    ApiResponse<MaintenanceResponse> getMaintenanceById(@PathVariable String id);
 
     /**
      * 根据保单ID查询保全案件列表
      *
      * @param policyId 保单ID
-     * @return 保全案件列表
+     * @return 统一信封，data 为保全案件列表
      */
     @GetMapping("/policy/{policyId}")
-    List<MaintenanceResponse> getMaintenancesByPolicyId(@PathVariable String policyId);
+    ApiResponse<List<MaintenanceResponse>> getMaintenancesByPolicyId(@PathVariable String policyId);
 }

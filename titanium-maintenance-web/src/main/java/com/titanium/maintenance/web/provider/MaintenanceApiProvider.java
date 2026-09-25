@@ -20,6 +20,7 @@ import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.web.mapper.MaintenanceWebMapper;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
+import com.titanium.metadata.response.ApiResponse;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,10 +46,10 @@ public class MaintenanceApiProvider implements MaintenanceApi {
     private final MaintenanceWebMapper          maintenanceWebMapper;
 
     @Override
-    public String createMaintenance(CreateMaintenanceRequest request) {
+    public ApiResponse<String> createMaintenance(CreateMaintenanceRequest request) {
         try {
             // 协议转换：DTO 码值 → 领域枚举，收敛到同一应用层门面
-            return maintenanceApplicationService.createMaintenanceCase(
+            return ApiResponse.success(maintenanceApplicationService.createMaintenanceCase(
                     request.getPolicyId(),
                     request.getCustomerId(),
                     MaintenanceType.fromValue(request.getMaintenanceType()),
@@ -56,7 +57,7 @@ public class MaintenanceApiProvider implements MaintenanceApi {
                     request.getSpecificEffectiveDate(),
                     request.getDescription(),
                     request.getCreatedBy(),
-                    RequestContextHolder.requireTenantId()).get();
+                    RequestContextHolder.requireTenantId()).get());
         } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
             log.error("远程创建保全案件失败: {}", e.getMessage(), e);
@@ -65,13 +66,13 @@ public class MaintenanceApiProvider implements MaintenanceApi {
     }
 
     @Override
-    public String changeMaintenanceStatus(String id, ChangeMaintenanceStatusRequest request) {
+    public ApiResponse<String> changeMaintenanceStatus(String id, ChangeMaintenanceStatusRequest request) {
         try {
-            return maintenanceApplicationService.changeMaintenanceStatus(
+            return ApiResponse.success(maintenanceApplicationService.changeMaintenanceStatus(
                     id,
                     MaintenanceStatus.fromValue(request.getNewStatus()),
                     request.getChangeReason(),
-                    request.getChangedBy(), RequestContextHolder.requireTenantId()).get();
+                    request.getChangedBy(), RequestContextHolder.requireTenantId()).get());
         } catch (InterruptedException | ExecutionException e) {
             Thread.currentThread().interrupt();
             log.error("远程变更保全状态失败: {}", e.getMessage(), e);
@@ -80,30 +81,32 @@ public class MaintenanceApiProvider implements MaintenanceApi {
     }
 
     @Override
-    public MaintenancePremiumSettlementResponse settlePremium(
+    public ApiResponse<MaintenancePremiumSettlementResponse> settlePremium(
             String id, SettleMaintenancePremiumRequest request) {
-        return maintenanceWebMapper.toSettlementResponse(
+        return ApiResponse.success(maintenanceWebMapper.toSettlementResponse(
                 premiumSettlementCommandService.settle(id, RequestContextHolder.requireTenantId(),
-                maintenanceWebMapper.toSettlementInput(request)));
+                maintenanceWebMapper.toSettlementInput(request))));
     }
 
     @Override
-    public MaintenancePremiumSettlementResponse settleReversal(
+    public ApiResponse<MaintenancePremiumSettlementResponse> settleReversal(
             String id, SettleMaintenanceReversalRequest request) {
-        return maintenanceWebMapper.toSettlementResponse(
+        return ApiResponse.success(maintenanceWebMapper.toSettlementResponse(
                 premiumSettlementCommandService.settleReversal(id, RequestContextHolder.requireTenantId(),
-                        maintenanceWebMapper.toReversalSettlementInput(request)));
+                        maintenanceWebMapper.toReversalSettlementInput(request))));
     }
 
     @Override
-    public MaintenanceResponse getMaintenanceById(String id) {
-        return maintenanceWebMapper.toApiResponse(maintenanceApplicationService.findMaintenanceById(id, RequestContextHolder.requireTenantId()));
+    public ApiResponse<MaintenanceResponse> getMaintenanceById(String id) {
+        return ApiResponse.success(maintenanceWebMapper.toApiResponse(
+                maintenanceApplicationService.findMaintenanceById(id, RequestContextHolder.requireTenantId())));
     }
 
     @Override
-    public List<MaintenanceResponse> getMaintenancesByPolicyId(String policyId) {
-        return maintenanceApplicationService.findMaintenancesByPolicyId(policyId, RequestContextHolder.requireTenantId()).stream()
+    public ApiResponse<List<MaintenanceResponse>> getMaintenancesByPolicyId(String policyId) {
+        return ApiResponse.success(maintenanceApplicationService
+                .findMaintenancesByPolicyId(policyId, RequestContextHolder.requireTenantId()).stream()
                 .map(maintenanceWebMapper::toApiResponse)
-                .toList();
+                .toList());
     }
 }

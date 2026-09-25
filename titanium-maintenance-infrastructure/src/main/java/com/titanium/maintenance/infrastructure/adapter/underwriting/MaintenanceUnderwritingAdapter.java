@@ -2,7 +2,6 @@ package com.titanium.maintenance.infrastructure.adapter.underwriting;
 
 import java.util.Objects;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
@@ -10,6 +9,7 @@ import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
 import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.exception.DomainException;
+import com.titanium.metadata.response.ApiResponse;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest;
 import com.titanium.underwriting.api.request.maintenance.AssessMaintenanceUnderwritingRequest.RiskFieldChangeRequest;
@@ -29,7 +29,7 @@ public class MaintenanceUnderwritingAdapter implements MaintenanceUnderwritingPo
     @Override
     public AssessmentFact assess(AssessmentRequest request) {
         try {
-            ResponseEntity<MaintenanceUnderwritingResponse> response = api.assess(toApiRequest(request));
+            ApiResponse<MaintenanceUnderwritingResponse> response = api.assess(toApiRequest(request));
             MaintenanceUnderwritingResponse body = requireSuccess(response);
             validateEcho(request, body);
             return new AssessmentFact(
@@ -61,12 +61,19 @@ public class MaintenanceUnderwritingAdapter implements MaintenanceUnderwritingPo
                 request.idempotencyKey(), request.payloadHash(), request.requestedBy());
     }
 
+    /**
+     * 解包统一信封并取有效载荷。
+     * <p>
+     * 🔴 m24-01a：核保契约统一返回 {@code ApiResponse} 信封。错误信封（或成功但无载荷）一律按
+     * 「远程不可用」失败关闭——绝不通融为「无结论」，否则保全案件会把依赖故障读成业务事实。
+     * </p>
+     */
     private MaintenanceUnderwritingResponse requireSuccess(
-            ResponseEntity<MaintenanceUnderwritingResponse> response) {
-        if (response == null || !response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            ApiResponse<MaintenanceUnderwritingResponse> response) {
+        if (response == null || !response.isSuccess() || response.getData() == null) {
             throw remoteError("Underwriting 未返回有效保全核保结果");
         }
-        return response.getBody();
+        return response.getData();
     }
 
     private void validateEcho(AssessmentRequest request, MaintenanceUnderwritingResponse response) {

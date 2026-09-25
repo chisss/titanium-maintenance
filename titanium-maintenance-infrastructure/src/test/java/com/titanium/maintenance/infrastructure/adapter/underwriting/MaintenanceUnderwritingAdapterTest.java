@@ -11,13 +11,15 @@ import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.ResponseEntity;
 
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentFact;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentRequest;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.RiskFieldChange;
 import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
+import com.titanium.metadata.errorcode.SystemErrorCode;
 import com.titanium.metadata.exception.DomainException;
+import com.titanium.metadata.response.ApiResponse;
 import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
 import com.titanium.underwriting.api.response.maintenance.MaintenanceUnderwritingResponse;
 
@@ -36,7 +38,7 @@ class MaintenanceUnderwritingAdapterTest {
     void shouldMapAndValidateAuthoritativeUnderwritingFact() {
         AssessmentRequest request = request();
         when(api.assess(any()))
-                .thenReturn(ResponseEntity.ok(response(request, "CONDITIONAL_APPROVED")));
+                .thenReturn(ApiResponse.success(response(request, "CONDITIONAL_APPROVED")));
 
         AssessmentFact fact = adapter.assess(request);
 
@@ -52,11 +54,28 @@ class MaintenanceUnderwritingAdapterTest {
                 "underwriting-1", request.idempotencyKey(), request.payloadHash(),
                 "rule-v1", "model-v1", "APPROVED", List.of(), "通过",
                 LocalDateTime.parse("2026-08-25T12:00:00"));
-        when(api.assess(any())).thenReturn(ResponseEntity.ok(mismatched));
+        when(api.assess(any())).thenReturn(ApiResponse.success(mismatched));
         assertThrows(DomainException.class, () -> adapter.assess(request));
 
         when(api.assess(any())).thenThrow(new RuntimeException("timeout"));
         assertThrows(DomainException.class, () -> adapter.assess(request));
+    }
+
+    @Test
+    void shouldFailClosedWhenEnvelopeCarriesErrorCode() {
+        AssessmentRequest request = request();
+        when(api.assess(any())).thenReturn(ApiResponse.error(SystemErrorCode.DEPENDENCY_SERVICE_ERROR));
+
+        // 错误信封绝不通融为「无结论」：否则保全案件会把依赖故障读成业务事实
+        assertThrows(MaintenanceRemoteCallException.class, () -> adapter.assess(request));
+    }
+
+    @Test
+    void shouldFailClosedWhenSuccessEnvelopeCarriesNoPayload() {
+        AssessmentRequest request = request();
+        when(api.assess(any())).thenReturn(ApiResponse.success());
+
+        assertThrows(MaintenanceRemoteCallException.class, () -> adapter.assess(request));
     }
 
     private AssessmentRequest request() {
