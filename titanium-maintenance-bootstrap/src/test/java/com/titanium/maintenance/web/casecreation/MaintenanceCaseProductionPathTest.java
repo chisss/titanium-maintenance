@@ -40,7 +40,6 @@ import com.titanium.maintenance.application.orchestration.workflow.MaintenanceRe
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceRetroactivePeriodRecalculationApplicationService;
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceRetroactivePeriodResolutionApplicationService;
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceWorkflowApplicationService;
-import com.titanium.maintenance.application.query.MaintenanceCaseQueryApplicationService;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
@@ -60,10 +59,8 @@ import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
-import com.titanium.maintenance.web.controller.MaintenanceCaseController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseCreationController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
-import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
-import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
 import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
@@ -216,12 +213,8 @@ class MaintenanceCaseProductionPathTest {
         verify(commandGateway).send(any());
     }
 
-    private MaintenanceCaseController controller(MaintenanceCaseCommandService commandService) {
-        return new MaintenanceCaseController(
-                commandService,
-                mock(MaintenanceCaseQueryApplicationService.class),
-                new MaintenanceCaseQueryWebMapperImpl(),
-                mock(MaintenanceCaseQueryAccessResolver.class));
+    private MaintenanceCaseCreationController controller(MaintenanceCaseCommandService commandService) {
+        return new MaintenanceCaseCreationController(commandService);
     }
 
     private PolicyMaintenanceSnapshotResponse policySnapshot() {

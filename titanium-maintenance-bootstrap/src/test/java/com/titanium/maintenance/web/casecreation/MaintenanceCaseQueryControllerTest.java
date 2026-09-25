@@ -19,7 +19,6 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import com.titanium.common.context.RequestContextInterceptor;
-import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
 import com.titanium.maintenance.application.query.MaintenanceCaseQueryApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
@@ -38,7 +37,7 @@ import com.titanium.maintenance.query.result.MaintenanceCaseDetailQueryResult.Sn
 import com.titanium.maintenance.query.result.MaintenanceCaseDetailQueryResult.WorkflowTaskQueryResult;
 import com.titanium.maintenance.query.result.MaintenanceCasePageQueryResult;
 import com.titanium.maintenance.query.result.MaintenanceCasePageQueryResult.MaintenanceCaseSummaryQueryResult;
-import com.titanium.maintenance.web.controller.MaintenanceCaseController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseQueryController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
@@ -55,9 +54,8 @@ class MaintenanceCaseQueryControllerTest {
     void setUp() {
         queryService = mock(MaintenanceCaseQueryApplicationService.class);
         accessResolver = mock(MaintenanceCaseQueryAccessResolver.class);
-        MaintenanceCaseController controller = new MaintenanceCaseController(
-                mock(MaintenanceCaseCommandService.class), queryService,
-                new MaintenanceCaseQueryWebMapperImpl(), accessResolver);
+        MaintenanceCaseQueryController controller = new MaintenanceCaseQueryController(
+                queryService, new MaintenanceCaseQueryWebMapperImpl(), accessResolver);
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new MaintenanceExceptionHandler())
                 // m18：显式注册请求上下文拦截器（standaloneSetup 不装配容器里的拦截器），

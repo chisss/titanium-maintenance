@@ -77,7 +77,11 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeri
 import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
-import com.titanium.maintenance.web.controller.MaintenanceCaseController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseAssessmentController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseCreationController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseEffectController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseQueryController;
+import com.titanium.maintenance.web.controller.cases.MaintenanceCaseTaskController;
 import com.titanium.maintenance.web.handler.MaintenanceExceptionHandler;
 import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapperImpl;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
@@ -92,11 +96,7 @@ class MaintenanceCaseControllerTest {
     @BeforeEach
     void setUp() {
         commandService = mock(MaintenanceCaseCommandService.class);
-        mockMvc = MockMvcBuilders.standaloneSetup(new MaintenanceCaseController(
-                        commandService,
-                        mock(MaintenanceCaseQueryApplicationService.class),
-                        new MaintenanceCaseQueryWebMapperImpl(),
-                        mock(MaintenanceCaseQueryAccessResolver.class)))
+        mockMvc = MockMvcBuilders.standaloneSetup(caseControllers(commandService))
                 .setControllerAdvice(new BoundaryExceptionHandler(), new MaintenanceExceptionHandler(),
                         new MissingIdentityExceptionHandler())
                 // m18：租户/操作人改由请求上下文承载。standaloneSetup 不会自动装配 Spring 容器里的
@@ -936,6 +936,23 @@ class MaintenanceCaseControllerTest {
     private String requestJson() throws Exception {
         return new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(
                 new RequestBody("policy-1", "POLICY_INFO_CHANGE", "IMMEDIATE", "联系方式变更", "request-1"));
+    }
+
+    /**
+     * 案件端点按业务主题分布在案件家族各 Controller 上；本用例以 URL 为入口，
+     * 故整体挂载，保证拆分前后覆盖的路径完全一致。
+     */
+    private static Object[] caseControllers(MaintenanceCaseCommandService commandService) {
+        return new Object[] {
+            new MaintenanceCaseQueryController(
+                    mock(MaintenanceCaseQueryApplicationService.class),
+                    new MaintenanceCaseQueryWebMapperImpl(),
+                    mock(MaintenanceCaseQueryAccessResolver.class)),
+            new MaintenanceCaseCreationController(commandService),
+            new MaintenanceCaseTaskController(commandService),
+            new MaintenanceCaseEffectController(commandService),
+            new MaintenanceCaseAssessmentController(commandService)
+        };
     }
 
     private record RequestBody(
