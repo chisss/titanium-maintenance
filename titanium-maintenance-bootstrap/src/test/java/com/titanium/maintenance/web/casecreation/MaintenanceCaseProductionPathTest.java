@@ -141,7 +141,7 @@ class MaintenanceCaseProductionPathTest {
 
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.maintenanceId").isNotEmpty());
+                .andExpect(jsonPath("$.data.maintenanceId").isNotEmpty());
         verify(policyClient).getMaintenanceSnapshot("policy-1");
         verify(productClient).resolve(
                 "product-1", "product-v3", "plan-v8", "EFFECTIVE", "API",
@@ -207,7 +207,7 @@ class MaintenanceCaseProductionPathTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
-        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isNoContent());
+        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isOk());
         verify(maintenanceViewRepository)
                 .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
                         "maintenance-1", "tenant-1");

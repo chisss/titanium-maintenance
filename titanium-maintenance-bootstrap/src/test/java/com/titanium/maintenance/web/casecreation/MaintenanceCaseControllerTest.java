@@ -231,7 +231,7 @@ class MaintenanceCaseControllerTest {
 
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.maintenanceId").value("maintenance-1"));
+                .andExpect(jsonPath("$.data.maintenanceId").value("maintenance-1"));
         CreateMaintenanceCaseInput request = capturedRequest();
         assertEquals("tenant-1", request.tenantId());
         assertEquals("api-client-1", request.operatorId());
@@ -287,7 +287,7 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
 
         mockMvc.perform(asyncDispatch(pending))
-                .andExpect(status().isNoContent());
+                .andExpect(status().isOk());
         RecordMaintenanceFieldChangesInput input = capturedFieldRequest();
         assertEquals("tenant-1", input.tenantId());
         assertEquals("api-client-1", input.operatorId());
@@ -314,8 +314,8 @@ class MaintenanceCaseControllerTest {
 
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.endorsementNo").value("END-001"))
-                .andExpect(jsonPath("$.actualPolicyVersion").value(8));
+                .andExpect(jsonPath("$.data.endorsementNo").value("END-001"))
+                .andExpect(jsonPath("$.data.actualPolicyVersion").value(8));
         ArgumentCaptor<MaintenanceEffectApplicationInput> captor =
                 ArgumentCaptor.forClass(MaintenanceEffectApplicationInput.class);
         verify(commandService).applyEffect(captor.capture());
@@ -340,8 +340,8 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
         mockMvc.perform(asyncDispatch(apiPending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.policyVersion").value(8))
-                .andExpect(jsonPath("$.conflictCount").value(1));
+                .andExpect(jsonPath("$.data.policyVersion").value(8))
+                .andExpect(jsonPath("$.data.conflictCount").value(1));
 
         MvcResult webPending = mockMvc.perform(post(
                                 "/web/v1/maintenance/cases/case-1/field-conflicts/refresh")
@@ -388,7 +388,7 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.conflictCount").value(0));
+                .andExpect(jsonPath("$.data.conflictCount").value(0));
 
         ArgumentCaptor<ResolveMaintenanceFieldConflictInput> captor =
                 ArgumentCaptor.forClass(ResolveMaintenanceFieldConflictInput.class);
@@ -426,8 +426,8 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
         mockMvc.perform(asyncDispatch(pausePending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("PAUSED"))
-                .andExpect(jsonPath("$.tenantZoneId").value("Asia/Shanghai"));
+                .andExpect(jsonPath("$.data.status").value("PAUSED"))
+                .andExpect(jsonPath("$.data.tenantZoneId").value("Asia/Shanghai"));
 
         MvcResult resumePending = mockMvc.perform(post(
                                 "/web/v1/maintenance/cases/case-1/effect-schedule/resume")
@@ -439,7 +439,7 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
         mockMvc.perform(asyncDispatch(resumePending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("ACTIVE"));
+                .andExpect(jsonPath("$.data.status").value("ACTIVE"));
 
         List<MaintenanceEffectScheduleOperationInput> inputs = capturedScheduleRequests();
         assertEquals(MaintenanceChannel.API, inputs.get(0).source());
@@ -506,7 +506,7 @@ class MaintenanceCaseControllerTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
-        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isNoContent());
+        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isOk());
         MaintenanceWorkflowTaskOperationInput input = capturedWorkflowRequest();
         assertEquals("tenant-1", input.tenantId());
         assertEquals("operator-1", input.operatorId());
@@ -537,7 +537,7 @@ class MaintenanceCaseControllerTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
-        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isNoContent());
+        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isOk());
         MaintenanceWorkflowTaskOperationInput input = capturedConditionRequest();
         assertEquals(MaintenanceChannel.API, input.source());
         assertEquals(MaintenanceWorkflowConditionDecision.SKIP, input.conditionDecision());
@@ -575,7 +575,7 @@ class MaintenanceCaseControllerTest {
                 .andExpect(request().asyncStarted())
                 .andReturn();
 
-        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isNoContent());
+        mockMvc.perform(asyncDispatch(pending)).andExpect(status().isOk());
         MaintenanceManualReviewInput input = capturedManualReviewRequest();
         assertEquals(MaintenanceChannel.MANUAL, input.source());
         assertEquals(MaintenanceReviewDecision.REJECT, input.decision());
@@ -622,8 +622,8 @@ class MaintenanceCaseControllerTest {
 
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.outcome").value("MANUAL_REQUIRED"))
-                .andExpect(jsonPath("$.reasons[0]").value("IDENTITY_EVIDENCE_INCOMPLETE"));
+                .andExpect(jsonPath("$.data.outcome").value("MANUAL_REQUIRED"))
+                .andExpect(jsonPath("$.data.reasons[0]").value("IDENTITY_EVIDENCE_INCOMPLETE"));
         MaintenanceAutomaticReviewInput input = capturedAutomaticReviewRequest();
         assertEquals(MaintenanceChannel.API, input.source());
         assertEquals("review-engine", input.operatorId());
@@ -658,9 +658,9 @@ class MaintenanceCaseControllerTest {
 
         mockMvc.perform(asyncDispatch(pending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.underwritingCaseId").value("underwriting-1"))
-                .andExpect(jsonPath("$.conclusion").value("CONDITIONAL_APPROVED"))
-                .andExpect(jsonPath("$.additionalConditions[0]")
+                .andExpect(jsonPath("$.data.underwritingCaseId").value("underwriting-1"))
+                .andExpect(jsonPath("$.data.conclusion").value("CONDITIONAL_APPROVED"))
+                .andExpect(jsonPath("$.data.additionalConditions[0]")
                         .value("REVIEW_FIELD:insured.occupation"));
         MaintenanceUnderwritingAssessmentInput input = capturedUnderwritingRequest();
         assertEquals(MaintenanceChannel.API, input.source());
@@ -722,11 +722,11 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
         mockMvc.perform(asyncDispatch(apiPending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.status").value("QUOTED"))
-                .andExpect(jsonPath("$.quoteId").value("quote-1"))
-                .andExpect(jsonPath("$.quoteVersion").value(resultHash))
-                .andExpect(jsonPath("$.direction").value("DEBIT"))
-                .andExpect(jsonPath("$.amount").value(88.66));
+                .andExpect(jsonPath("$.data.status").value("QUOTED"))
+                .andExpect(jsonPath("$.data.quoteId").value("quote-1"))
+                .andExpect(jsonPath("$.data.quoteVersion").value(resultHash))
+                .andExpect(jsonPath("$.data.direction").value("DEBIT"))
+                .andExpect(jsonPath("$.data.amount").value(88.66));
 
         MvcResult webPending = mockMvc.perform(post(
                                 "/web/v1/maintenance/cases/case-1/tasks/"
@@ -805,12 +805,12 @@ class MaintenanceCaseControllerTest {
                 .andReturn();
         mockMvc.perform(asyncDispatch(apiPending))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.taskStatus").value("WAITING_EXTERNAL"))
-                .andExpect(jsonPath("$.postingId").value("posting-1"))
-                .andExpect(jsonPath("$.postingStatus").value("POSTED"))
-                .andExpect(jsonPath("$.amount").value(88.66))
-                .andExpect(jsonPath("$.fundStatus").value("PENDING"))
-                .andExpect(jsonPath("$.orderId").value("payment-1"));
+                .andExpect(jsonPath("$.data.taskStatus").value("WAITING_EXTERNAL"))
+                .andExpect(jsonPath("$.data.postingId").value("posting-1"))
+                .andExpect(jsonPath("$.data.postingStatus").value("POSTED"))
+                .andExpect(jsonPath("$.data.amount").value(88.66))
+                .andExpect(jsonPath("$.data.fundStatus").value("PENDING"))
+                .andExpect(jsonPath("$.data.orderId").value("payment-1"));
 
         MvcResult webPending = mockMvc.perform(post(
                                 "/web/v1/maintenance/cases/case-1/tasks/"

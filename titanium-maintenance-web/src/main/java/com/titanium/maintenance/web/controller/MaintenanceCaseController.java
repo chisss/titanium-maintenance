@@ -198,7 +198,7 @@ public class MaintenanceCaseController {
 
     /** 系统 API 自动建案；来源由路由固定，不接受请求体覆盖。 */
     @PostMapping("/api/v1/maintenance/cases")
-    public CompletableFuture<ResponseEntity<MaintenanceCaseCreationVO>> createByApi(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceCaseCreationVO>>> createByApi(
             @Valid @RequestBody CreateMaintenanceCaseDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
@@ -207,7 +207,7 @@ public class MaintenanceCaseController {
 
     /** 保全后台人工建案；来源由路由固定，不接受请求体覆盖。 */
     @PostMapping("/web/v1/maintenance/cases")
-    public CompletableFuture<ResponseEntity<MaintenanceCaseCreationVO>> createManually(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceCaseCreationVO>>> createManually(
             @Valid @RequestBody CreateMaintenanceCaseDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
@@ -216,7 +216,7 @@ public class MaintenanceCaseController {
 
     /** 系统 API 保存字段草稿；敏感字段值不在响应中回显。 */
     @PutMapping("/api/v1/maintenance/cases/{caseId}/items/{itemCode}/changes")
-    public CompletableFuture<ResponseEntity<Void>> recordApiFieldChanges(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> recordApiFieldChanges(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 64) String itemCode,
             @Valid @RequestBody RecordMaintenanceFieldChangesDTO request) {
@@ -227,7 +227,7 @@ public class MaintenanceCaseController {
 
     /** 保全后台保存字段草稿；与 API 使用相同领域命令。 */
     @PutMapping("/web/v1/maintenance/cases/{caseId}/items/{itemCode}/changes")
-    public CompletableFuture<ResponseEntity<Void>> recordManualFieldChanges(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> recordManualFieldChanges(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 64) String itemCode,
             @Valid @RequestBody RecordMaintenanceFieldChangesDTO request) {
@@ -241,7 +241,7 @@ public class MaintenanceCaseController {
             "/api/v1/maintenance/cases/{caseId}/items/{itemCode}/withdrawal",
             "/web/v1/maintenance/cases/{caseId}/items/{itemCode}/withdrawal"
     })
-    public CompletableFuture<ResponseEntity<MaintenanceItemWithdrawalVO>> withdrawItem(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceItemWithdrawalVO>>> withdrawItem(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 64) String itemCode,
             @Valid @RequestBody WithdrawMaintenanceItemDTO request) {
@@ -249,21 +249,21 @@ public class MaintenanceCaseController {
         String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.withdrawItem(new MaintenanceItemWithdrawalInput(
                 caseId, itemCode, request.operationId(), request.reason(), request.paymentMethod(),
-                operatorId, tenantId)).thenApply(result -> ResponseEntity.ok(new MaintenanceItemWithdrawalVO(
+                operatorId, tenantId)).thenApply(result -> ResponseEntity.ok(ApiResponse.success(new MaintenanceItemWithdrawalVO(
                         result.itemCode(), result.operationId(), result.requestHash(), result.status(),
                         result.sourcePostingId(), result.sourceFundStatus(), result.reversalId(),
                         result.reversalResultHash(),
                         result.reversalDirection(), result.amount(), result.currency(), result.fundAction(),
                         result.fundStatus(), result.fundRequestId(), result.fundOrderId(),
                         result.fundExternalStatus(), result.failureCode(), result.failureMessage(),
-                        result.retryCount(), result.requestedAt(), result.completedAt())));
+                        result.retryCount(), result.requestedAt(), result.completedAt()))));
     }
 
     /** 人工与系统任务领取共用同一领域命令，来源由匹配路由固定。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/claim",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/claim"})
-    public CompletableFuture<ResponseEntity<Void>> claimTask(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> claimTask(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
@@ -279,7 +279,7 @@ public class MaintenanceCaseController {
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/start",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/start"})
-    public CompletableFuture<ResponseEntity<Void>> startTask(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> startTask(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
@@ -295,7 +295,7 @@ public class MaintenanceCaseController {
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/complete",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/complete"})
-    public CompletableFuture<ResponseEntity<Void>> completeTask(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> completeTask(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody CompleteMaintenanceWorkflowTaskDTO request,
@@ -312,7 +312,7 @@ public class MaintenanceCaseController {
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/fail",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/fail"})
-    public CompletableFuture<ResponseEntity<Void>> failTask(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> failTask(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody FailMaintenanceWorkflowTaskDTO request,
@@ -329,7 +329,7 @@ public class MaintenanceCaseController {
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/retry",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/retry"})
-    public CompletableFuture<ResponseEntity<Void>> retryTask(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> retryTask(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody RetryMaintenanceWorkflowTaskDTO request,
@@ -343,7 +343,7 @@ public class MaintenanceCaseController {
 
     /** 条件结论只向系统 API 开放，人工路由不能直接覆盖规则结果。 */
     @PostMapping("/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/condition-decision")
-    public CompletableFuture<ResponseEntity<Void>> decideTaskCondition(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> decideTaskCondition(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody DecideMaintenanceWorkflowConditionDTO request) {
@@ -357,7 +357,7 @@ public class MaintenanceCaseController {
 
     /** 后台人工审核；领域层继续校验领取人和任务状态。 */
     @PostMapping("/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/review-decision")
-    public CompletableFuture<ResponseEntity<Void>> decideReview(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> decideReview(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody DecideMaintenanceReviewDTO request) {
@@ -372,7 +372,7 @@ public class MaintenanceCaseController {
 
     /** 后台出具保全凭证；模板编码取自案件冻结配置，领域层继续校验领取人和任务状态。 */
     @PostMapping("/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/document-issue")
-    public CompletableFuture<ResponseEntity<Void>> issueDocument(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> issueDocument(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody IssueMaintenanceDocumentDTO request) {
@@ -386,7 +386,7 @@ public class MaintenanceCaseController {
 
     /** 后台完成案件终结标记步骤；前序任务终态由领域层按同项目步骤序判定。 */
     @PostMapping("/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/complete-item")
-    public CompletableFuture<ResponseEntity<Void>> completeItem(
+    public CompletableFuture<ResponseEntity<ApiResponse<Void>>> completeItem(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request) {
@@ -399,7 +399,7 @@ public class MaintenanceCaseController {
 
     /** API 自动审核；任何门禁不满足时返回转人工，不写拒绝事实。 */
     @PostMapping("/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/auto-review")
-    public CompletableFuture<ResponseEntity<MaintenanceAutomaticReviewVO>> automaticReview(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceAutomaticReviewVO>>> automaticReview(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody AutomaticMaintenanceReviewDTO request) {
@@ -413,15 +413,15 @@ public class MaintenanceCaseController {
                 request.riskAccepted(), request.riskEvidenceHash(),
                 operatorId, tenantId, MaintenanceChannel.API);
         return caseCommandService.automaticReview(input)
-                .thenApply(result -> ResponseEntity.ok(new MaintenanceAutomaticReviewVO(
-                        result.outcome(), result.policyCode(), result.policyVersion(), result.reasons())));
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(new MaintenanceAutomaticReviewVO(
+                        result.outcome(), result.policyCode(), result.policyVersion(), result.reasons()))));
     }
 
     /** 人工后台与系统 API 通过同一编排触发立即生效，来源由路由固定。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/effect",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/effect"})
-    public CompletableFuture<ResponseEntity<MaintenanceEffectApplicationVO>> applyEffect(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceEffectApplicationVO>>> applyEffect(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody ApplyMaintenanceEffectDTO request,
@@ -431,31 +431,31 @@ public class MaintenanceCaseController {
         MaintenanceEffectApplicationInput input = new MaintenanceEffectApplicationInput(
                 caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest),
                 switchInput(request.investmentSwitch()));
-        return caseCommandService.applyEffect(input).thenApply(result -> ResponseEntity.ok(
+        return caseCommandService.applyEffect(input).thenApply(result -> ResponseEntity.ok(ApiResponse.success(
                 new MaintenanceEffectApplicationVO(
                         result.requestId(), result.endorsementNo(), result.actualPolicyVersion(),
-                        result.applicationHash(), result.appliedAt())));
+                        result.applicationHash(), result.appliedAt()))));
     }
 
     /** 主动读取 Policy 最新快照并刷新案件全部顺序外字段冲突。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/field-conflicts/refresh",
             "/web/v1/maintenance/cases/{caseId}/field-conflicts/refresh"})
-    public CompletableFuture<ResponseEntity<MaintenanceFieldConflictOperationVO>> refreshFieldConflicts(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceFieldConflictOperationVO>>> refreshFieldConflicts(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody RefreshMaintenanceFieldConflictsDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
         String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.refreshFieldConflicts(new RefreshMaintenanceFieldConflictsInput(
                         caseId, request.operationId(), operatorId, tenantId))
-                .thenApply(result -> ResponseEntity.ok(conflictOperationVO(result)));
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(conflictOperationVO(result))));
     }
 
     /** 使用当前值、案件拟值或重新录入值显式解决单个字段冲突。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/field-conflicts/resolve",
             "/web/v1/maintenance/cases/{caseId}/field-conflicts/resolve"})
-    public CompletableFuture<ResponseEntity<MaintenanceFieldConflictOperationVO>> resolveFieldConflict(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceFieldConflictOperationVO>>> resolveFieldConflict(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody ResolveMaintenanceFieldConflictDTO request) {
         String tenantId = RequestContextHolder.requireTenantId();
@@ -464,14 +464,14 @@ public class MaintenanceCaseController {
                         caseId, request.operationId(), request.itemCode(), request.objectId(), request.fieldCode(),
                         request.action(), request.dataType(), request.canonicalValue(), request.reason(),
                         operatorId, tenantId))
-                .thenApply(result -> ResponseEntity.ok(conflictOperationVO(result)));
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(conflictOperationVO(result))));
     }
 
     /** 为历史未来生效案件幂等补建计划；新案件在建案完成后自动创建。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/effect-schedule",
             "/web/v1/maintenance/cases/{caseId}/effect-schedule"})
-    public CompletableFuture<ResponseEntity<MaintenanceEffectScheduleVO>> createEffectSchedule(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceEffectScheduleVO>>> createEffectSchedule(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
             HttpServletRequest servletRequest) {
@@ -479,14 +479,14 @@ public class MaintenanceCaseController {
         String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.createEffectSchedule(scheduleInput(
                         caseId, request, tenantId, operatorId, source(servletRequest)))
-                .thenApply(result -> ResponseEntity.ok(scheduleVO(result)));
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(scheduleVO(result))));
     }
 
     /** 暂停尚未执行的未来生效计划。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/effect-schedule/pause",
             "/web/v1/maintenance/cases/{caseId}/effect-schedule/pause"})
-    public CompletableFuture<ResponseEntity<MaintenanceEffectScheduleVO>> pauseEffectSchedule(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceEffectScheduleVO>>> pauseEffectSchedule(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
             HttpServletRequest servletRequest) {
@@ -494,14 +494,14 @@ public class MaintenanceCaseController {
         String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.pauseEffectSchedule(scheduleInput(
                         caseId, request, tenantId, operatorId, source(servletRequest)))
-                .thenApply(result -> ResponseEntity.ok(scheduleVO(result)));
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(scheduleVO(result))));
     }
 
     /** 恢复暂停或失败的未来生效计划。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/effect-schedule/resume",
             "/web/v1/maintenance/cases/{caseId}/effect-schedule/resume"})
-    public CompletableFuture<ResponseEntity<MaintenanceEffectScheduleVO>> resumeEffectSchedule(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceEffectScheduleVO>>> resumeEffectSchedule(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @Valid @RequestBody MaintenanceEffectScheduleOperationDTO request,
             HttpServletRequest servletRequest) {
@@ -509,7 +509,7 @@ public class MaintenanceCaseController {
         String operatorId = RequestContextHolder.requireOperatorId();
         return caseCommandService.resumeEffectSchedule(scheduleInput(
                         caseId, request, tenantId, operatorId, source(servletRequest)))
-                .thenApply(result -> ResponseEntity.ok(scheduleVO(result)));
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(scheduleVO(result))));
     }
 
     /** 人工取得同一租约并立即触发权威重校验和正式生效。 */
@@ -533,7 +533,7 @@ public class MaintenanceCaseController {
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/underwriting-assessment",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/underwriting-assessment"})
-    public CompletableFuture<ResponseEntity<MaintenanceUnderwritingAssessmentVO>> assessUnderwriting(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenanceUnderwritingAssessmentVO>>> assessUnderwriting(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody MaintenanceWorkflowOperationDTO request,
@@ -543,17 +543,17 @@ public class MaintenanceCaseController {
         MaintenanceUnderwritingAssessmentInput input = new MaintenanceUnderwritingAssessmentInput(
                 caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest));
         return caseCommandService.assessUnderwriting(input)
-                .thenApply(result -> ResponseEntity.ok(new MaintenanceUnderwritingAssessmentVO(
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(new MaintenanceUnderwritingAssessmentVO(
                         result.underwritingCaseId(), result.conclusion(), result.ruleVersion(),
                         result.modelVersion(), result.additionalConditions(), result.summary(),
-                        result.completedAt())));
+                        result.completedAt()))));
     }
 
     /** 人工后台和系统 API 均只提交定价输入，Product 负责形成最终报价事实。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/premium-quotes",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/premium-quotes"})
-    public CompletableFuture<ResponseEntity<MaintenancePremiumQuoteVO>> quotePremium(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenancePremiumQuoteVO>>> quotePremium(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody QuoteMaintenancePremiumDTO request,
@@ -573,19 +573,19 @@ public class MaintenanceCaseController {
                 request.channelId(), request.policyYear(), request.reason(), operatorId, tenantId,
                 source(servletRequest));
         return caseCommandService.quotePremium(input)
-                .thenApply(result -> ResponseEntity.ok(new MaintenancePremiumQuoteVO(
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(new MaintenancePremiumQuoteVO(
                         result.status(), result.quoteId(), result.quoteVersion(),
                         result.originalCalculationId(), result.replacementCalculationId(),
                         result.pricingPlanVersion(), result.resultHash(), result.detailSummary(),
                         result.direction(), result.amount(), result.currency(), result.quotedAt(),
-                        result.validUntil())));
+                        result.validUntil()))));
     }
 
     /** 人工后台和系统 API 共用 Billing 入账与 Payment 收退款门禁。 */
     @PostMapping({
             "/api/v1/maintenance/cases/{caseId}/tasks/{taskId}/premium-settlements",
             "/web/v1/maintenance/cases/{caseId}/tasks/{taskId}/premium-settlements"})
-    public CompletableFuture<ResponseEntity<MaintenancePremiumSettlementGateVO>> settlePremium(
+    public CompletableFuture<ResponseEntity<ApiResponse<MaintenancePremiumSettlementGateVO>>> settlePremium(
             @PathVariable @NotBlank @Size(max = 64) String caseId,
             @PathVariable @NotBlank @Size(max = 191) String taskId,
             @Valid @RequestBody SettleMaintenancePremiumDTO request,
@@ -596,15 +596,15 @@ public class MaintenanceCaseController {
                 caseId, taskId, request.operationId(), request.paymentMethod(), request.reason(),
                 operatorId, tenantId, source(servletRequest));
         return caseCommandService.settlePremium(input)
-                .thenApply(result -> ResponseEntity.ok(new MaintenancePremiumSettlementGateVO(
+                .thenApply(result -> ResponseEntity.ok(ApiResponse.success(new MaintenancePremiumSettlementGateVO(
                         result.taskStatus(), result.postingId(), result.postingStatus(),
                         result.direction(), result.amount(), result.currency(), result.fundType(),
                         result.fundStatus(), result.instructionId(), result.orderId(),
                         result.externalStatus(), result.failureCode(), result.failureMessage(),
-                        result.recordedAt())));
+                        result.recordedAt()))));
     }
 
-    private CompletableFuture<ResponseEntity<MaintenanceCaseCreationVO>> create(
+    private CompletableFuture<ResponseEntity<ApiResponse<MaintenanceCaseCreationVO>>> create(
             CreateMaintenanceCaseDTO request,
             String tenantId,
             String operatorId,
@@ -615,7 +615,7 @@ public class MaintenanceCaseController {
                 source, operatorId, tenantId);
         return caseCommandService.create(input)
                 .thenApply(maintenanceId -> ResponseEntity.status(HttpStatus.CREATED)
-                        .body(new MaintenanceCaseCreationVO(maintenanceId)));
+                        .body(ApiResponse.success(new MaintenanceCaseCreationVO(maintenanceId))));
     }
 
     private MaintenanceFieldConflictOperationVO conflictOperationVO(
@@ -642,7 +642,7 @@ public class MaintenanceCaseController {
                 result.lastErrorCode(), result.lastErrorMessage());
     }
 
-    private CompletableFuture<ResponseEntity<Void>> recordFieldChanges(
+    private CompletableFuture<ResponseEntity<ApiResponse<Void>>> recordFieldChanges(
             String caseId,
             String itemCode,
             RecordMaintenanceFieldChangesDTO request,
@@ -655,7 +655,7 @@ public class MaintenanceCaseController {
         RecordMaintenanceFieldChangesInput input = new RecordMaintenanceFieldChangesInput(
                 caseId, itemCode, proposals, operatorId, tenantId);
         return caseCommandService.recordFieldChanges(input)
-                .thenApply(ignored -> ResponseEntity.noContent().build());
+                .thenApply(ignored -> ResponseEntity.ok(ApiResponse.success()));
     }
 
     private MaintenanceWorkflowTaskOperationInput workflowInput(
@@ -690,7 +690,7 @@ public class MaintenanceCaseController {
                 parameters.targetCurrency(), parameters.targetFund());
     }
 
-    private CompletableFuture<ResponseEntity<Void>> noContent(CompletableFuture<Void> operation) {
-        return operation.thenApply(ignored -> ResponseEntity.noContent().build());
+    private CompletableFuture<ResponseEntity<ApiResponse<Void>>> noContent(CompletableFuture<Void> operation) {
+        return operation.thenApply(ignored -> ResponseEntity.ok(ApiResponse.success()));
     }
 }
