@@ -25,6 +25,7 @@ import com.titanium.maintenance.application.command.underwriting.MaintenanceUnde
 import com.titanium.maintenance.application.model.casecreation.MaintenanceAutomaticReviewResult;
 import com.titanium.maintenance.application.model.premium.MaintenancePremiumQuoteResult;
 import com.titanium.maintenance.application.model.underwriting.MaintenanceUnderwritingAssessmentResult;
+import com.titanium.maintenance.application.orchestration.configuration.MaintenanceFrozenConfigurationReader;
 import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceWorkflowTaskCommand;
@@ -40,6 +41,7 @@ import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.change.MaintenanceFieldConflictStatus;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
+import com.titanium.maintenance.common.enums.config.MaintenanceEffectPayloadKind;
 import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
@@ -56,6 +58,7 @@ import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentFact;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentRequest;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.RiskFieldChange;
+import com.titanium.maintenance.port.policy.PolicyFinancialPort;
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.port.policy.PolicyServicePort.PolicyFinancialSnapshot;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort;
@@ -77,7 +80,6 @@ import com.titanium.maintenance.query.view.MaintenanceFieldChangeView;
 import com.titanium.maintenance.query.view.MaintenanceSnapshotView;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.query.view.MaintenanceWorkflowTaskView;
-import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.item.MaintenanceItemCode;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
@@ -99,12 +101,13 @@ public class MaintenanceWorkflowApplicationService {
     private final MaintenanceWorkflowTaskViewRepository workflowTaskViewRepository;
     private final MaintenanceCaseItemViewRepository caseItemViewRepository;
     private final MaintenanceFieldChangeViewRepository fieldChangeViewRepository;
-    private final MaintenanceItemConfigurationRepository configurationRepository;
+    private final MaintenanceFrozenConfigurationReader frozenConfigurationReader;
     private final MaintenanceReviewPolicyEvaluator reviewPolicyEvaluator;
     private final MaintenanceUnderwritingPort underwritingPort;
     private final MaintenanceSnapshotViewRepository snapshotViewRepository;
     private final ProductMaintenancePremiumQuotePort premiumQuotePort;
     private final PolicyServicePort policyServicePort;
+    private final PolicyFinancialPort policyFinancialPort;
     private final ProductSurrenderValuePort surrenderValuePort;
     private final TenantTimeZonePort tenantTimeZonePort;
 
@@ -328,12 +331,17 @@ public class MaintenanceWorkflowApplicationService {
             MaintenancePremiumQuoteInput input,
             PremiumQuoteContext context) {
         LocalDateTime effectiveAt = pricingBusinessTime(context.caseView());
+        String policyId = context.caseView().getPolicyId();
         PolicyFinancialSnapshot policy = requirePolicyFinancialSnapshot(input, context, effectiveAt);
+        PolicyFinancialPort.PolicyFinancialData facts = requireSurrenderPremiumFacts(policyId, input.tenantId());
         SurrenderRequest request = new SurrenderRequest(
-                input.tenantId(), input.maintenanceId(), context.caseView().getPolicyId(),
-                policy.issuanceBizNo(), requireText("originalCalculationId", input.originalCalculationId()),
-                policy.effectiveDate(), effectiveAt.toLocalDate(), requireInteger("policyYear", input.policyYear()),
-                effectiveAt, input.reason());
+                input.tenantId(), input.maintenanceId(), policyId,
+                facts.issuanceBizNo(), requireText("originalCalculationId", input.originalCalculationId()),
+                facts.effectiveDate(), effectiveAt.toLocalDate(), requireInteger("policyYear", input.policyYear()),
+                effectiveAt, input.reason(),
+                facts.annualPremium(), facts.coverageEndDate(), facts.premiumPaidUp(),
+                facts.loanOutstandingPrincipal(), facts.loanOutstandingInterest(),
+                facts.arrearsAmount(), facts.dividendBalance(), facts.accountValue());
         SurrenderFact fact = surrenderValuePort.calculate(request);
         validateSurrenderFact(request, policy, fact);
         MaintenancePremiumQuoteEvidence evidence = MaintenancePremiumQuoteEvidence.fromSurrender(
@@ -352,6 +360,40 @@ public class MaintenanceWorkflowApplicationService {
             return task.getPremiumQuotedAt();
         }
         return LocalDateTime.now();
+    }
+
+    /**
+     * 取退费计算的输入事实（g04-02 取数契约，写侧强一致）。
+     * <p>
+     * 🔴 <b>与 {@link #requirePolicyFinancialSnapshot} 的分工</b>：后者是「案件 ↔ 保单」的
+     * <b>勾稽前置</b>，读的是产品标识与币种这类<b>保单不可变属性</b>，用途是拒绝「拿 A 产品的案件去
+     * 退 B 产品的保」；本方法取的是<b>真正进入退费计算的输入事实</b>——出单流水号、生效日、年保费、
+     * 保障止期、缴费是否期满，五项必须来自<b>同一次</b>快照。
+     * </p>
+     * <p>
+     * 🔴 退费输入事实<b>不得</b>从勾稽快照里拿：那是另一次远程读，两次读之间保单一旦修订，退费金额
+     * 与它引用的出单流水号就会对不上（g04-05 先例）。故本方法的返回值是唯一事实来源。
+     * </p>
+     * <p>
+     * 🔴 只对<b>本方法真正消费</b>的两项失败关闭（出单流水号 / 生效日）：年保费与保障止期缺失不在此
+     * 拒绝——它们只在「退费基准 = 未满期保费」时才需要，由产品域在<b>使用点</b>失败关闭
+     * （{@code SURRENDER_PREMIUM_FACTS_MISSING}）。在本域提前一律拒绝，会让现金价值基准的退保被
+     * 与它无关的事实牵连。
+     * </p>
+     * <p>
+     * 🔴 <b>贷款未偿本息（g05-03）同样不在此拒绝</b>：保单域响应契约已强制两项非空（无未结贷款为
+     * 0，与「取不到」严格区分），本域只搬运；退费时必须抵扣，缺任一由产品域在使用点以
+     * {@code SURRENDER_LOAN_FACTS_MISSING} 拒算——本域不预判，也不以 0 兜底。
+     * </p>
+     */
+    private PolicyFinancialPort.PolicyFinancialData requireSurrenderPremiumFacts(
+            String policyId, String tenantId) {
+        PolicyFinancialPort.PolicyFinancialData facts = policyFinancialPort.getFinancialSnapshot(
+                policyId, tenantId);
+        if (facts == null || blank(facts.issuanceBizNo()) || facts.effectiveDate() == null) {
+            throw validation("policyFinancialSnapshot", "Policy 未返回可用的退保财务日期快照");
+        }
+        return facts;
     }
 
     private PolicyFinancialSnapshot requirePolicyFinancialSnapshot(
@@ -450,12 +492,30 @@ public class MaintenanceWorkflowApplicationService {
                 caseView, taskView, itemView, requireFrozenConfiguration(caseView, itemView));
     }
 
+    /**
+     * 组装 Product 报价请求，并按生效载荷种类校验快照引用。
+     * <p>
+     * 🔴 拟变更快照的取数口径与生效环节<b>同源</b>：非字段型保全项（金额通道 / 专用出口）结构上无可提案字段，
+     * 其「拟变更态」恒等于基准态，故<b>基准快照引用即拟变更引用</b>——与
+     * {@code MaintenanceEffectApplicationService.EffectContext#snapshotContentHash()} 的回落规则逐字一致。
+     * 字段型案件仍强制先完成字段草稿：缺拟变更快照一律拒绝，不为「刚好还没录」放行。
+     * </p>
+     * <p>
+     * 🔴 判据取<b>目录</b>（{@link MaintenanceItemCode#effectPayloadKind()}）而非「快照是否为 null」：
+     * 后者对字段型案件同样成立，会把「草稿没做」误判成「无需草稿」，静默按基准态计价。
+     * </p>
+     */
     private QuoteRequest quoteRequest(
             MaintenancePremiumQuoteInput input,
             PremiumQuoteContext context,
             MaintenanceSnapshotView snapshots) {
         MaintenanceView caseView = context.caseView();
-        if (snapshots.getBeforeContentHash() == null || snapshots.getProposedContentHash() == null) {
+        if (snapshots.getBeforeContentHash() == null) {
+            throw validation("snapshots", "Product 报价前必须形成基准快照引用");
+        }
+        boolean structuralChangeExpected = MaintenanceItemCode.of(context.taskView().getItemCode())
+                .effectPayloadKind() == MaintenanceEffectPayloadKind.FIELD;
+        if (structuralChangeExpected && snapshots.getProposedContentHash() == null) {
             throw validation("snapshots", "Product 报价前必须形成 before/proposed 快照引用");
         }
         return new QuoteRequest(
@@ -514,7 +574,18 @@ public class MaintenanceWorkflowApplicationService {
                 offsetTime("beforeCapturedAt", view.getBeforeCapturedAt()));
     }
 
+    /**
+     * 拟变更快照引用；非字段型案件尚未（也无需）登记拟变更快照时回落为基准快照引用。
+     * <p>
+     * 回落仅在 {@link #quoteRequest} 已按载荷种类放行后才会发生（字段型案件缺快照在那里即被拒），
+     * 故此处不再重复判据。回落的引用与基准引用<b>逐字段相同</b>（同一存储键、同一摘要、同一保单版本），
+     * 语义即「无结构变更」——不臆造一个并不存在的存储对象。
+     * </p>
+     */
     private SnapshotReference proposedSnapshot(MaintenanceSnapshotView view) {
+        if (view.getProposedContentHash() == null) {
+            return beforeSnapshot(view);
+        }
         return new SnapshotReference(
                 view.getProposedStorageKey(), view.getProposedContentHash(),
                 requireVersion("proposedPolicyVersion", view.getProposedPolicyVersion()),
@@ -645,25 +716,11 @@ public class MaintenanceWorkflowApplicationService {
         return requireFrozenConfiguration(context.caseView(), context.itemView());
     }
 
+    /** 冻结配置读取与三元核对收敛到 {@link MaintenanceFrozenConfigurationReader}（受理侧条件规则求值共用同一口径）。 */
     private MaintenanceItemConfiguration requireFrozenConfiguration(
             MaintenanceView caseView,
             MaintenanceCaseItemView itemView) {
-        String configurationId = itemView.getConfigurationId();
-        if (configurationId == null || configurationId.isBlank()) {
-            throw validation("configurationId", "审核任务缺少冻结配置标识");
-        }
-        MaintenanceItemConfiguration configuration = configurationRepository
-                .findById(caseView.getTenantId(), configurationId)
-                .orElseThrow(MaintenanceNotFoundException::new)
-                .configuration();
-        if (!Objects.equals(itemView.getItemCode(), configuration.getDefinition().itemCode())
-                || !Objects.equals(itemView.getConfigurationVersion(),
-                        configuration.getDefinition().version())
-                || !Objects.equals(itemView.getConfigurationContentHash(),
-                        configuration.getContentHash())) {
-            throw validation("configurationContentHash", "冻结配置与审核时读取的配置不一致");
-        }
-        return configuration;
+        return frozenConfigurationReader.requireFrozenConfiguration(caseView, itemView);
     }
 
     private UnderwritingContext requireUnderwritingContext(

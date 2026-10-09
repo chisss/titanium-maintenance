@@ -2,26 +2,35 @@ package com.titanium.maintenance.application.orchestration.casecreation;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 
+import com.titanium.maintenance.application.orchestration.configuration.MaintenanceFrozenConfigurationReader;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.common.enums.PolicyMaintenanceSnapshotFailureReason;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.common.exception.PolicyMaintenanceSnapshotException;
+import com.titanium.maintenance.configuration.MaintenanceFieldRule;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogRequest;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
 import com.titanium.maintenance.port.policy.PolicyMaintenanceSnapshotPort;
 import com.titanium.maintenance.port.policy.PolicyMaintenanceSnapshotPort.PolicyMaintenanceSnapshotRequest;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConditionRulePort;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConditionRulePort.ConditionRuleRequest;
+import com.titanium.maintenance.query.repository.MaintenanceCaseItemViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
+import com.titanium.maintenance.query.view.MaintenanceCaseItemView;
 import com.titanium.maintenance.query.view.MaintenanceView;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.casecreation.PolicyMaintenanceSnapshot;
@@ -40,10 +49,14 @@ public class MaintenanceFieldDraftApplicationService {
     private final PolicyFieldCatalogPort policyFieldCatalogPort;
     private final CommandGateway commandGateway;
     private final MaintenanceViewRepository maintenanceViewRepository;
+    private final MaintenanceCaseItemViewRepository caseItemViewRepository;
+    private final MaintenanceFrozenConfigurationReader frozenConfigurationReader;
+    private final MaintenanceConditionRulePort conditionRulePort;
 
     /** 获取 Policy 当前快照和目录证据，再发送单个权威字段提案命令。 */
     public CompletableFuture<Void> record(MaintenanceFieldDraftRequest request) {
-        String policyId = resolvePolicyId(request);
+        MaintenanceView caseView = requireCaseView(request);
+        String policyId = requirePolicyId(caseView);
         PolicyMaintenanceSnapshot currentSnapshot = policyMaintenanceSnapshotPort.capture(
                 new PolicyMaintenanceSnapshotRequest(policyId, request.tenantId()));
         validateCurrentSnapshot(request.tenantId(), policyId, currentSnapshot);
@@ -56,6 +69,7 @@ public class MaintenanceFieldDraftApplicationService {
                         request.tenantId(), null, null,
                         currentSnapshot.businessEffectiveAt().toLocalDate()));
         requireExecutableFields(proposals, catalog);
+        requireConditionRulesAccepted(caseView, request, proposals);
         MaintenanceFieldCatalogSnapshot catalogSnapshot = catalogSnapshot(
                 request, currentSnapshot, proposals, catalog);
         ProposeMaintenanceFieldChangesCommand command = new ProposeMaintenanceFieldChangesCommand(
@@ -91,11 +105,61 @@ public class MaintenanceFieldDraftApplicationService {
         });
     }
 
-    private String resolvePolicyId(MaintenanceFieldDraftRequest request) {
-        MaintenanceView caseView = maintenanceViewRepository
+    /**
+     * 受理环节执行字段条件规则（AC-04）：冻结配置中字段声明 {@code conditionRuleCode} 时，
+     * 把该规则送规则引擎求值；条件不成立 ⇒ 该字段<b>拒收</b>，且发生在派发命令之前。
+     * <p>
+     * 🔴 <b>求值依据取案件冻结配置</b>（{@code MaintenanceItemConfiguration.getDefinition().fieldRules()}），
+     * 与生效环节读到的配置是同一份——读取经 {@link MaintenanceFrozenConfigurationReader} 做三元核对，
+     * 不引入第二套权威。未被冻结配置声明字段规则的字段不受约束（可编辑性判定仍在聚合侧
+     * {@code MaintenanceFieldProposalPlanner.requireEditableRule}，本预检只<b>新增</b>条件规则的执行，
+     * 不放宽也不收紧可改范围）。
+     * </p>
+     * <p>
+     * 🔴 <b>失败语义不降级</b>：规则引擎不可达 / 规则集无效时适配器直接抛出
+     * （{@code MAINTENANCE_RULE_ENGINE_REMOTE_ERROR}），此处不做任何 catch——
+     * 把「问不到规则」伪装成「条件不成立」会让服务故障以业务拒绝的形态呈现给用户。
+     * </p>
+     */
+    private void requireConditionRulesAccepted(
+            MaintenanceView caseView,
+            MaintenanceFieldDraftRequest request,
+            List<MaintenanceFieldProposal> proposals) {
+        Map<String, MaintenanceFieldRule> fieldRules = frozenFieldRules(caseView, request);
+        proposals.forEach(proposal -> {
+            MaintenanceFieldRule rule = fieldRules.get(proposal.fieldCode());
+            if (rule == null || rule.conditionRuleCode() == null) {
+                return;
+            }
+            boolean accepted = conditionRulePort.isAccepted(new ConditionRuleRequest(
+                    request.tenantId(), request.maintenanceId(), rule.conditionRuleCode(),
+                    request.itemCode(), proposal.fieldCode(), proposal.canonicalValue()));
+            if (!accepted) {
+                throw validation("fieldCode", "字段不满足条件规则: " + proposal.fieldCode());
+            }
+        });
+    }
+
+    /** 读取案件冻结配置的字段规则（按字段码索引）；配置读取口径唯一，见 {@link MaintenanceFrozenConfigurationReader}。 */
+    private Map<String, MaintenanceFieldRule> frozenFieldRules(
+            MaintenanceView caseView, MaintenanceFieldDraftRequest request) {
+        MaintenanceCaseItemView itemView = caseItemViewRepository
+                .findByTenantIdAndMaintenanceIdAndItemCode(
+                        request.tenantId(), request.maintenanceId(), request.itemCode())
+                .orElseThrow(MaintenanceNotFoundException::new);
+        return frozenConfigurationReader.requireFrozenConfiguration(caseView, itemView)
+                .getDefinition().fieldRules().stream()
+                .collect(Collectors.toUnmodifiableMap(MaintenanceFieldRule::fieldCode, rule -> rule));
+    }
+
+    private MaintenanceView requireCaseView(MaintenanceFieldDraftRequest request) {
+        return maintenanceViewRepository
                 .findByMaintenanceIdAndTenantIdAndIndependentCaseTrueAndInitializationCompletedTrue(
                         request.maintenanceId(), request.tenantId())
                 .orElseThrow(MaintenanceNotFoundException::new);
+    }
+
+    private String requirePolicyId(MaintenanceView caseView) {
         if (caseView.getPolicyId() == null || caseView.getPolicyId().isBlank()) {
             throw new MaintenanceValidationException(
                     "MaintenanceFieldDraftApplicationService", "caseContext", "案件查询上下文缺少保单标识");
@@ -124,6 +188,31 @@ public class MaintenanceFieldDraftApplicationService {
         }
     }
 
+    /**
+     * 冻结本次草稿所依赖的字段描述快照。
+     * <p>
+     * 🔴 取值口径 = <b>本保全项目录声明字段 ∪ 本次提案实际引用的字段</b>，二者取并集：
+     * </p>
+     * <ul>
+     *   <li><b>项目录声明字段</b>（{@code itemCode == capability().changeTypeCode}）：字段型保全项的既定口径，
+     *       保持既有行为不变；</li>
+     *   <li><b>提案引用字段</b>：金额型保全项（{@code ADDITIONAL_PAYMENT}/{@code REDUCTION_PAYMENT}/
+     *       {@code TOP_UP}/{@code PARTIAL_WITHDRAWAL}）在 Policy 字段目录中<b>没有任何</b>以自身编码声明
+     *       {@code changeTypeCode} 的字段，仅按上一口径过滤会得到空集，草稿在受理环节即被拒
+     *       （{@code MaintenanceFieldCatalogSnapshot} 的「字段目录快照不能为空」不变量），
+     *       使这类保全项的整条链路（草稿 → 报价 → 结算 → 生效）结构性不可达。</li>
+     * </ul>
+     * <p>
+     * 🔴 <b>可编辑性的权威不在本快照</b>：字段是否属于该保全项由<b>案件冻结配置</b>的
+     * {@code MaintenanceItemInstance.fieldRules()} 判定（{@code MaintenanceFieldProposalPlanner}
+     * 的 {@code requireEditableRule}），本快照只提供描述信息与归属记录。并集因此只放宽「目录覆盖范围」，
+     * 不放宽「哪些字段可改」——提案仍须同时在冻结配置的可编辑白名单内才可能通过。
+     * </p>
+     * <p>
+     * 🔴 取并集而非直接改用提案字段：既有字段型草稿的快照内容保持不变，{@code sameAuthorityAs}
+     * 所依赖的 {@code fields.equals()} 语义对存量案件不发生漂移（幂等早返回不被破坏）。
+     * </p>
+     */
     private MaintenanceFieldCatalogSnapshot catalogSnapshot(
             MaintenanceFieldDraftRequest request,
             PolicyMaintenanceSnapshot currentSnapshot,
@@ -136,9 +225,13 @@ public class MaintenanceFieldDraftApplicationService {
                     "MaintenanceFieldDraftApplicationService", "fieldCatalog", "Policy 字段目录回显不一致");
         }
         Map<String, MaintenanceFieldDescriptorSnapshot> fields = new TreeMap<>();
+        Set<String> proposalFieldCodes = proposals.stream()
+                .map(MaintenanceFieldProposal::fieldCode)
+                .collect(Collectors.toCollection(HashSet::new));
         proposals.forEach(proposal -> catalog.requireField(proposal.fieldCode()));
         catalog.fields().stream()
-                .filter(descriptor -> request.itemCode().equals(descriptor.capability().changeTypeCode()))
+                .filter(descriptor -> request.itemCode().equals(descriptor.capability().changeTypeCode())
+                        || proposalFieldCodes.contains(descriptor.fieldCode()))
                 .forEach(descriptor -> fields.put(descriptor.fieldCode(), descriptorSnapshot(descriptor)));
         return new MaintenanceFieldCatalogSnapshot(
                 catalog.tenantId(), catalog.businessDate(), catalog.catalogVersion(), catalog.contentHash(),

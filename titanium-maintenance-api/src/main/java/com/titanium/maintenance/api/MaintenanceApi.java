@@ -13,8 +13,10 @@ import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
 import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
 import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
+import com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
+import com.titanium.maintenance.api.response.MaintenanceSurrenderSettlementResponse;
 import com.titanium.metadata.response.ApiResponse;
 
 import jakarta.validation.Valid;
@@ -24,8 +26,9 @@ import jakarta.validation.Valid;
  * <p>
  * 命名主键为聚合根 {@code Maintenance}（非 maintenance 域），承载保全案件的跨服务远程调用。契约路径遵从
  * 内部服务远程调用规约 {@code /api/v1/maintenances}，由 web 层 {@code MaintenanceApiProvider} 实现，
- * 路径不得篡改。所有方法透传 {@code X-Tenant-Id} 请求头贯穿多租户上下文，入出参一律使用 api 层 DTO
- * （领域枚举以 String 承载，api 自包含、不耦合领域内核）。
+ * 路径不得篡改。所有方法透传 {@code X-Tenant-Id} 请求头贯穿多租户上下文，入出参一律使用 api 层
+ * {@code XxxRequest} / {@code XxxResponse}（🔴 api 层已弃用 {@code XxxDTO}，§3.4.11 ①；领域枚举以 String
+ * 承载，api 自包含、不耦合领域内核）。
  * </p>
  * <p>
  * 同域多个 {@code @FeignClient} 的 {@code name} 相同，必须各配唯一 {@code contextId}，否则 Spring
@@ -71,6 +74,20 @@ public interface MaintenanceApi {
     ApiResponse<MaintenancePremiumSettlementResponse> settleReversal(
             @PathVariable String id,
             @RequestBody @Valid SettleMaintenanceReversalRequest request);
+
+    /**
+     * 退保结算：登记退保价值证据、账务贷项与资金退款事实。
+     * <p>
+     * 与 web 入口 {@code POST /web/v1/maintenances/{id}/surrender-settlements} 是**同一能力的两个入口**
+     * （索引文档 §五 第 11 条「入口通道对称性」）：二者各经映射器转出**同一个**入参、调用**同一个**应用层
+     * 门面 {@code MaintenancePremiumSettlementCommandService#settleSurrender}，互不依赖、不得互调。
+     * 对称性由 {@code SurrenderSettlementEntrySymmetryTest} 以「两侧交入门面的实参逐字相等」守住。
+     * </p>
+     */
+    @PostMapping("/{id}/surrender-settlements")
+    ApiResponse<MaintenanceSurrenderSettlementResponse> settleSurrender(
+            @PathVariable String id,
+            @RequestBody @Valid SettleMaintenanceSurrenderRequest request);
 
     /**
      * 根据ID查询保全案件（跨域集成用）

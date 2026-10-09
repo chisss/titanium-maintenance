@@ -125,11 +125,31 @@ public record MaintenanceEffectSchedule(
                 && nextExecutionAt.equals(candidateExecutionAt);
     }
 
+    /**
+     * 判断该生效方式是否需要「未来生效计划」（建案时排期，到期由调度租约执行）。
+     *
+     * <p>
+     * 🔴 用**穷尽 switch 表达式**（无 {@code default}）而非布尔链：新增 {@link EffectiveTimeType} 常量时
+     * 编译期即失败，强制为它表态「排期」还是「建案即执行」，杜绝静默跳过。取 {@code false} 的两种方式
+     * 在请求内即已确定生效时点（追溯型为历史时点），建案后无需任何未来计划。
+     * </p>
+     * <p>
+     * 🔴 {@link EffectiveTimeType#NEXT_PERIOD}（次期生效）与 {@link EffectiveTimeType#POLICY_ANNIVERSARY}
+     * （保单周年日）在本域**同义**：两者都解析到同一日期（Policy 快照的「下个保单年度起点」，
+     * 字段 {@code nextPolicyAnniversaryAt}），走同一条调度路径。保留两个枚举值是为不破坏已发布的对外码值
+     * 与业务字典（920077），二者解析结果必须逐字相同，由 `MaintenanceCaseCreationApplicationServiceTest`
+     * 的同义用例锁定。
+     * </p>
+     */
     public static boolean supportsScheduling(EffectiveTimeType type) {
-        return type == EffectiveTimeType.FUTURE
-                || type == EffectiveTimeType.SPECIFIED_DATE
-                || type == EffectiveTimeType.NEXT_BILLING_DATE
-                || type == EffectiveTimeType.POLICY_ANNIVERSARY;
+        if (type == null) {
+            return false;
+        }
+        return switch (type) {
+            case FUTURE, SPECIFIED_DATE, NEXT_BILLING_DATE, POLICY_ANNIVERSARY, NEXT_PERIOD -> true;
+            // 建案即执行型：时点在请求中已确定，不产生未来计划。
+            case IMMEDIATE, RETROACTIVE -> false;
+        };
     }
 
     private void requireCurrentAttempt(String attemptId) {

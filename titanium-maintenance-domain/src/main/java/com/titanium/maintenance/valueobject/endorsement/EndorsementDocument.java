@@ -16,21 +16,36 @@ import com.titanium.maintenance.valueobject.item.MaintenanceItemInstance;
  * <b>不再回查任何读模型</b>——批单要素属写侧已发生的事实，读侧投影的最终一致滞后不得成为凭证据取路径。
  * </p>
  * <p>
- * 🔴 <b>只载事实，不载展示文案</b>：批单号与文件名由 document 域自决（{@code DocumentType} 属
- * document-common，非跨域共享枚举，参 m14-1705 端口契约判据）；字段一律以<b>编码</b>呈现，中文名的
- * 跨域渲染由 document 域按自身语言策略处理。
+ * 🔴 <b>只载事实，不载展示文案</b>：字段一律以<b>编码</b>呈现，中文名的跨域渲染由 document 域按自身语言
+ * 策略处理（{@code DocumentType} 属 document-common，非跨域共享枚举，参 m14-1705 端口契约判据）。
+ * </p>
+ * <p>
+ * 🔴 <b>批单号随要素透传，消费方不得另行生成</b>（g05-08）：{@link #endorsementNo} 的唯一事实源是
+ * <b>Policy 台账</b>——由 policy 域在保单批改落账时生成（保单应用出口为
+ * {@code PolicyMaintenanceHashing.stableEndorsementNo}，随生效回执回到本域
+ * {@code MaintenancePolicyApplicationEvidence.endorsementNo}），本域只搬运、不重算；document 域据此派生
+ * 落盘文件名，亦不得再生成一次。三方（Policy 台账 / 本事件 / document 入参）必须<b>逐字相同</b>。
  * </p>
  *
  * @param maintenanceId       保全案件ID（业务号与出站幂等键）
  * @param policyId            被批改的保单ID
+ * @param endorsementNo       批单号（Policy 台账生成的权威凭证号；见类注释，可为空——见下）
  * @param maintenanceTypeCode 保全类型编码
  * @param items               本次生效的保全项及其字段变更（结构化要素）
  * @param effectiveTime       批改生效时间（生效规则解算所得，可为空）
  * @param completedAt         案件生效完成时间（权威回执记录时刻）
  * @param tenantId            租户ID
+ *                            <p>
+ *                            {@code endorsementNo} <b>可为空</b>：案件有<b>五条互斥的生效出口</b>，仅「保单交易出口」
+ *                            （{@code MaintenancePolicyApplicationEvidence}）产生批单号；投资账户转换 / 保单贷款放款 /
+ *                            保单贷款还款 / 保单补发四条出口的回执均<b>不产生批单号</b>（各自回执类 javadoc 已载明），
+ *                            其批单文书由本字段为空表达，消费方按 {@code maintenanceId} 兜底命名。<b>不得</b>为凑齐该字段
+ *                            而在这四条路径上臆造编号。
+ *                            </p>
  */
-public record EndorsementDocument(String maintenanceId, String policyId, String maintenanceTypeCode,
-        List<EndorsementItem> items, LocalDateTime effectiveTime, LocalDateTime completedAt, String tenantId) {
+public record EndorsementDocument(String maintenanceId, String policyId, String endorsementNo,
+        String maintenanceTypeCode, List<EndorsementItem> items, LocalDateTime effectiveTime,
+        LocalDateTime completedAt, String tenantId) {
 
     public EndorsementDocument {
         if (maintenanceId == null || maintenanceId.isBlank()) {
@@ -56,19 +71,20 @@ public record EndorsementDocument(String maintenanceId, String policyId, String 
      *
      * @param itemInstances 案件冻结的保全项实例（携带字段级变更）
      * @param appliedValues 权威生效值索引，键由 {@link #fieldKey(String, String, String)} 构造
+     * @param endorsementNo Policy 台账生成的批单号（案件未走保单交易出口时为空，见类注释）
      * @param effectiveTime 批改生效时间（可为空，正文以占位符呈现）
      * @param completedAt   案件生效完成时间
      */
     public static EndorsementDocument of(String maintenanceId, String policyId, String maintenanceTypeCode,
-            List<MaintenanceItemInstance> itemInstances, Map<String, String> appliedValues,
+            List<MaintenanceItemInstance> itemInstances, Map<String, String> appliedValues, String endorsementNo,
             LocalDateTime effectiveTime, LocalDateTime completedAt, String tenantId) {
         Map<String, String> values = appliedValues == null ? Map.of() : appliedValues;
         List<EndorsementItem> items = (itemInstances == null ? List.<MaintenanceItemInstance>of() : itemInstances)
                 .stream()
                 .map(item -> toEndorsementItem(item, values))
                 .toList();
-        return new EndorsementDocument(maintenanceId, policyId, maintenanceTypeCode, items, effectiveTime,
-                completedAt, tenantId);
+        return new EndorsementDocument(maintenanceId, policyId, endorsementNo, maintenanceTypeCode, items,
+                effectiveTime, completedAt, tenantId);
     }
 
     /**

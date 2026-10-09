@@ -1,6 +1,7 @@
 package com.titanium.maintenance.web.controller.cases;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
@@ -11,12 +12,15 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.titanium.common.context.RequestContextHolder;
 import com.titanium.maintenance.application.query.MaintenanceCaseQueryApplicationService;
+import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
+import com.titanium.maintenance.query.query.FindMaintenanceHistoryQuery;
 import com.titanium.maintenance.query.query.MaintenanceCaseSearchCriteria;
 import com.titanium.maintenance.web.mapper.MaintenanceCaseQueryWebMapper;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCaseDetailVO;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCasePageVO;
+import com.titanium.maintenance.web.response.casecreation.MaintenanceHistoryVO;
 import com.titanium.maintenance.web.security.MaintenanceCaseQueryAccessResolver;
 import com.titanium.metadata.response.ApiResponse;
 
@@ -72,5 +76,33 @@ public class MaintenanceCaseQueryController extends MaintenanceCaseControllerSup
         boolean sensitiveDetailsVisible = queryAccessResolver.sensitiveDetailsVisible();
         return ApiResponse.success(caseQueryWebMapper.toDetailVO(
                 caseQueryService.findDetail(tenantId, caseId, sensitiveDetailsVisible)));
+    }
+
+    /**
+     * 跨案保全历史：按保单一次取回全部案件及其字段级变更明细（G05/AC-07）。
+     *
+     * <p>
+     * 检索主键是保单（{@code policyId} 或 {@code policyNumber} 至少一个），其余条件为可选收窄。
+     * {@code history} 是字面量路径段，Spring 的 {@code PathPattern} 以字面量优先于变量段，故不会被
+     * 同前缀的 {@code /cases/{caseId}} 详情端点吞掉。
+     * </p>
+     */
+    @GetMapping({"/api/v1/maintenance/cases/history", "/web/v1/maintenance/cases/history"})
+    public ApiResponse<List<MaintenanceHistoryVO>> history(
+         @RequestParam(required = false) @Size(max = 64) String policyId,
+         @RequestParam(required = false) @Size(max = 64) String policyNumber,
+         @RequestParam(required = false) @Size(max = 64) String itemCode,
+         @RequestParam(required = false) MaintenanceBalanceDirection feeDirection,
+         @RequestParam(required = false)
+         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveFrom,
+         @RequestParam(required = false)
+         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime effectiveTo) {
+        String tenantId = RequestContextHolder.requireTenantId();
+        boolean sensitiveDetailsVisible = queryAccessResolver.sensitiveDetailsVisible();
+        FindMaintenanceHistoryQuery query = new FindMaintenanceHistoryQuery(
+                tenantId, policyId, policyNumber, itemCode, feeDirection, effectiveFrom, effectiveTo);
+        return ApiResponse.success(caseQueryService.findHistory(query, sensitiveDetailsVisible).stream()
+                .map(caseQueryWebMapper::toHistoryVO)
+                .toList());
     }
 }

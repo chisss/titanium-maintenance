@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceReadModel;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceSearchPageResult;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceStatisticsResult;
+import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceInFlightAdmissionPolicy;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
@@ -28,11 +29,7 @@ import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionDisab
 import com.titanium.maintenance.common.exception.MaintenanceLegacyExecutionIndependentCaseForbiddenException;
 import com.titanium.maintenance.common.exception.MaintenanceLegacyPremiumCalculationDisabledException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
-import com.titanium.maintenance.common.exception.MaintenanceTypeExcludedException;
-import com.titanium.maintenance.common.exception.PendingMaintenanceExistsException;
-import com.titanium.maintenance.common.exception.PolicyNotActiveException;
 import com.titanium.maintenance.common.exception.PolicyNotFoundException;
-import com.titanium.maintenance.common.exception.PolicyNotTerminatedException;
 import com.titanium.maintenance.port.customer.CustomerServicePort;
 import com.titanium.maintenance.port.maintenance.MaintenanceLegacyCreationFeaturePort;
 import com.titanium.maintenance.port.maintenance.MaintenanceLegacyExecutionFeaturePort;
@@ -40,8 +37,8 @@ import com.titanium.maintenance.port.maintenance.MaintenanceLegacyPremiumCalcula
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
-import com.titanium.maintenance.repository.MaintenanceExclusionRepository;
 import com.titanium.maintenance.valueobject.MaintenanceId;
+import com.titanium.maintenance.valueobject.admission.MaintenanceAdmissionMatrix;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
 /**
@@ -50,7 +47,7 @@ import com.titanium.metadata.enums.maintenance.MaintenanceType;
  * 写入口：跨域校验（保单/客户存在性、保单状态、在途/互斥）后经 {@link CommandGateway} 发命令，业务规则内聚在
  * {@code Maintenance} 聚合根。写侧收敛为纯事件溯源后，存在性/在途校验统一走 CQRS 读模型
  * {@link MaintenanceViewRepository}（表 {@code t_maintenance_view}，最终一致），不再读写侧状态表。
- * 互斥规则查配置端口 {@link MaintenanceExclusionRepository}（参考数据）。
+ * 在途/互斥规则委托 {@link MaintenanceInFlightAdmissionPolicy}（与独立建案入口共用同一门面）。
  * </p>
  */
 @Service
@@ -59,7 +56,7 @@ public class MaintenanceApplicationService {
 
     private final CommandGateway                 commandGateway;
     private final MaintenanceViewRepository       maintenanceViewRepository;
-    private final MaintenanceExclusionRepository  maintenanceExclusionRepository;
+    private final MaintenanceInFlightAdmissionPolicy inFlightAdmissionPolicy;
     private final PolicyServicePort               policyServicePort;
     private final CustomerServicePort             customerServicePort;
     private final MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort;
@@ -68,7 +65,7 @@ public class MaintenanceApplicationService {
 
     public MaintenanceApplicationService(CommandGateway commandGateway,
                                          MaintenanceViewRepository maintenanceViewRepository,
-                                         MaintenanceExclusionRepository maintenanceExclusionRepository,
+                                         MaintenanceInFlightAdmissionPolicy inFlightAdmissionPolicy,
                                          PolicyServicePort policyServicePort,
                                          CustomerServicePort customerServicePort,
                                          MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort,
@@ -76,7 +73,7 @@ public class MaintenanceApplicationService {
                                          MaintenanceLegacyExecutionFeaturePort legacyExecutionFeaturePort) {
         this.commandGateway = commandGateway;
         this.maintenanceViewRepository = maintenanceViewRepository;
-        this.maintenanceExclusionRepository = maintenanceExclusionRepository;
+        this.inFlightAdmissionPolicy = inFlightAdmissionPolicy;
         this.policyServicePort = policyServicePort;
         this.customerServicePort = customerServicePort;
         this.legacyCreationFeaturePort = legacyCreationFeaturePort;
@@ -98,11 +95,9 @@ public class MaintenanceApplicationService {
         // 验证客户存在
         validateCustomer(customerId, tenantId);
         // 验证保单状态是否符合保全类型要求
-        validatePolicyStatusForMaintenance(policyId, maintenanceType, tenantId);
-        // 检查是否存在在途保全案件
-        checkPendingMaintenance(policyId, tenantId);
-        // 检查保全项互斥性
-        checkMaintenanceExclusion(policyId, maintenanceType, tenantId);
+        validatePolicyStatusForMaintenance(policyId, maintenanceType);
+        // 检查在途案件与保全项互斥（与独立建案入口共用同一门面，见 MaintenanceInFlightAdmissionPolicy）
+        inFlightAdmissionPolicy.requireNoConflict(policyId, tenantId, null, null, List.of(maintenanceType));
 
         CreateMaintenanceCommand command = CreateMaintenanceCommand.of(policyId, customerId, maintenanceType,
                 effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
@@ -332,59 +327,15 @@ public class MaintenanceApplicationService {
     }
 
     // 验证保单状态是否符合保全类型要求
+    // 🔴 准入结论收敛到 MaintenanceAdmissionMatrix（与独立建案入口同源），本方法只做「取数 → 委托」：
+    //    原先的 switch 只显式覆盖 8/23 类、其余 15 类落 default **放行**（旧版建案开关默认启用 ⇒ 该放行是活跃路径，
+    //    含退保/贷款/减保/部分领取，以及本该对前驱状态有硬要求的中止/恢复/终止）；且保单状态被折叠成
+    //    active/reinstatable 两个布尔，无法表达复效(仅 LAPSED)/恢复(仅 SUSPENDED)/终止(三态)各自的准入集合。
     // 🔴 禁止 catch-all 归一为「保单不存在」：那会把保单服务故障伪装成数据问题（D13）。
-    // 适配器已把技术故障抛为 MaintenanceRemoteCallException，此处原样上抛，由 Web 层映射 HTTP 502。
-    private void validatePolicyStatusForMaintenance(String policyId, MaintenanceType maintenanceType, String tenantId) {
+    //    适配器已把技术故障抛为 MaintenanceRemoteCallException，此处原样上抛，由 Web 层映射 HTTP 502。
+    private void validatePolicyStatusForMaintenance(String policyId, MaintenanceType maintenanceType) {
         PolicyServicePort.PolicyStatusSnapshot policyStatus = policyServicePort.getPolicyStatus(policyId);
-
-        switch (maintenanceType) {
-            case POLICY_REINSTATEMENT:
-                // 仅失效(LAPSED)保单可复效：与保单域状态机 LAPSED→EFFECTIVE 对齐，终态不可复效
-                if (!policyStatus.reinstatable()) {
-                    throw new PolicyNotTerminatedException();
-                }
-                break;
-            case SUBJECT_CHANGE:
-            case POLICY_INFO_CHANGE:
-            case POLICY_PERIOD_CHANGE:
-            case COVERAGE_AMOUNT_CHANGE:
-            case INSURED_INFO_CHANGE:
-            case SMOKING_STATUS_CHANGE:
-            case COVERAGE_CHANGE:
-                // 只有生效的保单才可以做这些保全
-                if (!policyStatus.active()) {
-                    throw new PolicyNotActiveException();
-                }
-                break;
-            default:
-                // 其他保全类型无需额外的保单状态校验
-                break;
-        }
-    }
-
-    // 检查是否存在在途保全案件（读模型：PENDING/PROCESSING/APPROVED 视为在途）
-    private void checkPendingMaintenance(String policyId, String tenantId) {
-        if (!findInFlightMaintenances(policyId, tenantId).isEmpty()) {
-            throw new PendingMaintenanceExistsException();
-        }
-    }
-
-    // 检查保全项互斥性
-    private void checkMaintenanceExclusion(String policyId, MaintenanceType maintenanceType, String tenantId) {
-        for (MaintenanceView view : findInFlightMaintenances(policyId, tenantId)) {
-            if (maintenanceExclusionRepository.isMaintenanceTypeExcluded(view.getMaintenanceType(), maintenanceType,
-                    tenantId)) {
-                throw new MaintenanceTypeExcludedException();
-            }
-        }
-    }
-
-    // 查询保单在途保全（读模型最终一致）
-    private List<MaintenanceView> findInFlightMaintenances(String policyId, String tenantId) {
-        return maintenanceViewRepository.findByPolicyIdAndTenantIdAndStatusIn(policyId, tenantId,
-                List.of(MaintenanceStatus.PENDING, MaintenanceStatus.PROCESSING, MaintenanceStatus.APPROVED)).stream()
-                .filter(MaintenanceView::isOperatorVisible)
-                .toList();
+        MaintenanceAdmissionMatrix.require(maintenanceType, policyStatus.status());
     }
 
     // 检查客户是否存在

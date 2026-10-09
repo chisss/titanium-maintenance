@@ -42,4 +42,20 @@
     <include file="classpath:liquibase/dml/maintenance_view_backfill_no_202609201148_weisun_dml.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_do_version_column_202609231700_weisun_ddl.sql"/>
     <include file="classpath:liquibase/ddl/maintenance_shedlock_202609231800_weisun_ddl.sql"/>
+    <!-- 保单贷款放款回执 7 列（g04-03）：贷款类案件生效出口回执，与 switch_* 回执互斥、全部可空 -->
+    <include file="classpath:liquibase/ddl/maintenance_workflow_loan_disbursement_g04_03_202609281530_weisun_ddl.sql"/>
+    <!-- 保单贷款原表清理（g04-03）：贷款账户已迁 policy 域，本表从未写入（迁移前已核对 0 行），直接 DROP -->
+    <include file="classpath:liquibase/ddl/maintenance_policy_loan_table_drop_g04_03_202609281600_weisun_ddl.sql"/>
+    <!-- 保单贷款还款回执 12 列（g04-04）：还款类案件生效出口回执，与 switch_*/loan_* 回执互斥、全部可空 -->
+    <include file="classpath:liquibase/ddl/maintenance_workflow_loan_repayment_g04_04_202609281800_weisun_ddl.sql"/>
+    <!-- 证据版本列宽 64→128（G04 真机缺陷修复）：贷款证据取生效请求号（"effect-case-"+sha256=76 字符），
+         写超长值致生效回执投影整条失败、EFFECT 任务永卡 WAITING_EXTERNAL 并进死信（详见脚本头注释） -->
+    <include file="classpath:liquibase/ddl/maintenance_evidence_version_widen_g04_fix_202609281630_weisun_ddl.sql"/>
+    <!-- 保单补发单证请求回执 2 列（g04-09）：补发类案件生效出口回执，与 policy_*/switch_*/loan_*/loan_repayment_* 互斥、全部可空 -->
+    <include file="classpath:liquibase/ddl/maintenance_workflow_policy_reissue_g04_09_202609291200_weisun_ddl.sql"/>
+    <!-- 退费因子明细读模型 t_maintenance_surrender_factor_view（g05-06/AC-06）+ 字段差异视图补跨案冗余键与
+         生效口径 6 列（g05-06/AC-07）——因子随产品类型扩展故独立子表不平铺；字符串码防腐（详见脚本头注释） -->
+    <include file="classpath:liquibase/ddl/maintenance_surrender_factor_view_g05_06_202609301530_weisun_ddl.sql"/>
+    <!-- 字段差异存量行 6 列回填（g05-06）：5 列取自案件读模型、批单号仅在项内唯一时回填，幂等、无 rollback（详见脚本头注释） -->
+    <include file="classpath:liquibase/dml/maintenance_field_change_backfill_g05_06_202609301530_weisun_dml.sql"/>
 </databaseChangeLog>

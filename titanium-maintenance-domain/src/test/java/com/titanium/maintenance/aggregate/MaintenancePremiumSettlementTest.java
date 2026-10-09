@@ -11,12 +11,15 @@ import org.axonframework.test.aggregate.FixtureConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
 import com.titanium.maintenance.command.RecordMaintenanceFinancialSettlementCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumAdjustmentCommand;
 import com.titanium.maintenance.command.RecordMaintenancePremiumPostingCommand;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
+import com.titanium.maintenance.common.enums.MaintenanceStatus;
+import com.titanium.maintenance.common.exception.MaintenanceStatusException;
 import com.titanium.maintenance.event.MaintenanceCreatedEvent;
 import com.titanium.maintenance.event.MaintenanceFinancialSettlementRecordedEvent;
 import com.titanium.maintenance.event.MaintenancePremiumAdjustmentRecordedEvent;
@@ -163,10 +166,37 @@ class MaintenancePremiumSettlementTest {
                 .expectNoEvents();
     }
 
+    /**
+     * 减额缴清不产生任何收付（现金价值转趸缴），故<b>不要求</b>先登记余额事实即可执行。
+     * <p>
+     * 与下一条 {@link #shouldStillRequireSettlementForCoverageAmountChange()} 构成对照组：
+     * 两条用例只有 {@code maintenanceType} 一个变量不同，一侧放行、一侧拒绝，证明的是
+     * 「判据按类型分流」，而不是「判据被整体删除」。
+     * </p>
+     */
+    @Test
+    void shouldExecuteReducedPaidUpWithoutRequiringBalanceFact() {
+        fixture.given(createdEvent(MaintenanceType.REDUCED_PAID_UP))
+                .when(new ExecuteMaintenanceCommand(ID, NOW, "减额缴清生效", "admin", "1"))
+                .expectSuccessfulHandlerExecution()
+                .expectState(aggregate -> assertEquals(MaintenanceStatus.COMPLETED, aggregate.getStatus()));
+    }
+
+    @Test
+    void shouldStillRequireSettlementForCoverageAmountChange() {
+        fixture.given(createdEvent(MaintenanceType.COVERAGE_AMOUNT_CHANGE))
+                .when(new ExecuteMaintenanceCommand(ID, NOW, "保额批改生效", "admin", "1"))
+                .expectException(MaintenanceStatusException.class);
+    }
+
     private MaintenanceCreatedEvent createdEvent() {
+        return createdEvent(MaintenanceType.COVERAGE_AMOUNT_CHANGE);
+    }
+
+    private MaintenanceCreatedEvent createdEvent(MaintenanceType type) {
         return new MaintenanceCreatedEvent(
                 ID, PolicyId.of("policy-1"), CustomerId.of("customer-1"),
-                MaintenanceType.COVERAGE_AMOUNT_CHANGE, EffectiveTimeType.IMMEDIATE, null,
+                type, EffectiveTimeType.IMMEDIATE, null,
                 "保额批改", NOW, "admin", "1");
     }
 

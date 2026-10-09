@@ -29,7 +29,8 @@ class BillingPremiumLifecycleAdapterTest {
                 "posting-1", "adjustment-1", "hash-1", "ENDORSEMENT", "policy-1", "customer-1",
                 "product-1", "calc-original", "calc-replacement", "CREDIT", new BigDecimal("53.00"),
                 "CNY", "POSTED", "admin", LocalDateTime.of(2026, 8, 20, 12, 0), List.of(),
-                "refund-instruction-1", "refund-order-1", "PROCESSING", 2, List.of());
+                "refund-instruction-1", "refund-order-1", "PROCESSING", 2, List.of(),
+                new BigDecimal("9.99"));
         BillingPremiumLifecycleAdapter adapter = new BillingPremiumLifecycleAdapter(
                 client(ApiResponse.success(response)));
 
@@ -40,6 +41,8 @@ class BillingPremiumLifecycleAdapterTest {
         assertEquals("refund-order-1", fact.refundOrderId());
         assertEquals("PROCESSING", fact.refundStatus());
         assertEquals(2, fact.commissionAdjustmentCount());
+        // 追回金额由 billing 计算后**原样搬运**，本域不得二次加工或兜底（R-11）。
+        assertEquals(0, new BigDecimal("9.99").compareTo(fact.commissionClawbackAmount()));
     }
 
     @Test

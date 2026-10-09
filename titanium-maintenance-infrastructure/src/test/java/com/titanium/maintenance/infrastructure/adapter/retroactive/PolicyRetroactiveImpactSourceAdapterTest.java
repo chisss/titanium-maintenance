@@ -56,7 +56,7 @@ class PolicyRetroactiveImpactSourceAdapterTest {
             String policyId) {
         return new PolicyEndorsementResponse(
                 endorsementNo, policyId, "MAINTENANCE", "CONTACT", 8, effectiveAt,
-                "联系方式变更", false, "case-source", "operator-1", effectiveAt, tenantId);
+                "联系方式变更", null, null, null, null, false, "case-source", "operator-1", effectiveAt, tenantId);
     }
 
     private ImpactRequest request() {

@@ -23,6 +23,7 @@ import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.common.exception.MaintenanceSettlementConflictException;
 import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
+import com.titanium.maintenance.port.policy.PolicyFinancialPort;
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.port.product.ProductPremiumLifecyclePort;
 import com.titanium.maintenance.port.product.ProductSurrenderValuePort;
@@ -52,6 +53,7 @@ public class MaintenancePremiumSettlementOrchestrator {
     private final CommandGateway commandGateway;
     private final MaintenanceViewRepository maintenanceViewRepository;
     private final PolicyServicePort policyServicePort;
+    private final PolicyFinancialPort policyFinancialPort;
     private final ProductPremiumLifecyclePort productPremiumLifecyclePort;
     private final ProductSurrenderValuePort productSurrenderValuePort;
     private final BillingPremiumLifecyclePort billingPremiumLifecyclePort;
@@ -106,11 +108,13 @@ public class MaintenancePremiumSettlementOrchestrator {
         ProductSurrenderValuePort.SurrenderFact surrenderFact;
         ProductPremiumLifecyclePort.AdjustmentFact adjustment;
         if (currentStatus == MaintenancePremiumSettlementStatus.NOT_STARTED) {
-            PolicyServicePort.PolicyFinancialSnapshot policy = requirePolicyFinancialSnapshot(view, tenantId);
+            PolicyFinancialPort.PolicyFinancialData policy = requireSurrenderFinancialData(view, tenantId);
             surrenderFact = productSurrenderValuePort.calculate(new ProductSurrenderValuePort.SurrenderRequest(
                     tenantId, maintenanceId, view.getPolicyId(), policy.issuanceBizNo(), input.originalCalculationId(),
                     policy.effectiveDate(), input.surrenderDate(), input.policyYear(), input.businessTime(),
-                    input.reason()));
+                    input.reason(), policy.annualPremium(), policy.coverageEndDate(), policy.premiumPaidUp(),
+                    policy.loanOutstandingPrincipal(), policy.loanOutstandingInterest(),
+                    policy.arrearsAmount(), policy.dividendBalance(), policy.accountValue()));
             validateSurrenderFact(view, input, surrenderFact);
             adjustment = toAdjustmentFact(surrenderFact);
             recordAdjustment(view, input.updatedBy(), adjustment);
@@ -222,7 +226,7 @@ public class MaintenancePremiumSettlementOrchestrator {
                 MaintenanceId.of(view.getMaintenanceId()), fact.adjustmentId(), fact.policyCode(),
                 fact.policyVersion(), fact.policyContentHash(), fact.policyYear(), fact.coolingOffDays(),
                 fact.refundType(), fact.withinCoolingOff(), fact.cashValueRate(), fact.retainedCustomerAmount(),
-                fact.internalCostRetentionRate(), updatedBy, view.getTenantId()));
+                fact.internalCostRetentionRate(), updatedBy, view.getTenantId(), fact.factors()));
     }
 
     private ProductPremiumLifecyclePort.AdjustmentFact toAdjustmentFact(
@@ -233,13 +237,29 @@ public class MaintenancePremiumSettlementOrchestrator {
                 fact.currency());
     }
 
-    private PolicyServicePort.PolicyFinancialSnapshot requirePolicyFinancialSnapshot(
+    /**
+     * 取退保所需的保单财务事实（g04-02 取数契约，写侧强一致）。
+     * <p>
+     * 🔴 <b>单次取数</b>：退保所需的全部保单事实——出单流水号、生效日、年保费、保障止期、缴费是否
+     * 期满、<b>贷款未偿本息</b>——必须来自<b>同一次</b>快照。分两次取数会读到两个保单版本，退费金额
+     * 与它引用的出单流水号可能对不上（g04-05 先例）。
+     * </p>
+     * <p>
+     * 🔴 只对<b>本方法真正消费</b>的两项失败关闭（出单流水号 / 生效日）。快照里的现金价值、欠费、
+     * 红利账户价值等要素是给贷款放款与减额缴清消费的，退保不读它们，故不因它们不可得而拒绝退保。
+     * </p>
+     * <p>
+     * 🔴 <b>贷款未偿本息自 g05-03 起由退费消费</b>（先行抵扣），但**不在此失败关闭**：保单域响应
+     * 契约已强制两项非空（无未结贷款为 0，与「取不到」严格区分），本域只搬运；能否抵扣由产品域在
+     * <b>使用点</b>判定，缺任一即 {@code SURRENDER_LOAN_FACTS_MISSING} 拒算。本域若自行预判，
+     * 就是第二份「贷款事实是否够用」的判据。
+     * </p>
+     */
+    private PolicyFinancialPort.PolicyFinancialData requireSurrenderFinancialData(
             MaintenanceView view, String tenantId) {
-        PolicyServicePort.PolicyFinancialSnapshot snapshot = policyServicePort.getPolicyFinancialSnapshot(
+        PolicyFinancialPort.PolicyFinancialData snapshot = policyFinancialPort.getFinancialSnapshot(
                 view.getPolicyId(), tenantId);
-        if (snapshot == null || isBlank(snapshot.productId()) || isBlank(snapshot.issuanceBizNo())
-                || snapshot.effectiveDate() == null
-                || snapshot.premium() == null || snapshot.premium().signum() < 0 || isBlank(snapshot.currency())) {
+        if (snapshot == null || isBlank(snapshot.issuanceBizNo()) || snapshot.effectiveDate() == null) {
             throw invalidRemoteFact("Policy 未返回可用的退保财务日期快照");
         }
         return snapshot;
@@ -390,7 +410,10 @@ public class MaintenancePremiumSettlementOrchestrator {
             BillingPremiumLifecyclePort.PostingFact posting) {
         boolean hasInstruction = !isBlank(posting.refundInstructionId());
         boolean hasOrder = !isBlank(posting.refundOrderId());
+        // 🔴 追回金额与佣金条数同规：缺失或为负即失败关闭，绝不以 0 兜底——0 是「无追回」这一业务
+        // 事实，兜底会把「billing 没告诉我们」伪装成「不需要追回」，直接少收一笔钱。
         if (posting.commissionAdjustmentCount() == null || posting.commissionAdjustmentCount() < 0
+                || posting.commissionClawbackAmount() == null || posting.commissionClawbackAmount().signum() < 0
                 || (hasOrder && !hasInstruction)) {
             throw invalidRemoteFact("Billing 资金结算事实不完整");
         }
@@ -471,7 +494,10 @@ public class MaintenancePremiumSettlementOrchestrator {
                 view.getBillingPostingId() == null ? null : "POSTED",
                 view.getBalanceDirection() == null ? null : view.getBalanceDirection().name(),
                 view.getBalanceAmount(), view.getBalanceCurrency(), view.getRefundInstructionId(),
-                view.getRefundOrderId(), view.getRefundStatus(), view.getCommissionAdjustmentCount());
+                view.getRefundOrderId(), view.getRefundStatus(), view.getCommissionAdjustmentCount(),
+                // 追回金额**不落库**（本任务不新建链路），读回路径无此事实 ⇒ 如实返回 null，
+                // 不得以 0 兜底（0 是「无追回」的业务事实）。历史口径请查 billing 的佣金调整流水。
+                null);
     }
 
     private MaintenancePremiumSettlementResult fromAdjustment(
@@ -486,7 +512,8 @@ public class MaintenancePremiumSettlementOrchestrator {
                 adjustment.direction().name(), adjustment.customerAmount(), adjustment.currency(),
                 posting == null ? null : posting.refundInstructionId(),
                 posting == null ? null : posting.refundOrderId(), posting == null ? null : posting.refundStatus(),
-                posting == null ? 0 : posting.commissionAdjustmentCount());
+                posting == null ? 0 : posting.commissionAdjustmentCount(),
+                posting == null ? BigDecimal.ZERO : posting.commissionClawbackAmount());
     }
 
     private MaintenanceSurrenderSettlementResult fromSurrenderView(MaintenanceView view) {

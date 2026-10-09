@@ -33,12 +33,17 @@ public class PolicyFieldCatalogAdapter implements PolicyFieldCatalogPort {
             ApiResponse<PolicyFieldCatalogResponse> response = client.getCurrentCatalog(request.productType(), request.policyType(), request.businessDate());
             PolicyFieldCatalogResponse data = requireSuccessfulResponse(response);
             validateEcho(request, data);
+            if (data.fallback()) {
+                log.warn("Policy字段目录按业务日期降级取数（返回最早版本而非该时点真实版本）, tenantId={}, businessDate={}, catalogVersion={}",
+                        request.tenantId(), request.businessDate(), data.catalogVersion());
+            }
             List<PolicyFieldDescriptorEvidence> fields = data.fields().stream().map(this::toEvidence).toList();
             return new PolicyFieldCatalogEvidence(
                     data.tenantId(),
                     data.productType(),
                     data.policyType(),
                     data.businessDate(),
+                    data.fallback(),
                     data.catalogVersion(),
                     data.contentHash(),
                     fields);
@@ -83,7 +88,10 @@ public class PolicyFieldCatalogAdapter implements PolicyFieldCatalogPort {
                 toEvidence(field.capability()),
                 field.sensitivity(),
                 field.maskingPolicy(),
-                field.deprecatedAt());
+                field.deprecatedAt(),
+                // 分析位是 metadata 的跨域共享 record，上游契约与本域证据本就是同一个类型，
+                // 直接透传 —— 不建镜像、不重建实例，加位时不存在「一处加、一处忘」的漂移面。
+                field.analysis());
     }
 
     private PolicyFieldCapabilityEvidence toEvidence(PolicyFieldCapabilityResponse capability) {

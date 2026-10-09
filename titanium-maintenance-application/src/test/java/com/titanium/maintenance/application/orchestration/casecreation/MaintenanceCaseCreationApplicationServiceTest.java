@@ -2,7 +2,9 @@ package com.titanium.maintenance.application.orchestration.casecreation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -44,6 +46,7 @@ import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.exception.MaintenanceConfigurationNotFoundException;
+import com.titanium.maintenance.common.exception.MaintenancePolicyStatusNotAdmittedException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.common.exception.PolicyMaintenanceSnapshotException;
 import com.titanium.maintenance.common.exception.ProductMaintenanceOfferingException;
@@ -67,6 +70,7 @@ import com.titanium.maintenance.valueobject.casecreation.PolicyMaintenanceSnapsh
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenanceCaseCreationApplicationServiceTest {
@@ -77,6 +81,7 @@ class MaintenanceCaseCreationApplicationServiceTest {
     @Mock private CommandGateway commandGateway;
     @Mock private MaintenanceViewRepository maintenanceViewRepository;
     @Mock private TenantTimeZonePort tenantTimeZonePort;
+    @Mock private MaintenanceInFlightAdmissionPolicy inFlightAdmissionPolicy;
 
     private MaintenanceCaseCreationApplicationService service;
 
@@ -84,7 +89,8 @@ class MaintenanceCaseCreationApplicationServiceTest {
     void setUp() {
         service = new MaintenanceCaseCreationApplicationService(
                 policyMaintenanceSnapshotPort, productMaintenanceOfferingPort,
-                configurationRepository, commandGateway, maintenanceViewRepository, tenantTimeZonePort);
+                configurationRepository, commandGateway, maintenanceViewRepository, tenantTimeZonePort,
+                inFlightAdmissionPolicy);
     }
 
     @Test
@@ -167,6 +173,75 @@ class MaintenanceCaseCreationApplicationServiceTest {
                 .orElseThrow();
         assertEquals("Asia/Shanghai", schedule.tenantZoneId());
         assertEquals(LocalDateTime.of(2030, 1, 2, 1, 30), schedule.nextExecutionAt());
+    }
+
+    /**
+     * 🔴 同义守卫：NEXT_PERIOD（次期生效）与 POLICY_ANNIVERSARY（保单周年日）必须解析到**同一执行时刻**。
+     *
+     * <p>
+     * 两者同义的判据是「同一快照字段、同一日期、同一调度路径」。本用例把两个生效方式各建一次案件，
+     * 取排期命令里的执行时刻**互比**（不是各自与写死值比），任一方另接日期来源（例如 NEXT_PERIOD 错接到
+     * 次缴费日）两值立刻分叉。夹具中次缴费日与保单周年日**刻意取不同值**，否则「错接 nextBillingDateAt」
+     * 也能侥幸通过——夹具无区分力时用例恒真。
+     * </p>
+     */
+    @Test
+    void shouldResolveNextPeriodToTheSameExecutionDateAsPolicyAnniversary() {
+        OffsetDateTime anniversary = OffsetDateTime.of(2027, 8, 24, 11, 30, 0, 0, ZoneOffset.ofHours(8));
+        PolicyMaintenanceSnapshot snapshot = anniversarySnapshot(anniversary);
+
+        stubScheduledCreation(snapshot, EffectiveTimeType.POLICY_ANNIVERSARY);
+        LocalDateTime anniversaryExecutionAt = createAndCaptureExecutionAt(
+                EffectiveTimeType.POLICY_ANNIVERSARY, "request-anniversary");
+
+        clearInvocations(commandGateway);
+        stubScheduledCreation(snapshot, EffectiveTimeType.NEXT_PERIOD);
+        LocalDateTime nextPeriodExecutionAt = createAndCaptureExecutionAt(
+                EffectiveTimeType.NEXT_PERIOD, "request-next-period");
+
+        assertEquals(anniversaryExecutionAt, nextPeriodExecutionAt);
+        // 独立见证：保单周年日 2027-08-24T11:30+08:00 换算 UTC 即 03:30（该值不由被测代码推导）
+        assertEquals(LocalDateTime.of(2027, 8, 24, 3, 30), nextPeriodExecutionAt);
+    }
+
+    /**
+     * 🔴 零副作用守卫：排期解析在建案命令**之前**完成，故解析失败时一条命令都不许发出。
+     *
+     * <p>
+     * 原实现把解析放在命令链尾：建案/加项/完成初始化三条命令均已落库，随后解析抛错 ⇒ HTTP 报失败，
+     * 库里却留下一张无排期、永不执行、永不终态的 PENDING 案件；跨案在途门面按<b>保单</b>拦截，
+     * 该保单自此永久无法建案（真机实测：案件 {@code d4e7544a} 落在保单 {@code a16ddd86} 上，
+     * 其后同保单建案被 71001003「存在在途保全案件」拒绝）。
+     * </p>
+     * <p>
+     * 判据必须同时含「抛什么」与「发没发」两侧：只断言抛异常无法区分「建案前拒绝」与
+     * 「建案后拒绝」——后者正是缺陷形态，且同样抛 {@link MaintenanceValidationException}。
+     * </p>
+     */
+    @Test
+    void shouldRejectMissingAnniversaryBeforeSendingAnyCommand() {
+        PolicyMaintenanceSnapshot snapshot = anniversarySnapshot(null);
+        when(policyMaintenanceSnapshotPort.capture(snapshotRequest())).thenReturn(snapshot);
+        when(productMaintenanceOfferingPort.resolve(offeringRequest(snapshot)))
+                .thenReturn(offering(Set.of("POLICY_INFO_CHANGE")));
+        allowConfiguration(snapshot, "POLICY_INFO_CHANGE", Set.of(), false,
+                new MaintenanceEffectiveRule(
+                        Set.of(EffectiveTimeType.NEXT_PERIOD), EffectiveTimeType.NEXT_PERIOD, 0, 3650));
+        when(tenantTimeZonePort.resolveZoneId("tenant-1")).thenReturn("Asia/Shanghai");
+        // lenient：正常路径下命令网关零交互、本桩不被消费。留着它是为了让**缺陷回归**时归因精确——
+        // 若解析被挪回命令链尾，建案命令会先发出并消费本桩，链条其后走到解析处抛真因，
+        // 失败点落在 verifyNoInteractions（=「命令已发出」）而不是 NullPointerException。
+        lenient().when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+        MaintenanceValidationException failure = assertThrows(
+                MaintenanceValidationException.class,
+                () -> service.create(new MaintenanceCaseCreationRequest(
+                        "policy-1", List.of("POLICY_INFO_CHANGE"), EffectiveTimeType.NEXT_PERIOD, null,
+                        "周年日缺失必须建案前拒绝", "request-missing-anniversary",
+                        MaintenanceChannel.API, "api-client-1", "tenant-1")));
+
+        assertTrue(failure.getMessage().contains("Policy 未提供可用的下一保单年度起点"), failure.getMessage());
+        verifyNoInteractions(commandGateway);
     }
 
     @Test
@@ -329,22 +404,29 @@ class MaintenanceCaseCreationApplicationServiceTest {
         verifyNoInteractions(commandGateway);
     }
 
+    /**
+     * g04-07：Offering 放行的保单状态**不再**是唯一判据——字段类保全项的领域准入集合是 {@code {EFFECTIVE}}，
+     * Offering 只可在此之上额外收窄，不得放宽。
+     *
+     * <p>
+     * 本用例原为 {@code shouldCreateSuspendedPolicyCaseWhenOfferingAllowsState}，断言「Offering 允许 SUSPENDED
+     * ⇒ 建案成功」——那正是 g04-07 要修的缺陷本身：Offering 是可配数据，能声明出与保单域状态机不相容的组合
+     * （真机两条已发布 Offering 即为 {@code ["EFFECTIVE","PENDING_EFFECTIVE","SUSPENDED"]}）。现按其反面断言拒绝。
+     * </p>
+     */
     @Test
-    void shouldCreateSuspendedPolicyCaseWhenOfferingAllowsState() {
+    void shouldRejectFieldItemWhenOfferingAllowsNonAdmittedPolicyStatus() {
         PolicyMaintenanceSnapshot snapshot = snapshot(
                 "tenant-1", "policy-1", PolicyStatus.SUSPENDED);
         when(policyMaintenanceSnapshotPort.capture(snapshotRequest())).thenReturn(snapshot);
         allowOfferingAndConfiguration(snapshot);
-        when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-        String caseId = service.create(request()).join();
+        MaintenancePolicyStatusNotAdmittedException exception = assertThrows(
+                MaintenancePolicyStatusNotAdmittedException.class, () -> service.create(request()));
 
-        verify(productMaintenanceOfferingPort).resolve(offeringRequest(snapshot));
-        ArgumentCaptor<CreateMaintenanceCaseCommand> command =
-                ArgumentCaptor.forClass(CreateMaintenanceCaseCommand.class);
-        verify(commandGateway).send(command.capture());
-        assertEquals(command.getValue().id().id(), caseId);
-        assertEquals(PolicyStatus.SUSPENDED, command.getValue().policySnapshot().policyStatus());
+        // POLICY_INFO_CHANGE 属既有 7 个字段类，沿用原对外契约错误码 POLICY_NOT_ACTIVE（非新码 71007013）
+        assertEquals(MaintenanceErrorCode.POLICY_NOT_ACTIVE, exception.getErrorCode());
+        verifyNoInteractions(commandGateway);
     }
 
     @Test
@@ -499,6 +581,48 @@ class MaintenanceCaseCreationApplicationServiceTest {
         lenient().when(configuration.getContentHash()).thenReturn("c".repeat(64));
         when(configuration.isEffectiveAt(any())).thenReturn(true);
         return new StoredConfiguration(configuration, 1L);
+    }
+
+    /** 为指定生效方式铺好全部桩（供同义用例逐轮复用；每轮全部桩都会被消费，不触发严格桩告警）。 */
+    private void stubScheduledCreation(PolicyMaintenanceSnapshot snapshot, EffectiveTimeType effectiveTimeType) {
+        when(policyMaintenanceSnapshotPort.capture(snapshotRequest())).thenReturn(snapshot);
+        when(productMaintenanceOfferingPort.resolve(offeringRequest(snapshot)))
+                .thenReturn(offering(Set.of("POLICY_INFO_CHANGE")));
+        allowConfiguration(snapshot, "POLICY_INFO_CHANGE", Set.of(), false,
+                new MaintenanceEffectiveRule(Set.of(effectiveTimeType), effectiveTimeType, 0, 3650));
+        when(tenantTimeZonePort.resolveZoneId("tenant-1")).thenReturn("Asia/Shanghai");
+        when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
+    }
+
+    /** 以给定生效方式建案，回读排期命令中的 UTC 执行时刻（建案共 4 次命令：创建/加项/完成初始化/排期）。 */
+    private LocalDateTime createAndCaptureExecutionAt(
+            EffectiveTimeType effectiveTimeType, String clientRequestKey) {
+        service.create(new MaintenanceCaseCreationRequest(
+                "policy-1", List.of("POLICY_INFO_CHANGE"), effectiveTimeType, null,
+                "次期生效同义性验证", clientRequestKey, MaintenanceChannel.API, "api-client-1", "tenant-1")).join();
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(commandGateway, times(4)).send(captor.capture());
+        return captor.getAllValues().stream()
+                .filter(ScheduleMaintenanceEffectCommand.class::isInstance)
+                .map(ScheduleMaintenanceEffectCommand.class::cast)
+                .findFirst()
+                .orElseThrow()
+                .nextExecutionAt();
+    }
+
+    /**
+     * 保单周年日与次缴费日**刻意取不同值**（相差 3 个月），用于分辨「错接快照字段」——
+     * 若两者同值，把 NEXT_PERIOD 接到 nextBillingDateAt 的缺陷会被本夹具掩盖。
+     */
+    private PolicyMaintenanceSnapshot anniversarySnapshot(OffsetDateTime nextPolicyAnniversaryAt) {
+        OffsetDateTime capturedAt = OffsetDateTime.of(2026, 8, 24, 11, 30, 0, 0, ZoneOffset.ofHours(8));
+        return new PolicyMaintenanceSnapshot(
+                "tenant-1", PolicyId.of("policy-1"), "P202608240001", CustomerId.of("customer-from-policy"),
+                "product-1", "product-v3", "plan-v2", PolicyStatus.EFFECTIVE, List.of(), 7L, capturedAt,
+                capturedAt.plusMonths(3), nextPolicyAnniversaryAt,
+                new MaintenanceSnapshotReference(
+                        "policy/policy-1/versions/7", "a".repeat(64), 7L, capturedAt),
+                Map.of("policy.holder.mobile", MaintenanceFieldValue.text("13800000000")));
     }
 
     private PolicyMaintenanceSnapshot snapshot(

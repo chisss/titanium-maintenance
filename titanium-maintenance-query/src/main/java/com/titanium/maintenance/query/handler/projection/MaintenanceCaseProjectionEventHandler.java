@@ -191,6 +191,7 @@ public class MaintenanceCaseProjectionEventHandler {
             return;
         }
         var application = effectEvidence.application();
+        MaintenanceView caseView = findCase(event.maintenanceId().id(), event.tenantId());
         List<MaintenanceFieldChangeView> fieldViews = fieldChangeViewRepository
                 .findByTenantIdAndMaintenanceIdAndItemCodeOrderByFieldCodeAscObjectIdAsc(
                         event.tenantId(), event.maintenanceId().id(), event.afterTask().itemCode());
@@ -198,10 +199,14 @@ public class MaintenanceCaseProjectionEventHandler {
                 .filter(view -> view.getObjectId().equals(applied.objectId())
                         && view.getFieldCode().equals(applied.fieldCode()))
                 .findFirst()
-                .ifPresent(view -> {
-                    view.setAppliedValue(applied.canonicalValue());
-                    view.setUpdateTime(event.transitionedAt());
-                }));
+                .ifPresent(view -> view.setAppliedValue(applied.canonicalValue())));
+        // g05-06：生效区间起止 / 费用方向 / 外部单证号 与跨案冗余键在此刻才全部落地（生效前无单证事实），
+        // 故按「案件行 + 生效回执」整体刷新该保全项的全部字段差异行，而非只刷命中回执的行。
+        fieldViews.forEach(view -> {
+            applyCaseFacts(view, caseView);
+            view.setEndorsementNo(application.endorsementNo());
+            view.setUpdateTime(event.transitionedAt());
+        });
         fieldChangeViewRepository.saveAll(fieldViews);
 
         MaintenanceSnapshotView snapshotView = snapshotViewRepository
@@ -358,6 +363,7 @@ public class MaintenanceCaseProjectionEventHandler {
     public void on(MaintenanceFieldChangesRecordedEvent event) {
         fieldChangeViewRepository.deleteByTenantIdAndMaintenanceIdAndItemCode(
                 event.tenantId(), event.maintenanceId().id(), event.itemCode());
+        MaintenanceView caseView = findCase(event.maintenanceId().id(), event.tenantId());
         List<MaintenanceFieldChangeView> views = event.changes().stream().map(change -> {
             MaintenanceFieldChangeView view = new MaintenanceFieldChangeView();
             view.setFieldChangeId(fieldChangeId(
@@ -376,6 +382,7 @@ public class MaintenanceCaseProjectionEventHandler {
                     : change.appliedValue().canonicalValue());
             view.setConflictStatus(change.conflictStatus());
             view.setResolutionCode(change.resolutionCode());
+            applyCaseFacts(view, caseView);
             view.setTenantId(event.tenantId());
             view.setCreateTime(event.recordedAt());
             view.setUpdateTime(event.recordedAt());
@@ -481,6 +488,36 @@ public class MaintenanceCaseProjectionEventHandler {
         view.setMaskingPolicy(descriptor.maskingPolicy());
         view.setChangeTypeCode(descriptor.changeTypeCode());
         view.setUpdateTime(updatedAt);
+    }
+
+    /**
+     * 取案件读模型行，**缺失时返回 {@code null} 而非抛异常**。
+     * <p>
+     * 字段差异行的职责是承载字段事实，不因案件级冗余键取不到而中断投影（与 {@code requireCase} 的
+     * 「案件行是本案投影前提」语义不同）。缺口由生效回执那次 {@link #applyCaseFacts} 自愈。
+     * </p>
+     */
+    private MaintenanceView findCase(String maintenanceId, String tenantId) {
+        return maintenanceViewRepository.findByMaintenanceIdAndTenantId(maintenanceId, tenantId)
+                .orElse(null);
+    }
+
+    /**
+     * 复制案件级事实到字段差异行（跨案检索冗余键 + 生效区间起止 + 费用方向，g05-06）。
+     * <p>
+     * 🔴 冗余项一律以**案件读模型为准**整体刷新，不做「已有值就不覆盖」——冗余键的唯一权威是案件行，
+     * 逐字段判空保留会让读侧长期停在首次写入的旧值（如费用方向在结算后才确定）。案件行缺失时不改动。
+     * </p>
+     */
+    private void applyCaseFacts(MaintenanceFieldChangeView view, MaintenanceView caseView) {
+        if (caseView == null) {
+            return;
+        }
+        view.setPolicyId(caseView.getPolicyId());
+        view.setPolicyNumber(caseView.getPolicyNumber());
+        view.setSpecificEffectiveDate(caseView.getSpecificEffectiveDate());
+        view.setBusinessEffectiveAt(caseView.getBusinessEffectiveAt());
+        view.setFeeDirection(caseView.getBalanceDirection());
     }
 
     private void initializeSnapshotView(

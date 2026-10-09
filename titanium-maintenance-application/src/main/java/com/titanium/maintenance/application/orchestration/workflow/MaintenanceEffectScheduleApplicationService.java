@@ -2,6 +2,7 @@ package com.titanium.maintenance.application.orchestration.workflow;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -389,21 +390,39 @@ public class MaintenanceEffectScheduleApplicationService {
     }
 
     private LocalDateTime resolveNextExecutionAt(MaintenanceView view, String tenantId, String zoneId) {
-        if (view.getEffectiveTimeType() == EffectiveTimeType.FUTURE
-                || view.getEffectiveTimeType() == EffectiveTimeType.SPECIFIED_DATE) {
-            if (view.getSpecificEffectiveDate() == null) {
-                throw validation("specificEffectiveDate", "未来或指定日案件缺少生效时间");
+        EffectiveTimeType timeType = view.getEffectiveTimeType();
+        // 穷尽 switch（无 default）：新增生效方式必须在此表态其执行时点来源，否则编译期失败。
+        // 🔴 不再用 `?:` 的隐式兜底（原实现「非 NEXT_BILLING_DATE 一律取保单周年日」）——那种写法下任何新增
+        //    生效方式都静默落到周年日分支：取值可能恰好对，但**没有人表态过**，与 NEXT_PERIOD 被静默跳过同型。
+        return switch (timeType) {
+            case FUTURE, SPECIFIED_DATE -> {
+                if (view.getSpecificEffectiveDate() == null) {
+                    throw validation("specificEffectiveDate", "未来或指定日案件缺少生效时间");
+                }
+                yield view.getSpecificEffectiveDate();
             }
-            return view.getSpecificEffectiveDate();
-        }
-        PolicyMaintenanceSnapshot snapshot = policySnapshotPort.capture(
+            case NEXT_BILLING_DATE -> tenantLocal(
+                    snapshotOf(view, tenantId).nextBillingDateAt(), zoneId);
+            // 🔴 NEXT_PERIOD（次期生效）与 POLICY_ANNIVERSARY（保单周年日）同义：同一快照字段、同一日期。
+            case NEXT_PERIOD, POLICY_ANNIVERSARY -> tenantLocal(
+                    snapshotOf(view, tenantId).nextPolicyAnniversaryAt(), zoneId);
+            // 建案即执行型：由 supportsScheduling 闸口在 create 前置拦下，此处显式列出以满足穷尽性。
+            case IMMEDIATE, RETROACTIVE -> throw validation(
+                    "effectiveTimeType", "当前生效类型不能创建未来计划");
+        };
+    }
+
+    /** 仅在需要快照未来日期时才向 Policy 取数（未来/指定日型的时点取自案件自身，不取快照）。 */
+    private PolicyMaintenanceSnapshot snapshotOf(MaintenanceView view, String tenantId) {
+        return policySnapshotPort.capture(
                 new PolicyMaintenanceSnapshotRequest(view.getPolicyId(), tenantId));
-        var source = view.getEffectiveTimeType() == EffectiveTimeType.NEXT_BILLING_DATE
-                ? snapshot.nextBillingDateAt() : snapshot.nextPolicyAnniversaryAt();
-        if (source == null) {
+    }
+
+    private LocalDateTime tenantLocal(OffsetDateTime value, String zoneId) {
+        if (value == null) {
             throw validation("nextExecutionAt", "Policy 未提供当前生效类型对应的未来日期");
         }
-        return source.atZoneSameInstant(ZoneId.of(zoneId)).toLocalDateTime();
+        return value.atZoneSameInstant(ZoneId.of(zoneId)).toLocalDateTime();
     }
 
     private MaintenanceView requireCase(MaintenanceEffectScheduleOperationInput input) {

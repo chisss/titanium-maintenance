@@ -40,6 +40,14 @@ public class MaintenanceConstants {
     public static final String MAINTENANCE_TYPE_TOP_UP                 = "TOP_UP";
     public static final String MAINTENANCE_TYPE_PARTIAL_WITHDRAWAL     = "PARTIAL_WITHDRAWAL";
 
+    // 单证与服务受限类保全类型常量（g04-09）
+    // 🔴 挂失与解除挂失是**对称两项**（施加 / 释放同一种受限），不可合并成带参数的一项——合并会把
+    //    「当前是否已挂失」这一业务事实藏进案件参数，外部无从按其检索，且两者的受理前置条件不同
+    //    （对未受限者解除、对已受限者重复施加都应被拒）。
+    public static final String MAINTENANCE_TYPE_LOSS_REPORT            = "LOSS_REPORT";
+    public static final String MAINTENANCE_TYPE_POLICY_REISSUE         = "POLICY_REISSUE";
+    public static final String MAINTENANCE_TYPE_LOSS_REPORT_RELEASE    = "LOSS_REPORT_RELEASE";
+
     // 错误消息常量
     public static final String MAINTENANCE_NOT_FOUND                   = "保全记录不存在";
     public static final String INVALID_MAINTENANCE_STATUS              = "无效的保全状态";
@@ -64,5 +72,9 @@ public class MaintenanceConstants {
         public static final String MAINTENANCE_PREMIUM_CALCULATED = CrossDomainTopics.MAINTENANCE_PREMIUM_CALCULATED;
         public static final String MAINTENANCE_EXECUTED           = CrossDomainTopics.MAINTENANCE_EXECUTED;
         public static final String MAINTENANCE_ENDORSEMENT_ISSUED = CrossDomainTopics.MAINTENANCE_ENDORSEMENT_ISSUED;
+        // 保单补发单证请求事实出口（g04-09）：补发是「生效的实质内容」，由生效编排同步出站、拿到投递确认才落
+        // 回执，与批单（案件生效的旁路产物，异步搬运）取向相反——判据是「该产物是否为案件生效的实质内容」。
+        public static final String MAINTENANCE_POLICY_REISSUE_REQUESTED =
+                CrossDomainTopics.MAINTENANCE_POLICY_REISSUE_REQUESTED;
     }
 }

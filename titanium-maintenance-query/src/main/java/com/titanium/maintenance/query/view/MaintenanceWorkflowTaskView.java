@@ -356,6 +356,72 @@ public class MaintenanceWorkflowTaskView extends BaseView {
     @Column(name = "switch_switched_at")
     private LocalDateTime switchSwitchedAt;
 
+    /** 保单贷款放款回执（贷款类案件的生效出口产物；与保单/账户转换回执互斥，同刻最多一列非空） */
+    @Column(name = "loan_id", length = 32)
+    private String loanId;
+
+    @Column(name = "loan_amount", precision = 24, scale = 8)
+    private BigDecimal loanAmount;
+
+    @Column(name = "loan_interest_rate", precision = 24, scale = 8)
+    private BigDecimal loanInterestRate;
+
+    @Column(name = "loan_date")
+    private LocalDateTime loanDate;
+
+    @Column(name = "loan_billing_posting_id", length = 64)
+    private String loanBillingPostingId;
+
+    @Column(name = "loan_payment_order_id", length = 64)
+    private String loanPaymentOrderId;
+
+    @Column(name = "loan_disbursed_at")
+    private LocalDateTime loanDisbursedAt;
+
+    /** 保单贷款还款回执（还款类案件的生效出口产物；与保单/账户转换/放款回执互斥，同刻最多一列非空） */
+    @Column(name = "loan_repayment_id", length = 32)
+    private String loanRepaymentId;
+
+    @Column(name = "loan_repayment_amount", precision = 24, scale = 8)
+    private BigDecimal loanRepaymentAmount;
+
+    @Column(name = "loan_repayment_interest_portion", precision = 24, scale = 8)
+    private BigDecimal loanRepaymentInterestPortion;
+
+    @Column(name = "loan_repayment_principal_portion", precision = 24, scale = 8)
+    private BigDecimal loanRepaymentPrincipalPortion;
+
+    @Column(name = "loan_repayment_accrued_interest", precision = 24, scale = 8)
+    private BigDecimal loanRepaymentAccruedInterest;
+
+    @Column(name = "loan_outstanding_principal_after", precision = 24, scale = 8)
+    private BigDecimal loanOutstandingPrincipalAfter;
+
+    @Column(name = "loan_outstanding_interest_after", precision = 24, scale = 8)
+    private BigDecimal loanOutstandingInterestAfter;
+
+    @Column(name = "loan_repayment_settled")
+    private Boolean loanRepaymentSettled;
+
+    @Column(name = "loan_repayment_date")
+    private LocalDateTime loanRepaymentDate;
+
+    @Column(name = "loan_repayment_billing_posting_id", length = 64)
+    private String loanRepaymentBillingPostingId;
+
+    @Column(name = "loan_repayment_payment_order_id", length = 64)
+    private String loanRepaymentPaymentOrderId;
+
+    @Column(name = "loan_repaid_at")
+    private LocalDateTime loanRepaidAt;
+
+    /** 保单补发单证请求回执（补发类案件的生效出口产物；与保单/账户转换/贷款回执互斥，同刻最多一列非空） */
+    @Column(name = "reissue_request_id", length = 32)
+    private String reissueRequestId;
+
+    @Column(name = "reissue_requested_at")
+    private LocalDateTime reissueRequestedAt;
+
     @Column(name = "last_operation_id", length = 128)
     private String lastOperationId;
 
@@ -366,7 +432,18 @@ public class MaintenanceWorkflowTaskView extends BaseView {
     @Column(name = "last_operation_hash", length = 64)
     private String lastOperationHash;
 
-    @Column(name = "last_evidence_version", length = 64)
+    /**
+     * 最后证据版本。
+     * <p>
+     * 🔴 宽度 128 而非常规 64：贷款类证据（放款 g04-03 / 还款 g04-04）的
+     * {@code evidenceVersion()} 取**生效请求号**，形态为 {@code "effect-case-" + sha256} = 76 字符
+     * （task 级 {@code "effect-" + sha256} = 71 字符），64 位装不下。G04 真机缺陷即由此而来——
+     * 写超长值抛 {@code Data too long}，致生效回执事件整条投影失败进死信、EFFECT 任务永卡
+     * WAITING_EXTERNAL（详见 liquibase/ddl/maintenance_evidence_version_widen_g04_fix_*.sql）。
+     * 不可改证据版本取值来迁就列宽：该值参与领域比对且已入事件流。
+     * </p>
+     */
+    @Column(name = "last_evidence_version", length = 128)
     private String lastEvidenceVersion;
 
     @Column(name = "last_evidence_hash", length = 64)

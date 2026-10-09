@@ -3,30 +3,50 @@ package com.titanium.maintenance.config;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.TreeSet;
+
 import org.axonframework.config.EventProcessingConfiguration;
 import org.axonframework.eventhandling.TrackingEventProcessor;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cloud.openfeign.FeignClient;
+import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.core.type.filter.AnnotationTypeFilter;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.util.ClassUtils;
 
 import com.titanium.billing.api.RetroactivePeriodAdjustmentApi;
 import com.titanium.maintenance.Bootstrap;
 import com.titanium.maintenance.infrastructure.client.billing.BillingPremiumLifecycleClient;
 import com.titanium.maintenance.infrastructure.client.billing.BillingRetroactiveImpactClient;
+import com.titanium.maintenance.infrastructure.client.billing.PolicyLoanPostingClient;
+import com.titanium.maintenance.infrastructure.client.billing.PolicyLoanRepaymentPostingClient;
 import com.titanium.maintenance.infrastructure.client.claim.ClaimRetroactiveImpactClient;
 import com.titanium.maintenance.infrastructure.client.customer.CustomerServiceClient;
 import com.titanium.maintenance.infrastructure.client.insurance.InsuranceServiceClient;
 import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountSwitchClient;
+import com.titanium.maintenance.infrastructure.client.payment.LoanDisbursementPayoutClient;
+import com.titanium.maintenance.infrastructure.client.payment.LoanRepaymentCollectionClient;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentMaintenanceRefundClient;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentPremiumCollectionClient;
 import com.titanium.maintenance.infrastructure.client.payment.PaymentRetroactiveImpactClient;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyFieldCatalogClient;
+import com.titanium.maintenance.infrastructure.client.policy.PolicyFinancialClient;
+import com.titanium.maintenance.infrastructure.client.policy.PolicyLoanClient;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
+import com.titanium.maintenance.infrastructure.client.product.ProductLoanPolicyClient;
 import com.titanium.maintenance.infrastructure.client.product.ProductMaintenanceOfferingClient;
 import com.titanium.maintenance.infrastructure.client.product.ProductPremiumLifecycleClient;
+import com.titanium.maintenance.infrastructure.client.product.ProductReducedPaidUpPolicyClient;
 import com.titanium.maintenance.infrastructure.client.product.ProductSurrenderValueClient;
+import com.titanium.maintenance.infrastructure.client.ruleengine.RuleEngineClient;
 import com.titanium.maintenance.infrastructure.event.MaintenanceKafkaEventPublisher;
 import com.titanium.product.api.ProductMaintenancePremiumQuoteApi;
 import com.titanium.product.api.ProductPremiumCalculationApi;
@@ -68,9 +88,12 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
  * </p>
  * <p>
  * <b>为何 mock 全部 Feign 客户端</b>：本地无 {@code spring-cloud-starter-loadbalancer}，
- * 未被 mock 的客户端会因惰性解析失败而拖垮上下文。本域契约面最大——13 个
+ * 未被 mock 的客户端会因惰性解析失败而拖垮上下文。本域契约面最大——23 个
  * {@code infrastructure.client} 域内契约 + 4 个 {@code MaintenanceExternalFeignConfiguration}
- * 追加的外域正式 API。**新增 Feign 契约时必须同步补入下发表**。
+ * 追加的外域正式 API。**新增 Feign 契约时必须同步补入下发表**，该纪律已由
+ * {@link #everyFeignClientMustBeMocked()} 机械守护（漏登记即失败，g04-04 实测踩过一次：
+ * 漏登记的两个贷款还款客户端使本类两个用例双双 {@code Failed to load ApplicationContext}；
+ * g09-02 加 {@code RuleEngineClient} 时又踩一次，同时须同步抬 {@code FEIGN_CLIENT_LOWER_BOUND}）。
  * </p>
  */
 @SpringBootTest(classes = Bootstrap.class, webEnvironment = SpringBootTest.WebEnvironment.NONE,
@@ -90,18 +113,28 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
         // 域内契约（infrastructure.client，@EnableFeignClients basePackages 扫描面）
         BillingPremiumLifecycleClient.class,
         BillingRetroactiveImpactClient.class,
+        PolicyLoanPostingClient.class,
+        PolicyLoanRepaymentPostingClient.class,
         ClaimRetroactiveImpactClient.class,
         CustomerServiceClient.class,
         InsuranceServiceClient.class,
         InvestmentAccountSwitchClient.class,
+        LoanDisbursementPayoutClient.class,
+        LoanRepaymentCollectionClient.class,
         PaymentMaintenanceRefundClient.class,
         PaymentPremiumCollectionClient.class,
         PaymentRetroactiveImpactClient.class,
         PolicyFieldCatalogClient.class,
+        PolicyFinancialClient.class,
+        PolicyLoanClient.class,
         PolicyServiceClient.class,
+        ProductLoanPolicyClient.class,
+        ProductReducedPaidUpPolicyClient.class,
         ProductMaintenanceOfferingClient.class,
         ProductPremiumLifecycleClient.class,
         ProductSurrenderValueClient.class,
+        // 规则引擎只读契约（保全配置规则权威 + 字段条件规则求值，g09-02）
+        RuleEngineClient.class,
         // 外域正式 API（MaintenanceExternalFeignConfiguration 以 clients= 显式追加）
         MaintenanceUnderwritingApi.class,
         ProductMaintenancePremiumQuoteApi.class,
@@ -109,6 +142,12 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
         RetroactivePeriodAdjustmentApi.class
 })
 class MaintenanceDeadLetterQueueContextTest {
+
+    /** 域内 Feign 契约包（{@code @EnableFeignClients} 的 basePackages 扫描面）。 */
+    private static final String FEIGN_CLIENT_PACKAGE = "com.titanium.maintenance.infrastructure.client";
+
+    /** 域内 Feign 契约数下界：客户端增删须同步此值——扫描规则一旦失效则扫出空集，「全部已登记」会恒真。 */
+    private static final int FEIGN_CLIENT_LOWER_BOUND = 23;
 
     @Autowired
     private EventProcessingConfiguration eventProcessingConfiguration;
@@ -123,6 +162,55 @@ class MaintenanceDeadLetterQueueContextTest {
     @DisplayName("读侧投影组 maintenance-query-group：已注册 + tracking + DLQ 可用（m6-916 补齐）")
     void providesTrackingQueryGroupWithDeadLetterQueue() {
         assertGroupIsTrackingWithDeadLetterQueue("maintenance-query-group");
+    }
+
+    /**
+     * 域内 Feign 契约必须全部登记到 {@code @MockitoBean}。
+     * <p>
+     * 🔴 <b>两侧各取真值再互比</b>：扫描结果取自 {@code infrastructure.client} 包下带 {@code @FeignClient}
+     * 的<b>字节码</b>（不受源码注释干扰），期望值取自本类 {@code @MockitoBean} 注解本身——不对照写死的
+     * 客户端清单（写死清单会把「两侧一致改动」判红，也证明不了注解里真有该项）。扫描侧另配绝对下界：
+     * 扫描规则失效（如包名漂移）时扫出空集，「全部已登记」将恒真，下界断言即在此处报警。
+     * </p>
+     */
+    @Test
+    @DisplayName("域内 Feign 客户端全部已 mock（新增契约漏登记即失败）")
+    void everyFeignClientMustBeMocked() {
+        Set<Class<?>> mocked = new LinkedHashSet<>();
+        for (MockitoBean annotation : getClass().getAnnotationsByType(MockitoBean.class)) {
+            mocked.addAll(Arrays.asList(annotation.types()));
+        }
+
+        Set<Class<?>> discovered = scanFeignClients();
+        assertTrue(discovered.size() >= FEIGN_CLIENT_LOWER_BOUND,
+                "扫描到的域内 Feign 客户端仅 " + discovered.size() + " 个（下界 " + FEIGN_CLIENT_LOWER_BOUND
+                        + "）：扫描规则可能已失效，此时「全部已登记」恒真");
+
+        Set<String> missing = new TreeSet<>();
+        for (Class<?> client : discovered) {
+            if (!mocked.contains(client)) {
+                missing.add(client.getName());
+            }
+        }
+        assertTrue(missing.isEmpty(),
+                "以下域内 Feign 客户端未登记到本类 @MockitoBean（本地无 loadbalancer，漏登记者会拖垮上下文）: " + missing);
+    }
+
+    /** 扫描域内 Feign 契约包，取出全部带 {@code @FeignClient} 的接口。 */
+    private Set<Class<?>> scanFeignClients() {
+        var scanner = new ClassPathScanningCandidateComponentProvider(false) {
+            @Override
+            protected boolean isCandidateComponent(AnnotatedBeanDefinition beanDefinition) {
+                // Feign 契约是接口，默认规则只收独立具体类，此处放开
+                return true;
+            }
+        };
+        scanner.addIncludeFilter(new AnnotationTypeFilter(FeignClient.class));
+        Set<Class<?>> clients = new LinkedHashSet<>();
+        for (BeanDefinition definition : scanner.findCandidateComponents(FEIGN_CLIENT_PACKAGE)) {
+            clients.add(ClassUtils.resolveClassName(definition.getBeanClassName(), getClass().getClassLoader()));
+        }
+        return clients;
     }
 
     /**

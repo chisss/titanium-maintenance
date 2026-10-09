@@ -642,13 +642,136 @@ public record MaintenanceWorkflowTask(
                 effectEvidence.switched(evidence));
     }
 
-    /** Policy 调用或回执校验失败时保留请求证据并进入可重试失败。 */
+    /**
+     * 记录保单贷款放款权威回执并完成生效任务（g04-03）。
+     * <p>
+     * 与 {@link #recordPolicyApplication}、{@link #recordInvestmentSwitch} 并列的第三条<b>互斥</b>生效收口
+     * 路径：放款不改保单状态与字段，其回执不携带批单号与新保单版本，故单独收口而不套用保单回执模型。
+     * </p>
+     */
+    public MaintenanceWorkflowTask recordLoanDisbursement(
+            MaintenanceLoanDisbursementEvidence evidence,
+            MaintenanceWorkflowOperation operation) {
+        requireAction(operation, MaintenanceWorkflowAction.RECORD_LOAN_DISBURSEMENT);
+        if (stepType != MaintenanceStepType.EFFECT || effectEvidence == null || evidence == null) {
+            throw invalidTransition("当前生效任务没有可勾稽的请求证据");
+        }
+        requireStatus(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL, "记录保单贷款放款回执");
+        if (!evidence.evidenceVersion().equals(operation.evidenceVersion())
+                || !evidence.contentHash().equals(operation.evidenceHash())
+                || !"APPLIED".equals(operation.resultCode())
+                || !evidence.loanId().equals(operation.reason())) {
+            throw new MaintenanceValidationException(
+                    "RecordMaintenanceCaseLoanDisbursementCommand", "loanDisbursementEvidence",
+                    "保单贷款放款回执与操作载荷不一致");
+        }
+        return new MaintenanceWorkflowTask(
+                taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
+                MaintenanceWorkflowTaskStatus.COMPLETED, null, retryCount, null,
+                conditionEvidence, reviewEvidence, operation, underwritingEvidence,
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence,
+                effectEvidence.disbursed(evidence));
+    }
+
+    /**
+     * 记录保单贷款还款权威回执并完成生效任务（g04-04）。
+     * <p>
+     * 与 {@link #recordPolicyApplication}、{@link #recordInvestmentSwitch}、{@link #recordLoanDisbursement}
+     * 并列的第四条<b>互斥</b>生效收口路径：还款与放款同属贷款账户出口，同样不改保单状态与字段，其回执不
+     * 携带批单号与新保单版本，故单独收口而不套用保单回执模型。
+     * </p>
+     */
+    public MaintenanceWorkflowTask recordLoanRepayment(
+            MaintenanceLoanRepaymentEvidence evidence,
+            MaintenanceWorkflowOperation operation) {
+        requireAction(operation, MaintenanceWorkflowAction.RECORD_LOAN_REPAYMENT);
+        if (stepType != MaintenanceStepType.EFFECT || effectEvidence == null || evidence == null) {
+            throw invalidTransition("当前生效任务没有可勾稽的请求证据");
+        }
+        requireStatus(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL, "记录保单贷款还款回执");
+        if (!evidence.evidenceVersion().equals(operation.evidenceVersion())
+                || !evidence.contentHash().equals(operation.evidenceHash())
+                || !"APPLIED".equals(operation.resultCode())
+                || !evidence.repaymentId().equals(operation.reason())) {
+            throw new MaintenanceValidationException(
+                    "RecordMaintenanceCaseLoanRepaymentCommand", "loanRepaymentEvidence",
+                    "保单贷款还款回执与操作载荷不一致");
+        }
+        return new MaintenanceWorkflowTask(
+                taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
+                MaintenanceWorkflowTaskStatus.COMPLETED, null, retryCount, null,
+                conditionEvidence, reviewEvidence, operation, underwritingEvidence,
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence,
+                effectEvidence.repaid(evidence));
+    }
+
+    /**
+     * 记录保单补发单证请求回执并完成生效任务（g04-09）。
+     * <p>
+     * 与 {@link #recordPolicyApplication}、{@link #recordInvestmentSwitch}、{@link #recordLoanDisbursement}、
+     * {@link #recordLoanRepayment} 并列的第五条<b>互斥</b>生效收口路径：补发不改保单状态与字段、不产出批单号，
+     * 只向对端产出一份单证请求事实，故单独收口而不套用保单回执模型。
+     * </p>
+     */
+    public MaintenanceWorkflowTask recordPolicyReissue(
+            MaintenancePolicyReissueEvidence evidence,
+            MaintenanceWorkflowOperation operation) {
+        requireAction(operation, MaintenanceWorkflowAction.RECORD_POLICY_REISSUE);
+        if (stepType != MaintenanceStepType.EFFECT || effectEvidence == null || evidence == null) {
+            throw invalidTransition("当前生效任务没有可勾稽的请求证据");
+        }
+        requireStatus(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL, "记录保单补发单证请求回执");
+        if (!evidence.evidenceVersion().equals(operation.evidenceVersion())
+                || !evidence.contentHash().equals(operation.evidenceHash())
+                || !"APPLIED".equals(operation.resultCode())
+                || !evidence.reissueRequestId().equals(operation.reason())) {
+            throw new MaintenanceValidationException(
+                    "RecordMaintenanceCasePolicyReissueCommand", "policyReissueEvidence",
+                    "保单补发单证请求回执与操作载荷不一致");
+        }
+        return new MaintenanceWorkflowTask(
+                taskId, itemCode, itemOrder, sequence, stepType, mode, conditionRuleCode,
+                MaintenanceWorkflowTaskStatus.COMPLETED, null, retryCount, null,
+                conditionEvidence, reviewEvidence, operation, underwritingEvidence,
+                premiumQuoteEvidence, billingPostingEvidence, fundSettlementEvidence,
+                effectEvidence.reissued(evidence));
+    }
+
+    /**
+     * 生效失败收口：进入可重试失败，并保留已实际发生的证据。
+     * <p>
+     * 🔴 <b>两种合法形态，判据是「是否已发起 Policy 请求」</b>：
+     * </p>
+     * <ol>
+     * <li><b>已发起请求</b>（{@code WAITING_EXTERNAL} 且请求证据非空）：Policy 调用或回执校验失败，
+     * 请求证据原样保留，供重试时逐字重放与勾稽。</li>
+     * <li><b>未发起请求</b>（{@code READY} 且请求证据为空）：生效前的<b>核定</b>拒绝——如减额缴清
+     * 「新保额 &gt; 原保额」不构成减额。此时没有任何发往 Policy 的请求，<b>无证据可留也不得伪造</b>，
+     * 失败事实只由失败码与原因承载。</li>
+     * </ol>
+     * <p>
+     * 🔴 <b>为何「未发起请求」也是一种合法失败</b>：核定必须先于冻结请求（核定结果即请求载荷），
+     * 而核定拒绝同样是「本案件无法生效」的事实，须落库可查、可人工介入。若坚持要求请求证据，
+     * 该拒绝会被伪装成状态机错误（{@code 71000004}），<b>真正的业务原因反而丢失</b>——
+     * 失败关闭却不可归因，等于没有失败关闭。
+     * </p>
+     * <p>
+     * 🔴 <b>两种形态之外一律拒绝</b>（{@code PENDING}/{@code COMPLETED}/{@code FAILED}/{@code SKIPPED} 等），
+     * 保证本通道不会被用在「尚未开始生效」或「已经收口」的任务上。
+     * </p>
+     */
     public MaintenanceWorkflowTask failEffect(MaintenanceWorkflowOperation operation) {
         requireAction(operation, MaintenanceWorkflowAction.FAIL_EFFECT);
-        if (stepType != MaintenanceStepType.EFFECT || effectEvidence == null) {
-            throw invalidTransition("当前生效任务尚未发起 Policy 请求");
+        if (stepType != MaintenanceStepType.EFFECT) {
+            throw invalidTransition("当前任务不是可发起的生效步骤");
         }
-        requireStatus(MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL, "记录生效失败");
+        boolean requestIssued =
+                status == MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL && effectEvidence != null;
+        boolean rejectedBeforeRequest =
+                status == MaintenanceWorkflowTaskStatus.READY && effectEvidence == null;
+        if (!requestIssued && !rejectedBeforeRequest) {
+            throw invalidTransition("当前生效任务状态不允许记录生效失败: " + status);
+        }
         if (operation.resultCode() == null || operation.reason() == null) {
             throw new MaintenanceValidationException(
                     "FailMaintenanceCaseEffectCommand", "failure", "失败码和原因不能为空");

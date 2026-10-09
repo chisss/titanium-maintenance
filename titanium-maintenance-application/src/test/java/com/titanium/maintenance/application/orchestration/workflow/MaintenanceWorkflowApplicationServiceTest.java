@@ -25,6 +25,7 @@ import com.titanium.maintenance.application.command.casecreation.MaintenanceDocu
 import com.titanium.maintenance.application.command.casecreation.MaintenanceManualReviewInput;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceWorkflowTaskOperationInput;
 import com.titanium.maintenance.application.command.underwriting.MaintenanceUnderwritingAssessmentInput;
+import com.titanium.maintenance.application.orchestration.configuration.MaintenanceFrozenConfigurationReader;
 import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
 import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
@@ -60,6 +61,7 @@ import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentFact;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort.AssessmentRequest;
+import com.titanium.maintenance.port.policy.PolicyFinancialPort;
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort;
 import com.titanium.maintenance.port.product.ProductSurrenderValuePort;
@@ -106,10 +108,11 @@ class MaintenanceWorkflowApplicationServiceTest {
         premiumQuotePort = mock(ProductMaintenancePremiumQuotePort.class);
         service = new MaintenanceWorkflowApplicationService(
                 commandGateway, maintenanceViewRepository, taskViewRepository,
-                caseItemViewRepository, fieldChangeViewRepository, configurationRepository,
+                caseItemViewRepository, fieldChangeViewRepository, new MaintenanceFrozenConfigurationReader(configurationRepository),
                 new MaintenanceReviewPolicyEvaluator(), underwritingPort,
                 snapshotViewRepository, premiumQuotePort,
-                mock(PolicyServicePort.class), mock(ProductSurrenderValuePort.class),
+                mock(PolicyServicePort.class), mock(PolicyFinancialPort.class),
+                mock(ProductSurrenderValuePort.class),
                 mock(TenantTimeZonePort.class));
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
     }

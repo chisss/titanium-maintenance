@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
@@ -52,7 +53,10 @@ import com.titanium.maintenance.command.FailMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCaseInvestmentSwitchCommand;
+import com.titanium.maintenance.command.RecordMaintenanceCaseLoanDisbursementCommand;
+import com.titanium.maintenance.command.RecordMaintenanceCaseLoanRepaymentCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCommand;
+import com.titanium.maintenance.command.RecordMaintenanceCasePolicyReissueCommand;
 import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
@@ -174,7 +178,10 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvi
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceInvestmentSwitchEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceLoanDisbursementEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceLoanRepaymentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyApplicationEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyReissueEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePremiumQuoteEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactAnalysis;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactivePeriodRecalculation;
@@ -1054,6 +1061,117 @@ public class Maintenance extends BaseAggregate {
         }
     }
 
+    /**
+     * 在一个聚合命令事务中为案件全部生效任务记录同一保单贷款放款回执（g04-03）。
+     * <p>
+     * 与 {@link #handle(RecordMaintenanceCasePolicyApplicationCommand)}、{@link #handle(RecordMaintenanceCaseInvestmentSwitchCommand)}
+     * 并列的第三条生效收口路径：走保单贷款出口的案件由此收口，三条路径的操作动作与回执证据类型均不同，不可交叉。
+     * </p>
+     */
+    @CommandHandler
+    public void handle(RecordMaintenanceCaseLoanDisbursementCommand command) {
+        requireSameTenant(command.tenantId());
+        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        MaintenanceLoanDisbursementEvidence evidence = command.evidence();
+        if (evidence == null) {
+            throw new MaintenanceValidationException("RecordMaintenanceCaseLoanDisbursementCommand", "evidence",
+                    "保单贷款放款回执不能为空");
+        }
+        boolean applied = false;
+        for (String taskId : taskIds) {
+            MaintenanceWorkflowOperation operation = workflowOperation(
+                    caseTaskOperationId(command.operationId(), taskId),
+                    MaintenanceWorkflowAction.RECORD_LOAN_DISBURSEMENT, taskId, evidence.evidenceVersion(),
+                    evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.loanId(),
+                    command.operatorId());
+            applied |= transition(taskId, operation, task -> task.recordLoanDisbursement(evidence, operation), true);
+        }
+        if (applied) {
+            if (!allEffectTasksApplied()) {
+                throw new MaintenanceValidationException("RecordMaintenanceCaseLoanDisbursementCommand", "taskIds",
+                        "案件生效任务未全部完成");
+            }
+            changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.APPLIED, "案件级保单贷款放款回执已记录",
+                    command.operatorId());
+        }
+    }
+
+    /**
+     * 在一个聚合命令事务中为案件全部生效任务记录同一保单贷款还款回执（g04-04）。
+     * <p>
+     * 与 {@link #handle(RecordMaintenanceCasePolicyApplicationCommand)}、{@link #handle(RecordMaintenanceCaseInvestmentSwitchCommand)}、
+     * {@link #handle(RecordMaintenanceCaseLoanDisbursementCommand)} 并列的第四条生效收口路径：走保单贷款还款出口的
+     * 案件由此收口，四条路径的操作动作与回执证据类型均不同，不可交叉。
+     * </p>
+     */
+    @CommandHandler
+    public void handle(RecordMaintenanceCaseLoanRepaymentCommand command) {
+        requireSameTenant(command.tenantId());
+        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        MaintenanceLoanRepaymentEvidence evidence = command.evidence();
+        if (evidence == null) {
+            throw new MaintenanceValidationException("RecordMaintenanceCaseLoanRepaymentCommand", "evidence",
+                    "保单贷款还款回执不能为空");
+        }
+        boolean applied = false;
+        for (String taskId : taskIds) {
+            MaintenanceWorkflowOperation operation = workflowOperation(
+                    caseTaskOperationId(command.operationId(), taskId),
+                    MaintenanceWorkflowAction.RECORD_LOAN_REPAYMENT, taskId, evidence.evidenceVersion(),
+                    evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.repaymentId(),
+                    command.operatorId());
+            applied |= transition(taskId, operation, task -> task.recordLoanRepayment(evidence, operation), true);
+        }
+        if (applied) {
+            if (!allEffectTasksApplied()) {
+                throw new MaintenanceValidationException("RecordMaintenanceCaseLoanRepaymentCommand", "taskIds",
+                        "案件生效任务未全部完成");
+            }
+            changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.APPLIED, "案件级保单贷款还款回执已记录",
+                    command.operatorId());
+        }
+    }
+
+    /**
+     * 在一个聚合命令事务中为案件全部生效任务记录同一保单补发单证请求回执（g04-09）。
+     * <p>
+     * 与 {@link #handle(RecordMaintenanceCasePolicyApplicationCommand)}、{@link #handle(RecordMaintenanceCaseInvestmentSwitchCommand)}、
+     * {@link #handle(RecordMaintenanceCaseLoanDisbursementCommand)}、{@link #handle(RecordMaintenanceCaseLoanRepaymentCommand)}
+     * 并列的第五条生效收口路径：走保单补发出口的案件由此收口，五条路径的操作动作与回执证据类型均不同，不可交叉。
+     * </p>
+     * <p>
+     * 🔴 本处理器只记录<b>请求事实已交付对端</b>这一回执，不校验对端是否已渲染补发件——渲染寄送归 G13，不在
+     * 本域生效判据内（与批单出口同边界）。
+     * </p>
+     */
+    @CommandHandler
+    public void handle(RecordMaintenanceCasePolicyReissueCommand command) {
+        requireSameTenant(command.tenantId());
+        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        MaintenancePolicyReissueEvidence evidence = command.evidence();
+        if (evidence == null) {
+            throw new MaintenanceValidationException("RecordMaintenanceCasePolicyReissueCommand", "evidence",
+                    "保单补发单证请求回执不能为空");
+        }
+        boolean applied = false;
+        for (String taskId : taskIds) {
+            MaintenanceWorkflowOperation operation = workflowOperation(
+                    caseTaskOperationId(command.operationId(), taskId),
+                    MaintenanceWorkflowAction.RECORD_POLICY_REISSUE, taskId, evidence.evidenceVersion(),
+                    evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(),
+                    evidence.reissueRequestId(), command.operatorId());
+            applied |= transition(taskId, operation, task -> task.recordPolicyReissue(evidence, operation), true);
+        }
+        if (applied) {
+            if (!allEffectTasksApplied()) {
+                throw new MaintenanceValidationException("RecordMaintenanceCasePolicyReissueCommand", "taskIds",
+                        "案件生效任务未全部完成");
+            }
+            changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.APPLIED, "案件级保单补发单证请求回执已记录",
+                    command.operatorId());
+        }
+    }
+
     /** 出具保全凭证并完成凭证步骤；模板编码以案件冻结配置为准，不接受调用方自报。 */
     @CommandHandler
     public void handle(RecordMaintenanceDocumentCommand command) {
@@ -1580,7 +1698,7 @@ public class Maintenance extends BaseAggregate {
                 command.policyCode(), command.policyVersion(), command.policyContentHash(), command.policyYear(),
                 command.coolingOffDays(), command.refundType(), command.withinCoolingOff(), command.cashValueRate(),
                 command.retainedCustomerAmount(), command.internalCostRetentionRate(), LocalDateTime.now(),
-                command.updatedBy(), tenantId));
+                command.updatedBy(), tenantId, command.factors()));
     }
 
     /** 记录 Billing 入账检查点；POSTED 仅表示余额事实登记成功，不表示资金已结算。 */
@@ -1749,6 +1867,9 @@ public class Maintenance extends BaseAggregate {
         this.internalCostRetentionRate = event.internalCostRetentionRate();
         this.updateTime = event.recordedAt();
         this.updatedBy = event.updatedBy();
+        // 🔴 event.factors()（g05-06）刻意**不进聚合状态**：它是下游展示/对账用的明细，
+        //    本聚合的任何业务判定（含 sameSurrenderValue 幂等比较）都不依赖它 —— 存了也只是死字段。
+        //    读侧投影直接从事件取用，无需回查聚合。若将来出现「按明细判定」的行为，再补状态字段。
     }
 
     @EventSourcingHandler
@@ -2312,10 +2433,53 @@ public class Maintenance extends BaseAggregate {
      * 回执未覆盖的字段回落案件拟值——未执行的提案不臆造、已归一化的生效值不丢失。保全项本身不过滤：状态型
      * 保全（如保单中止）无字段明细，但仍是本次批改的内容。
      * </p>
+     * <p>
+     * 批单号同取自 Policy 回执（见 {@link #appliedEndorsementNo()}）——本域<b>不生成</b>批单号，仅搬运
+     * Policy 台账的权威值。
+     * </p>
      */
     private EndorsementDocument buildEndorsementDocument(LocalDateTime completedAt) {
         return EndorsementDocument.of(id.id(), policyId.id(), maintenanceType.getCode(), itemInstances,
-                appliedFieldValues(), specificEffectiveDate, completedAt, tenantId);
+                appliedFieldValues(), appliedEndorsementNo(), specificEffectiveDate, completedAt, tenantId);
+    }
+
+    /**
+     * 取本案的权威批单号：Policy 生效回执携带的批改文书号。
+     * <p>
+     * 🔴 <b>唯一事实源是 Policy 台账</b>：批单号由 policy 域在保单批改落账时生成（保单应用出口
+     * {@code PolicyMaintenanceHashing.stableEndorsementNo}），随回执回到本域。本域<b>不得</b>自行生成或补算
+     * ——自造一个号会让批单文书与保单台账的批改记录无法对上。
+     * </p>
+     * <p>
+     * <b>为何可为空</b>：案件五条生效出口中只有「保单交易出口」产生批单号，投资账户转换 / 保单贷款放款 /
+     * 保单贷款还款 / 保单补发四条出口的回执类型本身不含该编号（属业务事实，非数据缺失）。
+     * </p>
+     * <p>
+     * <b>多任务取值</b>：案件级回执对全部生效任务写入<b>同一份</b>证据（见
+     * {@code handle(RecordMaintenanceCasePolicyApplicationCommand)}），故各任务取值恒等；此处按「须唯一」
+     * 收敛并显式拒绝歧义，避免将来出现按任务分号时静默择一。
+     * </p>
+     *
+     * @return Policy 台账批单号；案件未走保单交易出口时为 {@code null}
+     * @throws MaintenanceValidationException 多个生效任务回执携带不同批单号（事实不自洽）
+     */
+    private String appliedEndorsementNo() {
+        if (workflowTasks == null) {
+            return null;
+        }
+        Set<String> endorsementNos = workflowTasks.stream()
+                .map(MaintenanceWorkflowTask::effectEvidence)
+                .filter(Objects::nonNull)
+                .map(MaintenanceEffectEvidence::application)
+                .filter(Objects::nonNull)
+                .map(MaintenancePolicyApplicationEvidence::endorsementNo)
+                .filter(no -> no != null && !no.isBlank())
+                .collect(Collectors.toSet());
+        if (endorsementNos.size() > 1) {
+            throw new MaintenanceValidationException(
+                    "EndorsementDocument", "endorsementNo", "同一案件各生效任务回执携带不同批单号");
+        }
+        return endorsementNos.isEmpty() ? null : endorsementNos.iterator().next();
     }
 
     /**
@@ -2756,10 +2920,24 @@ public class Maintenance extends BaseAggregate {
         };
     }
 
+    /**
+     * 判定该保全类型是否必须先在 Product/Billing 侧登记余额事实才能执行。
+     * <p>
+     * 🔴 减额缴清（{@code REDUCED_PAID_UP}）<b>不在此列</b>：它的资金动作是「既有现金价值直接转为趸缴保费」，
+     * 现金价值与趸缴净费率都取自保单域与产品域的既有事实（见 g04-05 出口），<b>不产生任何收付</b>——
+     * 既无应收（加费）也无应付（退费），故无 Product 差额、无 Billing 余额事实可登记。若把它纳入本判据，
+     * {@link ExecuteMaintenanceCommand} 处理器会因 {@code hasRecordedBalanceFact()} 恒假而拒绝执行，
+     * 使减额缴清案件<b>结构性无法生效</b>。
+     * </p>
+     * <p>
+     * 与「减保」的界限：{@code REDUCTION_PAYMENT}（减额缴费）与 {@code PARTIAL_WITHDRAWAL}（部分领取）
+     * 均有退费/支取资金流向保单持有人，故仍在列。
+     * </p>
+     */
     private boolean requiresPremiumSettlement() {
         return switch (maintenanceType) {
             case ADDITIONAL_PAYMENT, REDUCTION_PAYMENT, POLICY_TERMINATION, POLICY_PERIOD_CHANGE,
-                    COVERAGE_AMOUNT_CHANGE, COVERAGE_CHANGE, TOP_UP, PARTIAL_WITHDRAWAL, REDUCED_PAID_UP ->
+                    COVERAGE_AMOUNT_CHANGE, COVERAGE_CHANGE, TOP_UP, PARTIAL_WITHDRAWAL ->
                 true;
             default -> false;
         };

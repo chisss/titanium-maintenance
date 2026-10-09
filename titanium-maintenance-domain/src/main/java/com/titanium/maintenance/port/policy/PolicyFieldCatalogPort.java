@@ -12,6 +12,7 @@ import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
+import com.titanium.metadata.fieldcatalog.FieldAnalysisCapability;
 
 /** Maintenance 消费 Policy 字段目录的出口端口。 */
 public interface PolicyFieldCatalogPort {
@@ -33,12 +34,21 @@ public interface PolicyFieldCatalogPort {
         }
     }
 
-    /** Policy 返回且已通过防腐层校验的字段目录证据。 */
+    /**
+     * Policy 返回且已通过防腐层校验的字段目录证据。
+     *
+     * <p>🔴 {@code fallback} 与上游 {@code PolicyFieldCatalogResponse} 同名同义、同序：
+     * 为 {@code true} 表示「请求的业务日期早于目录最早版本」，本次取到的是**最早版本**而非该时点的
+     * 真实版本（上游的有意降级，不报错）。本域**不做二次判断也不据此拒绝**——它是上游的权威标记，
+     * 消费方的职责是把它当降级信号显式可见（适配器已在 fallback 时记 warn），
+     * 而不是在防腐层把它抹平。</p>
+     */
     record PolicyFieldCatalogEvidence(
             String tenantId,
             String productType,
             String policyType,
             LocalDate businessDate,
+            boolean fallback,
             String catalogVersion,
             String contentHash,
             List<PolicyFieldDescriptorEvidence> fields) {
@@ -87,7 +97,17 @@ public interface PolicyFieldCatalogPort {
         }
     }
 
-    /** Maintenance 侧的字段描述证据。 */
+    /**
+     * Maintenance 侧的字段描述证据。
+     *
+     * <p>🔴 分量与上游 {@code PolicyFieldDescriptorResponse} **逐位对齐**（含顺序），由
+     * {@code PolicyFieldCatalogContractGuardTest} 机械守护——上游加分量而本域漏加时**编译不会失败**，
+     * 只是该字段永远读不到（静默漂移）。
+     *
+     * <p>🔴 分析位只做**非空校验**，不复制 Policy 侧的四条业务不变量：其中两条依赖 valueType/collection
+     * （属描述符层级而非能力位层级，规则权威已在 Policy 构造期 fail-closed），跨域复制会造出第二套实现，
+     * 且本域没有承载这四条语义的错误码段。
+     */
     record PolicyFieldDescriptorEvidence(
             String fieldCode,
             PolicyFieldObjectType objectType,
@@ -98,7 +118,8 @@ public interface PolicyFieldCatalogPort {
             PolicyFieldCapabilityEvidence capability,
             PolicyFieldSensitivityLevel sensitivity,
             PolicyFieldMaskingPolicy maskingPolicy,
-            LocalDate deprecatedAt) {
+            LocalDate deprecatedAt,
+            FieldAnalysisCapability analysis) {
 
         public PolicyFieldDescriptorEvidence {
             fieldCode = requireText(fieldCode, "字段编码");
@@ -107,6 +128,9 @@ public interface PolicyFieldCatalogPort {
             if (objectType == null || valueType == null || capability == null
                     || sensitivity == null || maskingPolicy == null) {
                 throw validation("字段类型、能力和敏感策略不能为空");
+            }
+            if (analysis == null) {
+                throw validation("字段分析能力位缺失（Policy 契约漂移或反序列化丢字段）");
             }
             if (collection && objectIdentityField == null) {
                 throw validation("集合字段必须配置稳定业务对象标识");

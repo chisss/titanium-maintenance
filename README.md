@@ -20,7 +20,7 @@
 
 | 业务分组 | 服务 |
 |---|---|
-| 平台与运营 | [管理后台服务 `titanium-admin`](https://github.com/chisss/titanium-admin) · [功能中心域 `titanium-feature-center`](https://github.com/chisss/titanium-feature-center) |
+| 平台与运营 | [管理后台服务 `titanium-admin`](https://github.com/chisss/titanium-admin) · [特征中心域 `titanium-feature-center`](https://github.com/chisss/titanium-feature-center) |
 | 交易与履约 | [计费域 `titanium-billing`](https://github.com/chisss/titanium-billing) · [理赔域 `titanium-claim`](https://github.com/chisss/titanium-claim) · [投资域 `titanium-investment`](https://github.com/chisss/titanium-investment) · **[保全域 `titanium-maintenance`](https://github.com/chisss/titanium-maintenance)** · [支付域 `titanium-payment`](https://github.com/chisss/titanium-payment) |
 | 生态支撑 | [渠道域 `titanium-channel`](https://github.com/chisss/titanium-channel) · [文档域 `titanium-document`](https://github.com/chisss/titanium-document) · [通知域 `titanium-notification`](https://github.com/chisss/titanium-notification) |
 | 产品与承保 | [条款域 `titanium-clause`](https://github.com/chisss/titanium-clause) · [保单域 `titanium-policy`](https://github.com/chisss/titanium) · [产品域 `titanium-product`](https://github.com/chisss/titanium-product) · [核保域 `titanium-underwriting`](https://github.com/chisss/titanium-underwriting) |

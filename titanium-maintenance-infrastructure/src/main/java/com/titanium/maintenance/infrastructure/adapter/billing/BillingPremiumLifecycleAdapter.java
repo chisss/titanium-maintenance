@@ -43,7 +43,7 @@ public class BillingPremiumLifecycleAdapter implements BillingPremiumLifecyclePo
                 response.postingId(), response.adjustmentId(), response.resultHash(),
                 MaintenanceBalanceDirection.fromCode(response.direction()), response.amount(), response.currency(),
                 response.status(), response.refundInstructionId(), response.refundOrderId(), response.refundStatus(),
-                response.commissionAdjustmentCount());
+                response.commissionAdjustmentCount(), response.commissionClawbackAmount());
     }
 
     @Override

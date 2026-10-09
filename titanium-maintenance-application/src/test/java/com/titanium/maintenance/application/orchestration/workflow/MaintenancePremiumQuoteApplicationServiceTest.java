@@ -1,7 +1,9 @@
 package com.titanium.maintenance.application.orchestration.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -21,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import com.titanium.maintenance.application.command.premium.MaintenancePremiumQuoteInput;
+import com.titanium.maintenance.application.orchestration.configuration.MaintenanceFrozenConfigurationReader;
 import com.titanium.maintenance.command.RecordMaintenancePremiumQuoteCommand;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
@@ -35,6 +38,7 @@ import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.configuration.MaintenanceItemConfiguration;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.port.maintenance.MaintenanceUnderwritingPort;
+import com.titanium.maintenance.port.policy.PolicyFinancialPort;
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort;
 import com.titanium.maintenance.port.product.ProductMaintenancePremiumQuotePort.QuoteFact;
@@ -64,6 +68,7 @@ class MaintenancePremiumQuoteApplicationServiceTest {
     private MaintenanceSnapshotViewRepository snapshotRepository;
     private ProductMaintenancePremiumQuotePort productPort;
     private PolicyServicePort policyPort;
+    private PolicyFinancialPort financialPort;
     private ProductSurrenderValuePort surrenderPort;
     private MaintenanceWorkflowApplicationService service;
 
@@ -77,12 +82,13 @@ class MaintenancePremiumQuoteApplicationServiceTest {
         snapshotRepository = mock(MaintenanceSnapshotViewRepository.class);
         productPort = mock(ProductMaintenancePremiumQuotePort.class);
         policyPort = mock(PolicyServicePort.class);
+        financialPort = mock(PolicyFinancialPort.class);
         surrenderPort = mock(ProductSurrenderValuePort.class);
         service = new MaintenanceWorkflowApplicationService(
                 commandGateway, maintenanceRepository, taskRepository, itemRepository,
-                mock(MaintenanceFieldChangeViewRepository.class), configurationRepository,
+                mock(MaintenanceFieldChangeViewRepository.class), new MaintenanceFrozenConfigurationReader(configurationRepository),
                 new MaintenanceReviewPolicyEvaluator(), mock(MaintenanceUnderwritingPort.class),
-                snapshotRepository, productPort, policyPort, surrenderPort,
+                snapshotRepository, productPort, policyPort, financialPort, surrenderPort,
                 tenantId -> "Asia/Shanghai");
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
     }
@@ -145,6 +151,44 @@ class MaintenancePremiumQuoteApplicationServiceTest {
     }
 
     @Test
+    void shouldFallBackToBeforeSnapshotForAmountItemWithoutProposedSnapshot() {
+        visibleContext(MaintenanceFeeMode.REQUIRED, MaintenanceStepMode.REQUIRED,
+                MaintenanceWorkflowTaskStatus.READY, null);
+        // 🔴 ADDITIONAL_PAYMENT 是金额型保全项：结构上无可提案字段，「拟变更态」恒等于基准态，
+        // 其 proposed 快照永远不会被登记（改造前报价闸口对一切保全项硬性要求 proposed，整类被拦死）。
+        setTask("ADDITIONAL_PAYMENT", MaintenanceStepMode.REQUIRED,
+                MaintenanceWorkflowTaskStatus.READY, null);
+        setItemAndConfiguration("ADDITIONAL_PAYMENT", MaintenanceFeeMode.REQUIRED);
+        when(snapshotRepository.findByMaintenanceIdAndTenantId("case-1", "tenant-1"))
+                .thenReturn(Optional.of(beforeOnlySnapshots()));
+        when(productPort.quote(any())).thenAnswer(invocation -> quoteFact(invocation.getArgument(0), false));
+
+        var result = service.quotePremium(input()).join();
+
+        assertEquals(MaintenancePremiumQuoteStatus.QUOTED, result.status());
+        ArgumentCaptor<QuoteRequest> request = ArgumentCaptor.forClass(QuoteRequest.class);
+        verify(productPort).quote(request.capture());
+        // 回落必须是「逐字段相同」的同一引用：不臆造一个并不存在的存储对象，也不改保单版本。
+        assertEquals(request.getValue().beforeSnapshot(), request.getValue().proposedSnapshot());
+    }
+
+    @Test
+    void shouldStillRequireProposedSnapshotForFieldItem() {
+        visibleContext(MaintenanceFeeMode.REQUIRED, MaintenanceStepMode.REQUIRED,
+                MaintenanceWorkflowTaskStatus.READY, null);
+        when(snapshotRepository.findByMaintenanceIdAndTenantId("case-1", "tenant-1"))
+                .thenReturn(Optional.of(beforeOnlySnapshots()));
+
+        MaintenanceValidationException exception = assertThrows(
+                MaintenanceValidationException.class, () -> service.quotePremium(input()));
+
+        // 判据取「目录载荷种类」而非「快照是否为 null」：字段型案件缺 proposed 是「草稿还没做」，
+        // 若按 null 一律回落，会把漏做草稿静默计价为「无结构变更」。
+        assertTrue(exception.getMessage().contains("before/proposed 快照引用"));
+        verify(productPort, never()).quote(any());
+    }
+
+    @Test
     void shouldRejectExpiredProductQuoteWithoutWritingEvent() {
         visibleContext(MaintenanceFeeMode.REQUIRED, MaintenanceStepMode.REQUIRED,
                 MaintenanceWorkflowTaskStatus.READY, null);
@@ -169,6 +213,9 @@ class MaintenancePremiumQuoteApplicationServiceTest {
                 .thenReturn(new PolicyServicePort.PolicyFinancialSnapshot(
                         "product-1", "issuance-biz-1", LocalDate.parse("2026-01-01"),
                         new BigDecimal("121.20"), "CNY"));
+        // 退费输入事实走 g04-02 取数契约（与勾稽快照分属两个端口）
+        when(financialPort.getFinancialSnapshot("policy-1", "tenant-1"))
+                .thenReturn(financialData());
         when(surrenderPort.calculate(any())).thenReturn(surrenderFact());
 
         var result = service.quotePremium(input()).join();
@@ -183,6 +230,13 @@ class MaintenancePremiumQuoteApplicationServiceTest {
         assertEquals("issuance-biz-1", request.getValue().originalBizNo());
         assertEquals("original-calc", request.getValue().originalCalculationId());
         assertEquals(LocalDate.parse("2026-08-27"), request.getValue().surrenderDate());
+        // 退费口径事实由 g04-02 取数契约搬运，不得从勾稽快照取（两次读会读到两个保单版本）
+        assertEquals(new BigDecimal("3650.00"), request.getValue().annualPremium());
+        assertEquals(LocalDate.parse("2026-12-31"), request.getValue().coverageEndDate());
+        assertFalse(request.getValue().premiumPaidUp());
+        // 贷款未偿本息同属 g04-03 取数契约，报价必须原样搬运：漏传会让客户看到虚高的应退金额
+        assertEquals(0, request.getValue().loanOutstandingPrincipal().compareTo(new BigDecimal("1000.00")));
+        assertEquals(0, request.getValue().loanOutstandingInterest().compareTo(new BigDecimal("50.00")));
         ArgumentCaptor<RecordMaintenancePremiumQuoteCommand> command =
                 ArgumentCaptor.forClass(RecordMaintenancePremiumQuoteCommand.class);
         verify(commandGateway).send(command.capture());
@@ -210,6 +264,9 @@ class MaintenancePremiumQuoteApplicationServiceTest {
                 .thenReturn(new PolicyServicePort.PolicyFinancialSnapshot(
                         "product-1", "issuance-biz-1", LocalDate.parse("2026-01-01"),
                         new BigDecimal("121.20"), "CNY"));
+        // 退费输入事实走 g04-02 取数契约（与勾稽快照分属两个端口）
+        when(financialPort.getFinancialSnapshot("policy-1", "tenant-1"))
+                .thenReturn(financialData());
         when(surrenderPort.calculate(any())).thenReturn(fact);
 
         service.quotePremium(input()).join();
@@ -323,6 +380,16 @@ class MaintenancePremiumQuoteApplicationServiceTest {
         return view;
     }
 
+    /** 基准快照已登记、拟变更快照尚未登记的读模型——金额型保全项的常态。 */
+    private MaintenanceSnapshotView beforeOnlySnapshots() {
+        MaintenanceSnapshotView view = snapshots();
+        view.setProposedStorageKey(null);
+        view.setProposedContentHash(null);
+        view.setProposedPolicyVersion(null);
+        view.setProposedCapturedAt(null);
+        return view;
+    }
+
     private MaintenancePremiumQuoteInput input() {
         return new MaintenancePremiumQuoteInput(
                 "case-1", "fee-task", "operation-1", "ENDORSEMENT", "original-calc",
@@ -344,6 +411,16 @@ class MaintenancePremiumQuoteApplicationServiceTest {
                 "plan-v2", "1".repeat(64), request.idempotencyKey(), request.payloadHash(),
                 "2".repeat(64), "DEBIT 20 CNY; lines=1", MaintenanceBalanceDirection.DEBIT,
                 new BigDecimal("20"), "CNY", quotedAt, quotedAt.plusHours(24));
+    }
+
+    /** 退费输入事实（g04-02 取数契约）；与勾稽快照分属两个端口，刻意不共用夹具。 */
+    private static PolicyFinancialPort.PolicyFinancialData financialData() {
+        return new PolicyFinancialPort.PolicyFinancialData(
+                "policy-1", new BigDecimal("8800.00"), new BigDecimal("50000"), "PP-MAIN",
+                new BigDecimal("1000.00"), new BigDecimal("50.00"), BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                LocalDate.parse("2026-01-01"), 1,
+                "issuance-biz-1", new BigDecimal("3650.00"), LocalDate.parse("2026-12-31"), false);
     }
 
     private SurrenderFact surrenderFact() {

@@ -33,6 +33,8 @@ import com.titanium.maintenance.query.result.MaintenanceCaseDetailQueryResult.Wo
 import com.titanium.maintenance.query.result.MaintenanceCaseDetailQueryResult.WorkflowUnderwritingEvidenceQueryResult;
 import com.titanium.maintenance.query.result.MaintenanceCasePageQueryResult;
 import com.titanium.maintenance.query.result.MaintenanceCasePageQueryResult.MaintenanceCaseSummaryQueryResult;
+import com.titanium.maintenance.query.result.MaintenanceHistoryQueryResult;
+import com.titanium.maintenance.query.result.MaintenanceHistoryQueryResult.FieldChangeHistory;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCaseDetailVO;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCaseDetailVO.EffectCompensationVO;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCaseDetailVO.EffectScheduleVO;
@@ -62,6 +64,7 @@ import com.titanium.maintenance.web.response.casecreation.MaintenanceCaseDetailV
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCaseDetailVO.WorkflowUnderwritingEvidenceVO;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCasePageVO;
 import com.titanium.maintenance.web.response.casecreation.MaintenanceCasePageVO.MaintenanceCaseSummaryVO;
+import com.titanium.maintenance.web.response.casecreation.MaintenanceHistoryVO;
 
 /**
  * 独立保全案件 Query 结果到 Web VO 的协议映射（MapStruct 声明式）
@@ -88,6 +91,13 @@ public interface MaintenanceCaseQueryWebMapper {
     /** 案件详情查询结果 → 详情响应（caseId ← maintenanceId） */
     @Mapping(target = "caseId", source = "maintenanceId")
     MaintenanceCaseDetailVO toDetailVO(MaintenanceCaseDetailQueryResult result);
+
+    /** 跨案历史查询结果 → 历史响应（caseId ← maintenanceId；maintenanceNo 保留原名，与分页行一致） */
+    @Mapping(target = "caseId", source = "maintenanceId")
+    MaintenanceHistoryVO toHistoryVO(MaintenanceHistoryQueryResult result);
+
+    /** 字段级历史行 → 历史行响应 */
+    MaintenanceHistoryVO.FieldChangeHistoryVO toFieldChangeHistoryVO(FieldChangeHistory field);
 
     /** 生效补偿证据 → VO */
     EffectCompensationVO toEffectCompensationVO(EffectCompensationQueryResult compensation);

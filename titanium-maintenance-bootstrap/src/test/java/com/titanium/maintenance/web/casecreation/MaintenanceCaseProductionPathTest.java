@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.asyncDispatch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -31,6 +32,8 @@ import com.titanium.common.context.RequestContextInterceptor;
 import com.titanium.maintenance.application.command.casecreation.MaintenanceCaseCommandService;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceCaseCreationApplicationService;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceFieldDraftApplicationService;
+import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceInFlightAdmissionPolicy;
+import com.titanium.maintenance.application.orchestration.configuration.MaintenanceFrozenConfigurationReader;
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceEffectApplicationService;
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceEffectScheduleApplicationService;
 import com.titanium.maintenance.application.orchestration.workflow.MaintenanceFieldConflictApplicationService;
@@ -54,9 +57,13 @@ import com.titanium.maintenance.infrastructure.adapter.product.ProductMaintenanc
 import com.titanium.maintenance.infrastructure.client.policy.PolicyFieldCatalogClient;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
 import com.titanium.maintenance.infrastructure.client.product.ProductMaintenanceOfferingClient;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConditionRulePort;
 import com.titanium.maintenance.port.tenant.TenantTimeZonePort;
+import com.titanium.maintenance.query.repository.MaintenanceCaseItemViewRepository;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
+import com.titanium.maintenance.query.view.MaintenanceCaseItemView;
 import com.titanium.maintenance.query.view.MaintenanceView;
+import com.titanium.maintenance.repository.MaintenanceExclusionRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.StoredConfiguration;
 import com.titanium.maintenance.web.controller.cases.MaintenanceCaseCreationController;
@@ -66,6 +73,7 @@ import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
+import com.titanium.metadata.fieldcatalog.FieldAnalysisCapability;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldCapabilityResponse;
 import com.titanium.policy.api.response.fieldcatalog.PolicyFieldCatalogResponse;
@@ -98,10 +106,14 @@ class MaintenanceCaseProductionPathTest {
                 "tenant-1", "BENEFICIARY_CHANGE", LocalDateTime.parse("2026-08-01T00:00:00")))
                 .thenReturn(Optional.of(beneficiaryConfiguration));
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
+        // 在途冲突门面用**真实实现**而非 mock：本用例是生产路径集成测试，mock 掉闸口等于把新增的
+        // 在途/互斥准入从被测路径中摘除。读模型与互斥配置仓储均为空实现 ⇒ 无在途案件，闸口放行。
+        MaintenanceInFlightAdmissionPolicy inFlightAdmissionPolicy = new MaintenanceInFlightAdmissionPolicy(
+                mock(MaintenanceViewRepository.class), mock(MaintenanceExclusionRepository.class));
         MaintenanceCaseCreationApplicationService applicationService = new MaintenanceCaseCreationApplicationService(
                 new PolicyMaintenanceSnapshotAdapter(policyClient),
                 new ProductMaintenanceOfferingAdapter(productClient), configurationRepository, commandGateway,
-                mock(MaintenanceViewRepository.class), mock(TenantTimeZonePort.class));
+                mock(MaintenanceViewRepository.class), mock(TenantTimeZonePort.class), inFlightAdmissionPolicy);
         MockMvc mockMvc = MockMvcBuilders.standaloneSetup(
                         controller(new MaintenanceCaseCommandService(
                                 applicationService, mock(MaintenanceFieldDraftApplicationService.class),
@@ -167,9 +179,29 @@ class MaintenanceCaseProductionPathTest {
         when(fieldCatalogClient.getCurrentCatalog(null, null, LocalDate.of(2026, 8, 1)))
                 .thenReturn(ApiResponse.success(fieldCatalog()));
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
+        // 案件冻结配置证据：item 读模型三元（保全项编码 + 配置版本 + 内容哈希）与配置逐项一致，
+        // 字段规则为空集 ⇒ 本路径不产生条件规则求值（conditionRulePort 全程零交互）。
+        StoredConfiguration configuration = storedConfiguration("POLICY_INFO_CHANGE");
+        MaintenanceItemConfiguration frozen = configuration.configuration();
+        MaintenanceCaseItemView itemView = new MaintenanceCaseItemView();
+        itemView.setItemCode("POLICY_INFO_CHANGE");
+        itemView.setConfigurationId(frozen.getConfigurationId());
+        itemView.setConfigurationVersion(frozen.getDefinition().version());
+        itemView.setConfigurationContentHash(frozen.getContentHash());
+        MaintenanceCaseItemViewRepository caseItemViewRepository = mock(MaintenanceCaseItemViewRepository.class);
+        when(caseItemViewRepository.findByTenantIdAndMaintenanceIdAndItemCode(
+                "tenant-1", "maintenance-1", "POLICY_INFO_CHANGE"))
+                .thenReturn(Optional.of(itemView));
+        MaintenanceItemConfigurationRepository configurationRepository =
+                mock(MaintenanceItemConfigurationRepository.class);
+        when(configurationRepository.findById("tenant-1", frozen.getConfigurationId()))
+                .thenReturn(Optional.of(configuration));
+        MaintenanceConditionRulePort conditionRulePort = mock(MaintenanceConditionRulePort.class);
         MaintenanceFieldDraftApplicationService fieldDraftService = new MaintenanceFieldDraftApplicationService(
                 new PolicyMaintenanceSnapshotAdapter(policyClient),
-                new PolicyFieldCatalogAdapter(fieldCatalogClient), commandGateway, maintenanceViewRepository);
+                new PolicyFieldCatalogAdapter(fieldCatalogClient), commandGateway, maintenanceViewRepository,
+                caseItemViewRepository, new MaintenanceFrozenConfigurationReader(configurationRepository),
+                conditionRulePort);
         MaintenanceCaseCommandService commandService = new MaintenanceCaseCommandService(
                 mock(MaintenanceCaseCreationApplicationService.class), fieldDraftService,
                 mock(MaintenanceWorkflowApplicationService.class),
@@ -211,6 +243,8 @@ class MaintenanceCaseProductionPathTest {
         verify(policyClient).getMaintenanceSnapshot("policy-1");
         verify(fieldCatalogClient).getCurrentCatalog(null, null, LocalDate.of(2026, 8, 1));
         verify(commandGateway).send(any());
+        // 冻结配置未声明 conditionRuleCode ⇒ 受理路径不得凭空调用规则引擎（无规则可问时不得造规则）
+        verifyNoInteractions(conditionRulePort);
     }
 
     private MaintenanceCaseCreationController controller(MaintenanceCaseCommandService commandService) {
@@ -241,9 +275,12 @@ class MaintenanceCaseProductionPathTest {
         PolicyFieldDescriptorResponse mobile = new PolicyFieldDescriptorResponse(
                 "policy.holder.mobile", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
                 "policy.field.holder.mobile", false, null, capability,
-                PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null);
+                PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null,
+                // 分析位口径与 Policy 真实目录一致（TEXT 非集合 ⇒ 可分析/可过滤，不可聚合/不可分组）
+                new FieldAnalysisCapability(true, false, false, true));
+        // fallback=false：本用例走正常命中的受理路径，不涉及「业务日期早于最早版本」的降级口径
         return new PolicyFieldCatalogResponse(
-                "tenant-1", null, null, LocalDate.of(2026, 8, 1),
+                "tenant-1", null, null, LocalDate.of(2026, 8, 1), false,
                 "catalog-v1", "d".repeat(64), List.of(mobile));
     }
 

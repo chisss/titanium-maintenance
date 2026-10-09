@@ -24,7 +24,10 @@ public enum MaintenanceWorkflowAction implements BaseEnum {
     WITHDRAW_ITEM(15, "WITHDRAW_ITEM", "撤销保全项目"),
     RECORD_DOCUMENT(16, "RECORD_DOCUMENT", "出具凭证"),
     COMPLETE_ITEM(17, "COMPLETE_ITEM", "完成保全项目"),
-    RECORD_INVESTMENT_SWITCH(18, "RECORD_INVESTMENT_SWITCH", "记录投资账户转换回执");
+    RECORD_INVESTMENT_SWITCH(18, "RECORD_INVESTMENT_SWITCH", "记录投资账户转换回执"),
+    RECORD_LOAN_DISBURSEMENT(19, "RECORD_LOAN_DISBURSEMENT", "记录保单贷款放款回执"),
+    RECORD_LOAN_REPAYMENT(20, "RECORD_LOAN_REPAYMENT", "记录保单贷款还款回执"),
+    RECORD_POLICY_REISSUE(21, "RECORD_POLICY_REISSUE", "记录保单补发单证请求回执");
 
     private final Integer enumCode;
     private final String  code;

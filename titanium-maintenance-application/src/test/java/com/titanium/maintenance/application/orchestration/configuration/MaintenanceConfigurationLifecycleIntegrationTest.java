@@ -33,10 +33,10 @@ import com.titanium.maintenance.configuration.control.MaintenanceChannelCapabili
 import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
 import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
-import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationAuditPage;
 import com.titanium.maintenance.repository.MaintenanceItemConfigurationRepository.ConfigurationPage;
@@ -47,6 +47,7 @@ import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
+import com.titanium.metadata.fieldcatalog.FieldAnalysisCapability;
 
 class MaintenanceConfigurationLifecycleIntegrationTest {
 
@@ -119,10 +120,11 @@ class MaintenanceConfigurationLifecycleIntegrationTest {
         PolicyFieldDescriptorEvidence field = new PolicyFieldDescriptorEvidence(
                 "policy.holder.mobile", PolicyFieldObjectType.POLICY_HOLDER, PolicyFieldValueType.TEXT,
                 "policy.holder.mobile", false, null, capability,
-                PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null);
+                PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null,
+                new FieldAnalysisCapability(true, false, false, true));
         return new PolicyFieldCatalogEvidence(
                 TENANT_ID, "LIFE", "INDIVIDUAL", businessDate,
-                "catalog-v1", "a".repeat(64), List.of(field));
+                false, "catalog-v1", "a".repeat(64), List.of(field));
     }
 
     private MaintenanceConfigurationOperationContext context(String operatorId, int minuteOffset) {

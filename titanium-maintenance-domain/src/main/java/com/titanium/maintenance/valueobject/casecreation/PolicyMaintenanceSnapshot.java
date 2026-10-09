@@ -2,6 +2,7 @@ package com.titanium.maintenance.valueobject.casecreation;
 
 import java.time.OffsetDateTime;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
@@ -12,6 +13,7 @@ import com.titanium.maintenance.valueobject.PolicyId;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldValue;
 import com.titanium.maintenance.valueobject.change.MaintenanceSnapshotReference;
 import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
+import com.titanium.metadata.enums.policy.PolicyServiceRestrictionType;
 
 /** Policy 提供并由案件冻结的不可变建案基准快照。 */
 public record PolicyMaintenanceSnapshot(
@@ -23,6 +25,7 @@ public record PolicyMaintenanceSnapshot(
         String productVersion,
         String planVersion,
         PolicyStatus policyStatus,
+        List<PolicyServiceRestrictionType> serviceRestrictionTypes,
         long policyVersion,
         OffsetDateTime businessEffectiveAt,
         OffsetDateTime nextBillingDateAt,
@@ -41,6 +44,8 @@ public record PolicyMaintenanceSnapshot(
         if (policyStatus == null) {
             throw validation("policyStatus", "保单状态不能为空");
         }
+        serviceRestrictionTypes = serviceRestrictionTypes == null
+                ? List.of() : List.copyOf(serviceRestrictionTypes);
         if (policyVersion < 0) {
             throw validation("policyVersion", "保单基准版本不能为负数");
         }
@@ -71,11 +76,24 @@ public record PolicyMaintenanceSnapshot(
             MaintenanceSnapshotReference beforeSnapshot,
             Map<String, MaintenanceFieldValue> fieldValues) {
         this(tenantId, policyId, policyNumber, customerId, productId, productVersion, planVersion,
-                policyStatus, policyVersion, businessEffectiveAt, null, null, beforeSnapshot, fieldValues);
+                policyStatus, List.of(), policyVersion, businessEffectiveAt, null, null, beforeSnapshot,
+                fieldValues);
     }
 
     public boolean active() {
         return policyStatus == PolicyStatus.EFFECTIVE;
+    }
+
+    /**
+     * 保单在建案时点是否处于<b>服务受限</b>之下（挂失等）。
+     * <p>
+     * 🔴 这是保全受理侧的<b>前置准入</b>判据，不是权威判据：快照来自读模型（最终一致），
+     * 权威拒绝在保单域写侧聚合（{@code Policy.serviceRestricted()}）。此处前置只求「明显受限的
+     * 案件不进入流程」，避免走完审批才在生效环节被拒。
+     * </p>
+     */
+    public boolean serviceRestricted() {
+        return !serviceRestrictionTypes.isEmpty();
     }
 
     /**
@@ -96,6 +114,7 @@ public record PolicyMaintenanceSnapshot(
                 && Objects.equals(productVersion, other.productVersion)
                 && Objects.equals(planVersion, other.planVersion)
                 && Objects.equals(policyStatus, other.policyStatus)
+                && Objects.equals(serviceRestrictionTypes, other.serviceRestrictionTypes)
                 && policyVersion == other.policyVersion
                 && Objects.equals(businessEffectiveAt, other.businessEffectiveAt)
                 && Objects.equals(nextBillingDateAt, other.nextBillingDateAt)

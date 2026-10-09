@@ -119,7 +119,8 @@ public class PolicyMaintenanceSnapshotAdapter implements PolicyMaintenanceSnapsh
         return new PolicyMaintenanceSnapshot(
                 response.tenantId(), new PolicyId(response.policyId()), response.policyNumber(),
                 new CustomerId(response.customerId()), response.productId(), response.productVersion(),
-                response.planVersion(), response.policyStatus(), response.policyVersion(),
+                response.planVersion(), response.policyStatus(), response.serviceRestrictionTypes(),
+                response.policyVersion(),
                 response.businessEffectiveAt(), response.nextBillingDateAt(), response.nextPolicyAnniversaryAt(),
                 reference, fieldValues(response.fieldValues()));
     }

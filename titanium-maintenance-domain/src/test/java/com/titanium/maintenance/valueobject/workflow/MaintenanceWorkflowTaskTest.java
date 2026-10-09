@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -77,6 +78,41 @@ class MaintenanceWorkflowTaskTest {
         assertEquals(1, retried.retryCount());
         assertNull(retried.assignment());
         assertNull(retried.failure());
+    }
+
+    /**
+     * 生效前核定拒绝（未发起 Policy 请求）同样须落库为生效失败。
+     * <p>
+     * 🔴 反例背景（g04-05 AC-06 真机暴露）：减额缴清「新保额 &gt; 原保额」在冻结请求<b>之前</b>拒绝，
+     * 若本形态不被接受，失败通道只能以状态机错误（71000004）告终，真正的业务原因随之丢失。
+     * </p>
+     */
+    @Test
+    void shouldRecordPreRequestEffectRejectionWithoutRequestEvidence() {
+        MaintenanceWorkflowTask rejected = task(
+                MaintenanceStepType.EFFECT, MaintenanceStepMode.REQUIRED,
+                MaintenanceWorkflowTaskStatus.READY)
+                .failEffect(operation("op-fail-effect", MaintenanceWorkflowAction.FAIL_EFFECT,
+                        null, null, "REDUCED_PAID_UP_FAILED", "减额缴清新保额超过原保额", "effect-service"));
+
+        assertEquals(MaintenanceWorkflowTaskStatus.FAILED, rejected.status());
+        assertEquals("REDUCED_PAID_UP_FAILED", rejected.failure().failureCode());
+        assertEquals("减额缴清新保额超过原保额", rejected.failure().failureReason());
+        assertNull(rejected.effectEvidence(), "未发起 Policy 请求 ⇒ 不得伪造请求证据");
+    }
+
+    /** 生效步骤尚未开始（PENDING）时不得记录生效失败——本通道仅对「已开始生效」的任务开放。 */
+    @Test
+    void shouldRejectEffectFailureOnTaskNotYetAtEffectStep() {
+        MaintenanceWorkflowTask pending = task(
+                MaintenanceStepType.EFFECT, MaintenanceStepMode.REQUIRED,
+                MaintenanceWorkflowTaskStatus.PENDING);
+
+        MaintenanceConflictException error = assertThrows(MaintenanceConflictException.class,
+                () -> pending.failEffect(operation("op-fail-effect", MaintenanceWorkflowAction.FAIL_EFFECT,
+                        null, null, "REDUCED_PAID_UP_FAILED", "减额缴清新保额超过原保额", "effect-service")));
+
+        assertTrue(error.getMessage().contains("当前生效任务状态不允许记录生效失败"), error.getMessage());
     }
 
     @Test

@@ -12,8 +12,10 @@ import com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest;
 import com.titanium.maintenance.api.request.CreateMaintenanceRequest;
 import com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest;
 import com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest;
+import com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
+import com.titanium.maintenance.api.response.MaintenanceSurrenderSettlementResponse;
 import com.titanium.maintenance.application.command.premium.MaintenancePremiumSettlementCommandService;
 import com.titanium.maintenance.application.service.MaintenanceApplicationService;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
@@ -94,6 +96,24 @@ public class MaintenanceApiProvider implements MaintenanceApi {
         return ApiResponse.success(maintenanceWebMapper.toSettlementResponse(
                 premiumSettlementCommandService.settleReversal(id, RequestContextHolder.requireTenantId(),
                         maintenanceWebMapper.toReversalSettlementInput(request))));
+    }
+
+    /**
+     * 退保结算（api 入口）。
+     * <p>
+     * 与 web 入口 {@code MaintenanceController#settleSurrender} 平行收敛：两侧各经
+     * {@link MaintenanceWebMapper} 转出**同一个** {@code MaintenanceSurrenderSettlementInput}，调用**同一个**
+     * {@link MaintenancePremiumSettlementCommandService#settleSurrender}。本方法刻意**不**复用 web 控制器的
+     * 任何代码路径，两侧互不依赖；其对称性由 {@code SurrenderSettlementEntrySymmetryTest} 以「交入门面的实参
+     * 逐字相等」守住。
+     * </p>
+     */
+    @Override
+    public ApiResponse<MaintenanceSurrenderSettlementResponse> settleSurrender(
+            String id, SettleMaintenanceSurrenderRequest request) {
+        return ApiResponse.success(maintenanceWebMapper.toSurrenderSettlementResponse(
+                premiumSettlementCommandService.settleSurrender(id, RequestContextHolder.requireTenantId(),
+                        maintenanceWebMapper.toSurrenderSettlementInput(request))));
     }
 
     @Override

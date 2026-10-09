@@ -1,9 +1,11 @@
 package com.titanium.maintenance.aggregate;
 
 import static org.axonframework.test.matchers.Matchers.exactSequenceOf;
+import static org.axonframework.test.matchers.Matchers.matches;
 import static org.axonframework.test.matchers.Matchers.payloadsMatching;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -492,7 +494,10 @@ class MaintenanceWorkflowTransitionAggregateTest {
                 .expectEventsMatching(payloadsMatching(exactSequenceOf(
                         instanceOf(MaintenanceWorkflowTaskTransitionedEvent.class),
                         instanceOf(MaintenanceEffectStatusChangedEvent.class),
-                        instanceOf(MaintenanceEndorsementIssuedEvent.class))))
+                        // 🔴 AC-09（事件侧）：批单号取自 Policy 生效回执、逐字进入对外事件载荷——本域不得重算
+                        //    （与 policy 台账的凭证号、document 域入参构成「三方逐字一致」的中段）
+                        matches((Object event) -> event instanceof MaintenanceEndorsementIssuedEvent issued
+                                && receipt.endorsementNo().equals(issued.document().endorsementNo())))))
                 .expectState(aggregate -> {
                     assertEquals(MaintenanceEffectStatus.APPLIED, aggregate.getEffectStatus(),
                             "批单出具事件须与案件生效完成同刻发布");
@@ -611,6 +616,30 @@ class MaintenanceWorkflowTransitionAggregateTest {
                     MaintenanceWorkflowTask task = aggregate.getWorkflowTasks().getFirst();
                     assertEquals(MaintenanceWorkflowTaskStatus.FAILED, task.status());
                     assertEquals(request, task.effectEvidence().request());
+                    assertEquals(MaintenanceEffectStatus.FAILED, aggregate.getEffectStatus());
+                });
+    }
+
+    /**
+     * 生效前核定拒绝（未发起 Policy 请求）走同一失败通道，且不得伪造请求证据。
+     * <p>
+     * 🔴 反例背景（g04-05 AC-06 真机暴露）：减额缴清「新保额 &gt; 原保额」在冻结请求之前拒绝。
+     * 未发起请求时任务停在 {@code READY} 且无请求证据，本用例锁死该形态可达；一旦守卫回退为
+     * 「必须有请求证据」，聚合层立刻 RED。
+     * </p>
+     */
+    @Test
+    void shouldRecordPreRequestEffectRejectionWithoutFabricatingRequestEvidence() {
+        fixture.given(createdEvent(), initializedEvent(), effectWorkflowInitializedEvent())
+                .when(new FailMaintenanceCaseEffectCommand(
+                        ID, List.of(EFFECT_TASK_ID), "effect-failure-before-request",
+                        "REDUCED_PAID_UP_FAILED", "减额缴清新保额超过原保额，不构成减额",
+                        "effect-service", "tenant-1"))
+                .expectSuccessfulHandlerExecution()
+                .expectState(aggregate -> {
+                    MaintenanceWorkflowTask task = aggregate.getWorkflowTasks().getFirst();
+                    assertEquals(MaintenanceWorkflowTaskStatus.FAILED, task.status());
+                    assertNull(task.effectEvidence(), "未发起 Policy 请求 ⇒ 不得伪造请求证据");
                     assertEquals(MaintenanceEffectStatus.FAILED, aggregate.getEffectStatus());
                 });
     }

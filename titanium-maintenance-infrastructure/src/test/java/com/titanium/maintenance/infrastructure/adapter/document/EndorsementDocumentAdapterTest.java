@@ -1,6 +1,7 @@
 package com.titanium.maintenance.infrastructure.adapter.document;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -18,6 +19,7 @@ import java.util.concurrent.CompletableFuture;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 
@@ -39,14 +41,17 @@ import com.titanium.maintenance.valueobject.endorsement.EndorsementItem;
  * 且无从对账；抛出后由出站处理组重试并最终入 DLQ 重投。
  * </p>
  * <p>
- * 另断言线格式为要素 POJO 本身（由生产者 value serializer 序列化），<b>不得</b>二次编码为字符串。
- * 纯 mockito，不启动容器。
+ * 另断言线格式为要素 POJO 本身（由生产者 value serializer 序列化），<b>不得</b>二次编码为字符串；
+ * 并断言<b>批单号逐字上线</b>——它是 AC-09「policy 台账 == maintenance 事件 == document 入参」三方一致的
+ * 出站一环，一旦在此被重算或改写，下游文件名即与保单台账对不上。纯 mockito，不启动容器。
  * </p>
  */
 class EndorsementDocumentAdapterTest {
 
     private static final String        MAINTENANCE_ID = "MNT-20260914-0001";
     private static final String        POLICY_ID      = "POL-20260914-0001";
+    /** 批单号取一个与本域任何派生算法都不可能撞上的字面量：断言「逐字上线」而非「可复算」 */
+    private static final String        ENDORSEMENT_NO = "END-20260914-0001";
     private static final String        TENANT_ID      = "TENANT-A";
     private static final LocalDateTime NOW            = LocalDateTime.of(2026, 9, 14, 10, 0);
 
@@ -85,6 +90,21 @@ class EndorsementDocumentAdapterTest {
     }
 
     @Test
+    @DisplayName("🔴 AC-09（出站侧）：批单号逐字进入线上载荷，document 域据此派生文件名")
+    void shouldPublishEndorsementNoVerbatim() {
+        adapter.archiveEndorsementDocument(endorsementDocument());
+
+        ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+        verify(kafkaTemplate).send(eq(MaintenanceConstants.KafkaTopic.MAINTENANCE_ENDORSEMENT_ISSUED),
+                eq(MAINTENANCE_ID), captor.capture());
+
+        EndorsementDocument published = assertInstanceOf(EndorsementDocument.class, captor.getValue(),
+                "线上载荷须为要素 POJO，批单号在其 endorsementNo 分量上");
+        assertEquals(ENDORSEMENT_NO, published.endorsementNo(),
+                "批单号须逐字上线：本域只搬运 Policy 台账权威值，不得重算或改写");
+    }
+
+    @Test
     @DisplayName("🔴 发布失败必须抛出（不静默丢弃），否则批单不会进死信队列、无法重投")
     void shouldThrowWhenSendFails() {
         CompletableFuture<SendResult<String, Object>> failed = CompletableFuture
@@ -103,7 +123,7 @@ class EndorsementDocumentAdapterTest {
 
     /** 构造批单要素（含一个保全项与一条字段变更，覆盖嵌套结构） */
     private static EndorsementDocument endorsementDocument() {
-        return new EndorsementDocument(MAINTENANCE_ID, POLICY_ID, "POLICY_INFO_CHANGE",
+        return new EndorsementDocument(MAINTENANCE_ID, POLICY_ID, ENDORSEMENT_NO, "POLICY_INFO_CHANGE",
                 List.of(new EndorsementItem("POLICY_INFO_CHANGE", "保单信息变更",
                         List.of(new EndorsementFieldChange("policy-1", "policy.holder.mobile", "13800000000",
                                 "13900000000")))),

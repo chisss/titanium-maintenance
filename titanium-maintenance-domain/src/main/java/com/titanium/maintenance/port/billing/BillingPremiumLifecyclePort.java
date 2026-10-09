@@ -21,6 +21,13 @@ public interface BillingPremiumLifecyclePort {
             String createdBy) {
     }
 
+    /**
+     * 入账事实。
+     * <p>
+     * 🔴 {@code commissionClawbackAmount} 为**需回拨佣金合计**，由 billing（佣金调整的生成方）
+     * 计算后**原样搬运**——本域不按类型二次求和，避免形成第二套佣金口径（R-11）。
+     * </p>
+     */
     record PostingFact(
             String postingId,
             String adjustmentId,
@@ -32,7 +39,8 @@ public interface BillingPremiumLifecyclePort {
             String refundInstructionId,
             String refundOrderId,
             String refundStatus,
-            Integer commissionAdjustmentCount) {
+            Integer commissionAdjustmentCount,
+            BigDecimal commissionClawbackAmount) {
     }
 
     record ReversalRequest(

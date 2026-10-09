@@ -10,11 +10,23 @@ import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 
-/** 保全项的渠道、材料、审批、费用、权限与输出控制。 */
+/** 保全项的渠道、材料、审批、费用、权限、输出与额度控制。 */
 public record MaintenanceItemControls(Set<MaintenanceChannelCapability> channelCapabilities,
         List<MaintenanceMaterialRequirement> materialRequirements, Set<String> crossFieldRuleCodes,
         String approvalPolicyCode, MaintenanceFeeRule feeRule, MaintenanceAccessRule accessRule,
-        MaintenanceOutputRule outputRule) {
+        MaintenanceOutputRule outputRule, MaintenanceQuotaControls quotaControls) {
+
+    /**
+     * 兼容旧七分量构造器（g04-01 之前存量调用点），额度控制取空值
+     * {@link MaintenanceQuotaControls#none()}——额度校验走领域值对象兜底不变量。
+     */
+    public MaintenanceItemControls(Set<MaintenanceChannelCapability> channelCapabilities,
+            List<MaintenanceMaterialRequirement> materialRequirements, Set<String> crossFieldRuleCodes,
+            String approvalPolicyCode, MaintenanceFeeRule feeRule, MaintenanceAccessRule accessRule,
+            MaintenanceOutputRule outputRule) {
+        this(channelCapabilities, materialRequirements, crossFieldRuleCodes, approvalPolicyCode, feeRule,
+                accessRule, outputRule, MaintenanceQuotaControls.none());
+    }
 
     public MaintenanceItemControls {
         channelCapabilities = immutableNonEmptySet("channelCapabilities", channelCapabilities);
@@ -24,6 +36,7 @@ public record MaintenanceItemControls(Set<MaintenanceChannelCapability> channelC
         feeRule = feeRule == null ? MaintenanceFeeRule.none() : feeRule;
         accessRule = accessRule == null ? MaintenanceAccessRule.empty() : accessRule;
         outputRule = outputRule == null ? MaintenanceOutputRule.empty() : outputRule;
+        quotaControls = quotaControls == null ? MaintenanceQuotaControls.none() : quotaControls;
         validateUniqueChannels(channelCapabilities);
         validateUniqueMaterials(materialRequirements);
     }

@@ -8,6 +8,7 @@ import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.insurance.InsuranceServiceClient;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
 import com.titanium.maintenance.port.policy.PolicyServicePort;
+import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.response.issuance.InsuranceResponse;
@@ -87,10 +88,13 @@ public class PolicyServiceAdapter implements PolicyServicePort {
             throw policyServiceUnreachable("保单状态查询", policyId, exception);
         }
         if (response == null || !response.isSuccess() || response.getData() == null) {
-            return new PolicyStatusSnapshot(false, false);
+            return new PolicyStatusSnapshot(null);
         }
-        String status = response.getData().getStatus();
-        return new PolicyStatusSnapshot("EFFECTIVE".equals(status), "LAPSED".equals(status));
+        // 🔴 保单域回显的是「读模型词表」（t_policy_view.policy_status，如 PENDING_EFFECTIVE），
+        //    不是写侧 PolicyStatusCode（NOT_EFFECTIVE）——两码对照见 docs/技术文档/policyStatus双码映射对照表.md。
+        //    未识别的取值返回 null，由准入矩阵按失败关闭拒绝；原先折叠成 active/reinstatable 两个布尔时，
+        //    未识别状态会静默落成「既非生效也非失效」，在全放行的 default 分支上等于放行。
+        return new PolicyStatusSnapshot(PolicyStatus.fromCode(response.getData().getStatus()));
     }
 
     /**

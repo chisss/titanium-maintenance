@@ -24,7 +24,7 @@ class MaintenancePremiumSettlementResponseTest {
         MaintenancePremiumSettlementResult result = new MaintenancePremiumSettlementResult(
                 "maintenance-1", "SETTLEMENT_PENDING", "calc-original", "calc-replacement", "adjustment-1",
                 "hash-1", "posting-1", "POSTED", "CREDIT", new BigDecimal("53.00"), "CNY",
-                "refund-instruction-1", "refund-order-1", "PROCESSING", 2);
+                "refund-instruction-1", "refund-order-1", "PROCESSING", 2, new BigDecimal("9.99"));
 
         MaintenancePremiumSettlementResponse response = webMapper.toSettlementResponse(result);
         JsonNode json = objectMapper.valueToTree(response);
@@ -35,5 +35,7 @@ class MaintenancePremiumSettlementResponseTest {
         assertEquals("refund-order-1", json.get("refundOrderId").asText());
         assertEquals("PROCESSING", json.get("refundStatus").asText());
         assertEquals(2, json.get("commissionAdjustmentCount").asInt());
+        // 追回金额须经 MapStruct 同名自动映射原样出站，不得被丢弃或改写。
+        assertEquals(0, new BigDecimal("9.99").compareTo(json.get("commissionClawbackAmount").decimalValue()));
     }
 }

@@ -1,5 +1,7 @@
 package com.titanium.maintenance.common.enums;
 
+import java.util.List;
+
 import com.titanium.maintenance.common.constant.MaintenanceConstants;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.metadata.enums.BaseEnum;
@@ -25,10 +27,30 @@ public enum MaintenanceStatus implements BaseEnum {
     private final String  code;
     private final String  name;
 
+    /**
+     * 在途状态：案件尚未终结、仍占用保单的状态集合。
+     *
+     * <p>
+     * 🔴 <b>本常量是「在途」的唯一权威</b>。抽取前该口径在三处各写一份
+     * （待处理列表、看板统计、建案在途冲突预检），任一处漏改即造成「界面看到的在途」与
+     * 「准入拦下的在途」不一致——用户会收到一个界面上看不到、也无从处理的拒绝。
+     * </p>
+     */
+    private static final List<MaintenanceStatus> IN_FLIGHT = List.of(PENDING, PROCESSING, APPROVED);
+
     MaintenanceStatus(Integer enumCode, String code, String name) {
         this.enumCode = enumCode;
         this.code = code;
         this.name = name;
+    }
+
+    /**
+     * 在途状态集合（不可变）。
+     *
+     * @return {@code PENDING / PROCESSING / APPROVED}，终态 {@code COMPLETED / REJECTED} 不在其列
+     */
+    public static List<MaintenanceStatus> inFlightStatuses() {
+        return IN_FLIGHT;
     }
 
     /**

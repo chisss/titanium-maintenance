@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.insurance.InsuranceServiceClient;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
+import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.model.Amount;
@@ -44,7 +45,8 @@ class PolicyServiceAdapterTest {
 
         assertTrue(adapter.policyExists("policy-1", "tenant-1"));
         assertEquals("product-1", adapter.getPolicyProductId("policy-1", "tenant-1"));
-        assertTrue(adapter.getPolicyStatus("policy-1").active());
+        // g04-07：快照保留完整状态码（读模型词表），不再折叠成布尔
+        assertEquals(PolicyStatus.EFFECTIVE, adapter.getPolicyStatus("policy-1").status());
     }
 
     @Test
@@ -59,7 +61,7 @@ class PolicyServiceAdapterTest {
 
         assertFalse(adapter.policyExists("policy-1", "tenant-1"));
         assertNull(adapter.getPolicyProductId("policy-1", "tenant-1"));
-        assertFalse(adapter.getPolicyStatus("policy-1").active());
+        assertNull(adapter.getPolicyStatus("policy-1").status());
     }
 
     @Test
@@ -108,7 +110,7 @@ class PolicyServiceAdapterTest {
 
         assertFalse(adapter.policyExists("policy-1", "tenant-1"));
         assertNull(adapter.getPolicyProductId("policy-1", "tenant-1"));
-        assertFalse(adapter.getPolicyStatus("policy-1").active());
+        assertNull(adapter.getPolicyStatus("policy-1").status());
         assertNull(adapter.getPolicyFinancialSnapshot("policy-1", "tenant-1"));
     }
 

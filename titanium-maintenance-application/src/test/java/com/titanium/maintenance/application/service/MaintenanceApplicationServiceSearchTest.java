@@ -21,6 +21,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.titanium.maintenance.application.model.casecreation.MaintenanceSearchPageResult;
+import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceInFlightAdmissionPolicy;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
@@ -36,14 +37,13 @@ import com.titanium.maintenance.port.maintenance.MaintenanceLegacyPremiumCalcula
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.query.repository.MaintenanceViewRepository;
 import com.titanium.maintenance.query.view.MaintenanceView;
-import com.titanium.maintenance.repository.MaintenanceExclusionRepository;
 
 @ExtendWith(MockitoExtension.class)
 class MaintenanceApplicationServiceSearchTest {
 
     @Mock private CommandGateway commandGateway;
     @Mock private MaintenanceViewRepository repository;
-    @Mock private MaintenanceExclusionRepository exclusionRepository;
+    @Mock private MaintenanceInFlightAdmissionPolicy inFlightAdmissionPolicy;
     @Mock private PolicyServicePort policyServicePort;
     @Mock private CustomerServicePort customerServicePort;
     @Mock private MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort;
@@ -55,7 +55,7 @@ class MaintenanceApplicationServiceSearchTest {
     @BeforeEach
     void setUp() {
         service = new MaintenanceApplicationService(
-                commandGateway, repository, exclusionRepository, policyServicePort, customerServicePort,
+                commandGateway, repository, inFlightAdmissionPolicy, policyServicePort, customerServicePort,
                 legacyCreationFeaturePort, legacyPremiumCalculationFeaturePort, legacyExecutionFeaturePort);
     }
 
@@ -68,7 +68,8 @@ class MaintenanceApplicationServiceSearchTest {
                         "policy-1", "customer-1", null, null, null,
                         "兼容建案", "operator-1", "tenant-1"));
 
-        verifyNoInteractions(policyServicePort, customerServicePort, commandGateway, repository, exclusionRepository);
+        verifyNoInteractions(policyServicePort, customerServicePort, commandGateway, repository,
+                inFlightAdmissionPolicy);
     }
 
     @Test

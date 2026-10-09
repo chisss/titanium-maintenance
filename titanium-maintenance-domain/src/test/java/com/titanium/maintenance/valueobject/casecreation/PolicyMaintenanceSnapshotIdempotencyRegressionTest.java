@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,7 @@ class PolicyMaintenanceSnapshotIdempotencyRegressionTest {
             Map<String, MaintenanceFieldValue> fields) {
         return new PolicyMaintenanceSnapshot(
                 "1", PolicyId.of("policy-1"), "POL-1", CustomerId.of("customer-1"),
-                "product-1", "V1.0", "PLAN-1", PolicyStatus.EFFECTIVE, 0,
+                "product-1", "V1.0", "PLAN-1", PolicyStatus.EFFECTIVE, List.of(), 0,
                 businessTime, null, null,
                 new MaintenanceSnapshotReference(
                         "axon-event://policy/1/policy-1?version=0", "a".repeat(64), 0, capturedAt),

@@ -8,10 +8,15 @@ import org.springframework.stereotype.Component;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.infrastructure.client.policy.PolicyServiceClient;
 import com.titanium.maintenance.port.policy.PolicyMaintenanceApplicationPort;
+import com.titanium.maintenance.valueobject.effect.MaintenanceAmountEffect;
+import com.titanium.maintenance.valueobject.effect.MaintenanceServiceRestrictionEffect;
+import com.titanium.metadata.enums.pricing.ChargeDirection;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.policy.api.request.maintenance.ApplyPolicyMaintenanceRequest;
+import com.titanium.policy.api.request.maintenance.PolicyMaintenanceAmountRequest;
 import com.titanium.policy.api.request.maintenance.PolicyMaintenanceFieldChangeRequest;
 import com.titanium.policy.api.request.maintenance.PolicyMaintenanceRetroactiveEvidenceRequest;
+import com.titanium.policy.api.request.maintenance.PolicyServiceRestrictionRequest;
 import com.titanium.policy.api.response.maintenance.PolicyMaintenanceApplicationResponse;
 import com.titanium.policy.api.response.maintenance.PolicyMaintenanceRetroactiveEvidenceResponse;
 
@@ -32,6 +37,8 @@ public class PolicyMaintenanceApplicationAdapter implements PolicyMaintenanceApp
                 request.effectiveAt(), request.changeSummary(), request.changes().stream()
                         .map(this::toRemoteField)
                         .toList(),
+                toRemoteAmount(request.amountEffect()),
+                toRemoteServiceRestriction(request.serviceRestrictionEffect()),
                 request.stateAction(), request.stateReason(), request.terminationReason(),
                 toRemoteRetroactiveEvidence(request.retroactiveEvidence()));
         ApiResponse<PolicyMaintenanceApplicationResponse> response = policyServiceClient.applyMaintenance(
@@ -57,6 +64,40 @@ public class PolicyMaintenanceApplicationAdapter implements PolicyMaintenanceApp
         return new PolicyMaintenanceFieldChangeRequest(
                 field.itemCode(), field.objectId(), field.fieldCode(),
                 field.dataType(), field.canonicalValue());
+    }
+
+    /**
+     * 金额型生效载荷 → Policy 契约的金额事实。
+     * <p>
+     * 纯金额类保全项（追加/减额缴费、追加投资、部分领取）不带字段变更、不改合同状态，
+     * 其变更实质就是这笔收付差额；缺此映射会在保单域侧退化为「空交易」而被拒绝。
+     * 收付方向按 metadata 共享枚举 {@link ChargeDirection} 的 code 跨域传递（两侧码值同源）。
+     * </p>
+     */
+    private PolicyMaintenanceAmountRequest toRemoteAmount(MaintenanceAmountEffect effect) {
+        if (effect == null) {
+            return null;
+        }
+        return new PolicyMaintenanceAmountRequest(
+                effect.itemCode(), effect.amount(),
+                ChargeDirection.fromCode(effect.direction().getCode()),
+                effect.currency(), effect.sourceRef());
+    }
+
+    /**
+     * 服务受限生效载荷 → Policy 契约的服务受限事实。
+     * <p>
+     * 挂失类保全项不带字段变更、不带金额、不改合同状态，其变更实质就是这条受限标记的施加或解除；
+     * 缺此映射会在保单域侧退化为「空交易」而被拒绝。受限种类与动作都是 metadata 共享枚举，
+     * 跨域两侧同源，直接搬运即可（无需 code 回查）。
+     * </p>
+     */
+    private PolicyServiceRestrictionRequest toRemoteServiceRestriction(
+            MaintenanceServiceRestrictionEffect effect) {
+        if (effect == null) {
+            return null;
+        }
+        return new PolicyServiceRestrictionRequest(effect.type(), effect.action());
     }
 
     private PolicyMaintenanceApplicationResponse requireData(

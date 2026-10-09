@@ -20,13 +20,13 @@ import com.titanium.maintenance.common.exception.PolicyFieldCatalogUnavailableEx
 import com.titanium.maintenance.configuration.MaintenanceFieldRule;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
-import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort;
-import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
-import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort.ReferenceValidationRequest;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogRequest;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort.ReferenceValidationRequest;
 
 import lombok.RequiredArgsConstructor;
 

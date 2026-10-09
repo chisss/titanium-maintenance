@@ -3,6 +3,8 @@ package com.titanium.maintenance.port.policy;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.titanium.metadata.enums.policy.PolicyEnum.PolicyStatus;
+
 /**
  * 保单服务端口（出口/driven port）
  * <p>
@@ -43,12 +45,19 @@ public interface PolicyServicePort {
     PolicyStatusSnapshot getPolicyStatus(String policyId);
 
     /**
-     * 保单状态快照（领域侧类型化视图，屏蔽远程响应细节）
+     * 保单状态快照（领域侧类型化视图，屏蔽远程响应细节）。
+     * <p>
+     * 🔴 <b>保留完整状态码，不再折叠成布尔</b>：状态准入需区分 7 个保单状态（复效仅 {@code LAPSED}、
+     * 恢复仅 {@code SUSPENDED}、终止为 {@code EFFECTIVE/SUSPENDED/LAPSED} 三态），原先折叠出的
+     * {@code active}/{@code reinstatable} 两个布尔<b>无法表达</b>这些取值——这正是旧版准入 switch
+     * 只能显式覆盖 8/23 类、其余落 {@code default} 放行的结构性原因。判定统一委托
+     * {@code MaintenanceAdmissionMatrix}。
+     * </p>
      *
-     * @param active 保单是否生效（对应保单域 EFFECTIVE）
-     * @param reinstatable 保单是否处于可复效前置状态（仅 LAPSED）
+     * @param status 保单状态（读模型词表 {@link PolicyStatus}）；保单域正常应答但状态不可识别时为
+     *     {@code null}，由准入矩阵按失败关闭拒绝
      */
-    record PolicyStatusSnapshot(boolean active, boolean reinstatable) {
+    record PolicyStatusSnapshot(PolicyStatus status) {
     }
 
     record PolicyFinancialSnapshot(

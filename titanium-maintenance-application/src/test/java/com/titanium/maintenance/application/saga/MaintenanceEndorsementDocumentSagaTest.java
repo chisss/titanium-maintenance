@@ -14,6 +14,7 @@ import org.axonframework.config.ProcessingGroup;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import com.titanium.maintenance.event.MaintenanceEndorsementIssuedEvent;
 import com.titanium.maintenance.port.document.EndorsementDocumentPort;
@@ -25,12 +26,13 @@ import com.titanium.maintenance.valueobject.endorsement.EndorsementItem;
 /**
  * 保全批单派发器测试
  * <p>
- * 锁死三条契约：① 搬运保真——事件载荷中的批单要素<b>原样</b>交付出口 Port（本类不取数、不查读模型、不加工，
+ * 锁死三条契约：① 搬运保真——事件载荷中的批单要素（<b>含批单号</b>，即 AC-09「policy 台账 == maintenance
+ * 事件 == document 入参」三方一致的中间一环）<b>原样</b>交付出口 Port（本类不取数、不查读模型、不加工，
  * 要素由写侧聚合固化）；② 🔴 <b>失败不吞</b>——Port 抛出的异常必须向上传播，由本组 DLQ 捕获并重投；静默
  * 吞掉将导致案件已生效而批单永久缺失且无从对账，故此处刻意与 document 域入站监听器的「就地吞掉」取向相反
- * （两侧按各自可靠性设施取值）；③ 🔴 <b>处理组名四方一致</b>——与 {@code MaintenanceKafkaEventPublisher}、
- * application.yml 的处理器键、{@code outbound-relay.groups} 取值必须同名，漂移会使本组退回默认处理器：既无
- * 重投能力，首启还会重放全量历史事件，对已生效案件洪水式补发批单。
+ * （两侧按各自可靠性设施取值，g05-08 后 document 域该链路已改为同样上抛）；③ 🔴 <b>处理组名四方一致</b>——
+ * 与 {@code MaintenanceKafkaEventPublisher}、application.yml 的处理器键、{@code outbound-relay.groups}
+ * 取值必须同名，漂移会使本组退回默认处理器：既无重投能力，首启还会重放全量历史事件，对已生效案件洪水式补发批单。
  * </p>
  * 纯 mockito，不启动容器。
  */
@@ -38,6 +40,8 @@ class MaintenanceEndorsementDocumentSagaTest {
 
     private static final String        MAINTENANCE_ID = "MNT-20260914-0001";
     private static final String        POLICY_ID      = "POL-20260914-0001";
+    /** 批单号取一个与本域任何派生算法都不可能撞上的字面量：断言「逐字搬运」而非「可复算」 */
+    private static final String        ENDORSEMENT_NO = "END-20260914-0001";
     private static final String        TENANT_ID      = "TENANT-A";
     private static final LocalDateTime NOW            = LocalDateTime.of(2026, 9, 14, 10, 0);
 
@@ -60,6 +64,22 @@ class MaintenanceEndorsementDocumentSagaTest {
         saga.on(event);
 
         verify(endorsementDocumentPort).archiveEndorsementDocument(document);
+    }
+
+    @Test
+    @DisplayName("🔴 AC-09 三方一致（事件侧）：政策台账批单号逐字出现在交付 document 域的载荷中")
+    void shouldDeliverEndorsementNoVerbatim() {
+        MaintenanceEndorsementIssuedEvent event = new MaintenanceEndorsementIssuedEvent(MaintenanceId.of(MAINTENANCE_ID),
+                endorsementDocument(), NOW);
+
+        saga.on(event);
+
+        ArgumentCaptor<EndorsementDocument> captor = ArgumentCaptor.forClass(EndorsementDocument.class);
+        verify(endorsementDocumentPort).archiveEndorsementDocument(captor.capture());
+        assertEquals(ENDORSEMENT_NO, captor.getValue().endorsementNo(),
+                "批单号须逐字抵达出口 Port：本域只搬运 Policy 台账权威值，不得重算或改写");
+        assertEquals(MAINTENANCE_ID, captor.getValue().maintenanceId());
+        assertEquals(POLICY_ID, captor.getValue().policyId());
     }
 
     @Test
@@ -87,7 +107,7 @@ class MaintenanceEndorsementDocumentSagaTest {
 
     /** 构造批单要素（含一个保全项与一条字段变更，验明嵌套结构在搬运中不失真） */
     private static EndorsementDocument endorsementDocument() {
-        return new EndorsementDocument(MAINTENANCE_ID, POLICY_ID, "POLICY_INFO_CHANGE",
+        return new EndorsementDocument(MAINTENANCE_ID, POLICY_ID, ENDORSEMENT_NO, "POLICY_INFO_CHANGE",
                 List.of(new EndorsementItem("POLICY_INFO_CHANGE", "保单信息变更",
                         List.of(new EndorsementFieldChange("policy-1", "policy.holder.mobile", "13800000000",
                                 "13900000000")))),

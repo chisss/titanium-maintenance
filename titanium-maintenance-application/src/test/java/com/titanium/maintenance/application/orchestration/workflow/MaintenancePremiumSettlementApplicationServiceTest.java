@@ -267,7 +267,7 @@ class MaintenancePremiumSettlementApplicationServiceTest {
             String refundStatus) {
         return new PostingFact(
                 "posting-1", "adjustment-1", RESULT_HASH, direction, amount, "CNY",
-                status, instructionId, refundOrderId, refundStatus, 0);
+                status, instructionId, refundOrderId, refundStatus, 0, BigDecimal.ZERO);
     }
 
     private CollectionFact collection(String status) {

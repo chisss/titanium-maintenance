@@ -36,4 +36,15 @@ public class MaintenanceValidationException extends CommandValidationException {
     public MaintenanceValidationException(String commandName, String fieldName, String validationMessage) {
         super(MaintenanceErrorCode.MAINTENANCE_COMMAND_VALIDATION_FAILED, commandName, fieldName, validationMessage);
     }
+
+    /**
+     * 构造保全校验异常（携带指定 71 段业务错误码，用于额度超限等具体业务规则拒绝）
+     *
+     * @param errorCode 具体业务错误码（须为 71 段 MaintenanceErrorCode）
+     * @param commandName 命令名（或值对象名）
+     * @param validationMessage 校验失败描述
+     */
+    public MaintenanceValidationException(MaintenanceErrorCode errorCode, String commandName, String validationMessage) {
+        super(errorCode, commandName, validationMessage);
+    }
 }

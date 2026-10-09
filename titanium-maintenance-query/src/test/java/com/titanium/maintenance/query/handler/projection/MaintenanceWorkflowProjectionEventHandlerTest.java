@@ -42,6 +42,7 @@ import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEv
 import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
+import com.titanium.maintenance.valueobject.workflow.MaintenanceLoanDisbursementEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyApplicationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePremiumQuoteEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceReviewGateEvidence;
@@ -414,6 +415,58 @@ class MaintenanceWorkflowProjectionEventHandlerTest {
         assertEquals(8L, currentView.getPolicyActualVersion());
         assertEquals("snapshot://case-1/applied", currentView.getAppliedSnapshotStorageKey());
         assertTrue(currentView.getAppliedFieldsJson().contains("policy.holder.mobile"));
+        assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, currentView.getStatus());
+    }
+
+    @Test
+    void shouldProjectLoanDisbursementEvidence() {
+        MaintenanceWorkflowTaskViewRepository repository = mock(MaintenanceWorkflowTaskViewRepository.class);
+        MaintenanceWorkflowProjectionEventHandler handler =
+                new MaintenanceWorkflowProjectionEventHandler(repository);
+        MaintenanceWorkflowTaskView currentView = view("task-loan");
+        when(repository.findByTenantIdAndMaintenanceIdAndTaskId(
+                "tenant-1", "case-1", "task-loan"))
+                .thenReturn(Optional.of(currentView));
+        LocalDateTime requestedAt = LocalDateTime.parse("2026-09-28T10:00:00");
+        MaintenanceWorkflowTask ready = new MaintenanceWorkflowTask(
+                "task-loan", "POLICY_LOAN", 0, 3,
+                MaintenanceStepType.EFFECT, MaintenanceStepMode.REQUIRED,
+                null, MaintenanceWorkflowTaskStatus.READY);
+        MaintenanceEffectRequestEvidence request = new MaintenanceEffectRequestEvidence(
+                "effect-request-loan", "a".repeat(64), 7,
+                EffectiveTimeType.IMMEDIATE, requestedAt, "b".repeat(64), requestedAt);
+        MaintenanceWorkflowOperation requestOperation = MaintenanceWorkflowOperation.create(
+                "operation-loan-request", MaintenanceWorkflowAction.REQUEST_EFFECT,
+                "task-loan", request.evidenceVersion(), request.requestPayloadHash(),
+                "EFFECTING", null, requestedAt, "operator-1");
+        MaintenanceWorkflowTask requested = ready.requestEffect(request, requestOperation);
+
+        LocalDateTime disbursedAt = LocalDateTime.parse("2026-09-28T10:05:00");
+        String loanId = "LOAN" + "a".repeat(28);
+        MaintenanceLoanDisbursementEvidence loanDisbursement =
+                new MaintenanceLoanDisbursementEvidence(
+                        "effect-request-loan", loanId, "policy-1",
+                        new BigDecimal("5000"), new BigDecimal("0.0500"),
+                        disbursedAt, "POSTING-9", "PAYOUT-7", disbursedAt);
+        MaintenanceWorkflowOperation loanOperation = MaintenanceWorkflowOperation.create(
+                "operation-loan-disbursed", MaintenanceWorkflowAction.RECORD_LOAN_DISBURSEMENT,
+                "task-loan", loanDisbursement.evidenceVersion(), loanDisbursement.contentHash(),
+                "APPLIED", loanId, disbursedAt, "loan-service");
+        MaintenanceWorkflowTask disbursed = requested.recordLoanDisbursement(
+                loanDisbursement, loanOperation);
+
+        handler.on(new MaintenanceWorkflowTaskTransitionedEvent(
+                MaintenanceId.of("case-1"), requested, disbursed, null, null,
+                loanOperation.operationId(), loanOperation.payloadHash(),
+                loanOperation.operatedAt(), loanOperation.operatedBy(), "tenant-1"));
+
+        assertEquals(loanId, currentView.getLoanId());
+        assertEquals(new BigDecimal("5000"), currentView.getLoanAmount());
+        assertEquals(new BigDecimal("0.0500"), currentView.getLoanInterestRate());
+        assertEquals(disbursedAt, currentView.getLoanDate());
+        assertEquals("POSTING-9", currentView.getLoanBillingPostingId());
+        assertEquals("PAYOUT-7", currentView.getLoanPaymentOrderId());
+        assertEquals(disbursedAt, currentView.getLoanDisbursedAt());
         assertEquals(MaintenanceWorkflowTaskStatus.COMPLETED, currentView.getStatus());
     }
 

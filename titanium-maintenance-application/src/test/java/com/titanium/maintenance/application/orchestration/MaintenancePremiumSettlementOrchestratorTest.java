@@ -1,6 +1,8 @@
 package com.titanium.maintenance.application.orchestration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
@@ -19,6 +21,7 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,6 +38,7 @@ import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
 import com.titanium.maintenance.port.billing.BillingPremiumLifecyclePort;
+import com.titanium.maintenance.port.policy.PolicyFinancialPort;
 import com.titanium.maintenance.port.policy.PolicyServicePort;
 import com.titanium.maintenance.port.product.ProductPremiumLifecyclePort;
 import com.titanium.maintenance.port.product.ProductSurrenderValuePort;
@@ -53,6 +57,8 @@ class MaintenancePremiumSettlementOrchestratorTest {
     @Mock
     private PolicyServicePort policyPort;
     @Mock
+    private PolicyFinancialPort financialPort;
+    @Mock
     private ProductPremiumLifecyclePort productPort;
     @Mock
     private ProductSurrenderValuePort surrenderValuePort;
@@ -64,7 +70,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
     @BeforeEach
     void setUp() {
         orchestrator = new MaintenancePremiumSettlementOrchestrator(
-                commandGateway, repository, policyPort, productPort, surrenderValuePort, billingPort);
+                commandGateway, repository, policyPort, financialPort, productPort, surrenderValuePort, billingPort);
     }
 
     @Test
@@ -84,15 +90,18 @@ class MaintenancePremiumSettlementOrchestratorTest {
         MaintenanceView view = view(MaintenancePremiumSettlementStatus.NOT_STARTED);
         view.setMaintenanceType(MaintenanceType.POLICY_TERMINATION);
         when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "1")).thenReturn(Optional.of(view));
-        when(policyPort.getPolicyFinancialSnapshot("policy-1", "1")).thenReturn(
-                new PolicyServicePort.PolicyFinancialSnapshot(
-                        "product-1", "issuance-1", LocalDate.of(2026, 1, 1),
-                        new BigDecimal("121.20"), "CNY"));
+        when(financialPort.getFinancialSnapshot("policy-1", "1")).thenReturn(
+                new PolicyFinancialPort.PolicyFinancialData(
+                        "policy-1", new BigDecimal("8800.00"), new BigDecimal("50000"), "PP-MAIN",
+                        new BigDecimal("1000.00"), new BigDecimal("50.00"), BigDecimal.ZERO, BigDecimal.ZERO,
+                        BigDecimal.ZERO,
+                        LocalDate.of(2026, 1, 1), 1,
+                        "issuance-1", new BigDecimal("3650.00"), LocalDate.of(2026, 12, 31), false));
         when(surrenderValuePort.calculate(any())).thenReturn(surrenderFact());
         when(billingPort.post(any())).thenReturn(new BillingPremiumLifecyclePort.PostingFact(
                 "posting-1", "adjustment-1", hash('b'), MaintenanceBalanceDirection.CREDIT,
                 new BigDecimal("72.72"), "CNY", "POSTED", "refund-instruction-1", "refund-order-1",
-                "SUCCEEDED", 1));
+                "SUCCEEDED", 1, new BigDecimal("9.99")));
 
         MaintenanceSurrenderSettlementResult result = orchestrator.settleSurrender(
                 "maintenance-1", "1", new MaintenanceSurrenderSettlementInput(
@@ -102,6 +111,17 @@ class MaintenancePremiumSettlementOrchestratorTest {
         assertEquals(MaintenancePremiumSettlementStatus.SETTLED.name(),
                 result.settlement().premiumSettlementStatus());
         assertEquals(new BigDecimal("0.60000000"), result.cashValueRate());
+        // 退费口径事实必须原样过桥：三项任一漏传，产品域在未满期保费基准下只能按「事实不可得」拒绝
+        ArgumentCaptor<ProductSurrenderValuePort.SurrenderRequest> request =
+                ArgumentCaptor.forClass(ProductSurrenderValuePort.SurrenderRequest.class);
+        verify(surrenderValuePort).calculate(request.capture());
+        assertEquals("issuance-1", request.getValue().originalBizNo());
+        assertEquals(new BigDecimal("3650.00"), request.getValue().annualPremium());
+        assertEquals(LocalDate.of(2026, 12, 31), request.getValue().coverageEndDate());
+        assertFalse(request.getValue().premiumPaidUp());
+        // 贷款未偿本息同属 g04-03 取数契约，结算必须原样搬运：漏传即被对端读成「事实不可得」并拒算
+        assertEquals(0, request.getValue().loanOutstandingPrincipal().compareTo(new BigDecimal("1000.00")));
+        assertEquals(0, request.getValue().loanOutstandingInterest().compareTo(new BigDecimal("50.00")));
         verify(commandGateway).sendAndWait(any(RecordMaintenanceSurrenderValueCommand.class));
         verify(commandGateway).sendAndWait(any(RecordMaintenancePremiumPostingCommand.class));
     }
@@ -136,7 +156,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
                         "reversal-hash", MaintenanceBalanceDirection.DEBIT, new BigDecimal("72.72"), "CNY"));
         when(billingPort.post(any())).thenReturn(new BillingPremiumLifecyclePort.PostingFact(
                 "posting-reversal-1", "reversal-1", "reversal-hash", MaintenanceBalanceDirection.DEBIT,
-                new BigDecimal("72.72"), "CNY", "POSTED", null, null, "NOT_REQUIRED", 1));
+                new BigDecimal("72.72"), "CNY", "POSTED", null, null, "NOT_REQUIRED", 0, BigDecimal.ZERO));
 
         MaintenancePremiumSettlementResult result = orchestrator.settleReversal(
                 "maintenance-1", "1", new MaintenanceReversalSettlementInput(
@@ -252,6 +272,64 @@ class MaintenancePremiumSettlementOrchestratorTest {
     }
 
     @Test
+    void shouldExposeCommissionClawbackAmountOnSettlementReceipt() {
+        MaintenanceView view = adjustmentView(
+                MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED, MaintenanceBalanceDirection.CREDIT);
+        when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "1")).thenReturn(Optional.of(view));
+        when(billingPort.post(any())).thenReturn(posting(
+                MaintenanceBalanceDirection.CREDIT, "refund-instruction-1", "refund-order-1", "SUCCEEDED"));
+
+        MaintenancePremiumSettlementResult result = orchestrator.settle("maintenance-1", "1", input());
+
+        // 追回金额口径权威在 billing（佣金调整的生成方），保全侧只搬运不重算（R-11 不新建第二套口径）。
+        assertEquals(2, result.commissionAdjustmentCount());
+        assertEquals(0, new BigDecimal("8.00").compareTo(result.commissionClawbackAmount()));
+    }
+
+    @Test
+    void shouldNotFabricateCommissionClawbackAmountOnReadBackPath() {
+        MaintenanceView view = adjustmentView(
+                MaintenancePremiumSettlementStatus.SETTLED, MaintenanceBalanceDirection.CREDIT);
+        view.setCommissionAdjustmentCount(2);
+        when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "1")).thenReturn(Optional.of(view));
+
+        MaintenancePremiumSettlementResult result = orchestrator.settle("maintenance-1", "1", input());
+
+        // 追回金额只在结算回执中携带、不落库 ⇒ 读回路径无此事实，如实返回 null。
+        // 🔴 不得以 0 兜底：0 是「无追回」这一业务事实，兜底会把「未携带」伪装成「不需要追回」。
+        assertNull(result.commissionClawbackAmount());
+        assertEquals(2, result.commissionAdjustmentCount());
+        verify(billingPort, never()).post(any());
+    }
+
+    @Test
+    void shouldRejectMissingCommissionClawbackAmount() {
+        // 与 shouldExposeCommissionClawbackAmountOnSettlementReceipt 构成对照组：载荷逐字相同、
+        // 只把追回金额换成 null ⇒ 拒绝确由该字段触发，而非旁的事实不完整。
+        assertRejectedClawbackAmount(null);
+    }
+
+    @Test
+    void shouldRejectNegativeCommissionClawbackAmount() {
+        assertRejectedClawbackAmount(new BigDecimal("-0.01"));
+    }
+
+    private void assertRejectedClawbackAmount(BigDecimal commissionClawbackAmount) {
+        MaintenanceView view = adjustmentView(
+                MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED, MaintenanceBalanceDirection.CREDIT);
+        when(repository.findByMaintenanceIdAndTenantId("maintenance-1", "1")).thenReturn(Optional.of(view));
+        when(billingPort.post(any())).thenReturn(new BillingPremiumLifecyclePort.PostingFact(
+                "posting-1", "adjustment-1", "adjustment-hash", MaintenanceBalanceDirection.CREDIT,
+                new BigDecimal("53.00"), "CNY", "POSTED", "refund-instruction-1", "refund-order-1",
+                "SUCCEEDED", 2, commissionClawbackAmount));
+
+        assertThrows(DomainException.class,
+                () -> orchestrator.settle("maintenance-1", "1", input()));
+
+        verify(commandGateway, never()).sendAndWait(any(RecordMaintenanceFinancialSettlementCommand.class));
+    }
+
+    @Test
     void shouldRejectPostingAmountThatDoesNotMatchProductAdjustment() {
         MaintenanceView view = adjustmentView(
                 MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED, MaintenanceBalanceDirection.CREDIT);
@@ -259,7 +337,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
         BillingPremiumLifecyclePort.PostingFact posting = new BillingPremiumLifecyclePort.PostingFact(
                 "posting-1", "adjustment-1", "adjustment-hash", MaintenanceBalanceDirection.CREDIT,
                 new BigDecimal("52.00"), "CNY", "POSTED", "refund-instruction-1", "refund-order-1",
-                "PROCESSING", 2);
+                "PROCESSING", 2, new BigDecimal("4.00"));
         when(billingPort.post(any())).thenReturn(posting);
 
         assertThrows(DomainException.class,
@@ -366,7 +444,7 @@ class MaintenancePremiumSettlementOrchestratorTest {
         return new BillingPremiumLifecyclePort.PostingFact(
                 "posting-1", "adjustment-1", "adjustment-hash", direction,
                 new BigDecimal("53.00"), "CNY", "POSTED", refundInstructionId, refundOrderId,
-                refundStatus, 2);
+                refundStatus, 2, new BigDecimal("8.00"));
     }
 
     private ProductSurrenderValuePort.SurrenderFact surrenderFact() {

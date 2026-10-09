@@ -1,6 +1,7 @@
 package com.titanium.maintenance.application.orchestration.configuration;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -19,6 +20,7 @@ import com.titanium.maintenance.common.enums.config.MaintenanceFeeMode;
 import com.titanium.maintenance.common.enums.config.MaintenanceItemCategory;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
 import com.titanium.maintenance.common.exception.MaintenanceConfigurationDependencyException;
+import com.titanium.maintenance.common.exception.MaintenanceConfigurationValidationException;
 import com.titanium.maintenance.configuration.MaintenanceEffectiveRule;
 import com.titanium.maintenance.configuration.MaintenanceFieldRule;
 import com.titanium.maintenance.configuration.MaintenanceItemDefinition;
@@ -28,16 +30,20 @@ import com.titanium.maintenance.configuration.control.MaintenanceChannelCapabili
 import com.titanium.maintenance.configuration.control.MaintenanceFeeRule;
 import com.titanium.maintenance.configuration.control.MaintenanceItemControls;
 import com.titanium.maintenance.configuration.control.MaintenanceOutputRule;
-import com.titanium.maintenance.port.maintenance.MaintenanceConfigurationReferencePort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCatalogEvidence;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldDescriptorEvidence;
+import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldMaskingPolicy;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldObjectType;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldSensitivityLevel;
 import com.titanium.metadata.enums.policy.fieldcatalog.PolicyFieldValueType;
+import com.titanium.metadata.fieldcatalog.FieldAnalysisCapability;
 
 class MaintenanceConfigurationValidatorTest {
+
+    /** 夹具引用的规则码：definition(...) 与差集断言共用一处定义，避免期望值内联副本 */
+    private static final String APPROVAL_RULE_CODE = "APPROVAL_STANDARD";
 
     private static final LocalDate BUSINESS_DATE = LocalDate.of(2026, 8, 24);
     private static final LocalDateTime VALIDATED_AT = LocalDateTime.of(2026, 8, 24, 12, 0);
@@ -88,6 +94,38 @@ class MaintenanceConfigurationValidatorTest {
                 () -> validator.validate("tenant-1", definition(MaintenanceFieldRule.editable(
                                 "policy.holder.mobile", true, true, PolicyFieldValueType.TEXT)),
                         criteria(), VALIDATED_AT));
+    }
+
+    @Test
+    void shouldRejectWhenReferencedRuleCodeIsNotResolved() {
+        // 权威应答只解析出权限与模板、规则码全部落空 —— AC-03「反」：引用不存在的规则码 ⇒ 发布被拒
+        MaintenanceConfigurationValidator validator = new MaintenanceConfigurationValidator(
+                request -> catalog(true, true, true, PolicyFieldValueType.TEXT),
+                request -> new MaintenanceConfigurationReferencePort.ReferenceValidationEvidence(
+                        true, "reference-v1", Set.of(), request.permissionCodes(),
+                        request.templateCodes(), null));
+        MaintenanceItemDefinition itemDefinition = definition(MaintenanceFieldRule.editable(
+                "policy.holder.mobile", true, true, PolicyFieldValueType.TEXT));
+
+        MaintenanceConfigurationValidationResult result = validator.validate(
+                "tenant-1", itemDefinition, criteria(), VALIDATED_AT);
+
+        assertFalse(result.valid(), "权威解析不出被引用的规则码时配置不得发布");
+        assertTrue(result.issues().stream()
+                        .map(MaintenanceConfigurationValidationResult.ValidationIssue::code)
+                        .allMatch("RULE_NOT_FOUND"::equals),
+                "规则码差集只应落成 RULE_NOT_FOUND，混入其它类别即说明被拒原因不是引用缺失");
+        assertTrue(result.issues().stream()
+                        .map(MaintenanceConfigurationValidationResult.ValidationIssue::field)
+                        .allMatch("ruleCodes"::equals), "差集问题须落在 ruleCodes 字段上");
+        assertTrue(result.issues().stream()
+                        .map(MaintenanceConfigurationValidationResult.ValidationIssue::message)
+                        .anyMatch(message -> message.contains(APPROVAL_RULE_CODE)),
+                "被引用的规则码须逐条点名（引用不存在: " + APPROVAL_RULE_CODE + "）");
+        // 🔴「发布被拒」的落点：抛**业务校验异常**——不得升级为依赖不可用异常
+        // （技术故障与业务拒绝必须可分，D13 范式）
+        assertThrows(MaintenanceConfigurationValidationException.class,
+                () -> validator.validateAndRequire("tenant-1", itemDefinition, criteria(), VALIDATED_AT));
     }
 
     @Test
@@ -147,9 +185,10 @@ class MaintenanceConfigurationValidatorTest {
         PolicyFieldDescriptorEvidence field = new PolicyFieldDescriptorEvidence(
                 "policy.holder.mobile", PolicyFieldObjectType.POLICY_HOLDER, valueType,
                 "policy.field.holder.mobile", false, null, capability,
-                PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null);
+                PolicyFieldSensitivityLevel.SENSITIVE, PolicyFieldMaskingPolicy.MOBILE, null,
+                new FieldAnalysisCapability(true, false, false, true));
         return new PolicyFieldCatalogEvidence("tenant-1", "LIFE", "INDIVIDUAL",
-                BUSINESS_DATE, "catalog-v1", "a".repeat(64), List.of(field));
+                BUSINESS_DATE, false, "catalog-v1", "a".repeat(64), List.of(field));
     }
 
     private MaintenanceItemDefinition definition(MaintenanceFieldRule fieldRule) {
@@ -163,7 +202,7 @@ class MaintenanceConfigurationValidatorTest {
                 : Set.of("maintenance:item:view");
         MaintenanceItemControls controls = new MaintenanceItemControls(
                 Set.of(MaintenanceChannelCapability.manualApproval(MaintenanceChannel.MANUAL)),
-                List.of(), Set.of("RULE_CONTACT"), "APPROVAL_STANDARD", MaintenanceFeeRule.none(),
+                List.of(), Set.of("RULE_CONTACT"), APPROVAL_RULE_CODE, MaintenanceFeeRule.none(),
                 new MaintenanceAccessRule(Set.of("maintenance:item:operate"),
                         viewPermissions),
                 new MaintenanceOutputRule("VOUCHER_CONTACT", Set.of("NOTICE_SMS"), "ARCHIVE_POLICY"));

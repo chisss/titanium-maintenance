@@ -105,6 +105,12 @@
             <artifactId>titanium-investment-api</artifactId>
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
+        <!-- rule-engine-api：保全配置规则权威（AC-03）与字段条件规则求值（AC-04）复用对端契约 DTO -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-rule-engine-api</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
 
         <!-- Database -->
         <dependency>

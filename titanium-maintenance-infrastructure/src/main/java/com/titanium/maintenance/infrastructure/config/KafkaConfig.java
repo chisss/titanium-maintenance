@@ -28,6 +28,7 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import com.titanium.maintenance.common.constant.MaintenanceConstants;
@@ -51,14 +52,33 @@ public class KafkaConfig {
     private String groupId;
 
     /**
-     * 事件序列化用 ObjectMapper：注册 JavaTimeModule，确保 LocalDateTime 等 JSR-310 类型可序列化。
-     * 事件（如 MaintenanceExecutedEvent）携带 LocalDateTime 字段，裸 ObjectMapper 会抛
-     * InvalidDefinitionException 导致发布失败。
+     * 事件序列化用 ObjectMapper：注册 JavaTimeModule 且**固定时间形态为 ISO-8601 字符串**。
+     * <p>
+     * 🔴 <b>「能不能序列化」与「序列化成什么」是两件事</b>：注册 {@code JavaTimeModule} 只解决前者；
+     * 形态由 {@code WRITE_DATES_AS_TIMESTAMPS} 决定，Jackson <b>默认 true</b>，会把 {@code LocalDateTime}
+     * 写成整数数组 {@code [2026,9,28,13,52,9]}。本域两个跨域消费方——
+     * document {@code MaintenanceEndorsementIssuedMessage}、policy {@code MaintenanceExecutedMessage}——
+     * 均以 <b>fastjson2</b> 把时间字段读成 {@code LocalDateTime}，而 fastjson2 只认字符串，
+     * 遇数组即抛 {@code JSONException: string length only support string input}。
+     * </p>
+     * <p>
+     * 🔴 <b>该默认值曾令两条链路自建成起从未成功</b>（2026-09-30 g05r 修复）：
+     * {@code maintenance-endorsement-issued} 上全部真实消息消费失败（document 侧 catch-all 静默吞掉
+     * ⇒ 批单单证零产出、监控无任何信号）；{@code maintenance-executed} 部分失败进 DLT
+     * （policy 侧解析在 try 之外 ⇒ 异常逃逸，但位点照常提交、LAG 恒为 0）。
+     * </p>
+     * <p>
+     * ISO 字符串是跨语言/跨序列化库的通用形态，故修在此处（生产端一处）而非各消费方。
+     * 回归守护见 {@code KafkaConfigTest}。
+     * </p>
      */
-    // ✅ m22-03（审查报告 SPR-04）定性：本处**有意独立构造**——Kafka 事件外发需要**确定的序列化配置**（显式注册 JavaTimeModule），
+    // ✅ m22-03（审查报告 SPR-04）定性：本处**有意独立构造**——Kafka 事件外发需要**确定的序列化配置**（显式注册 JavaTimeModule + 固定 ISO 时间形态），
     // 复用 Spring 全局实例会把消息格式绑到 Web 层的配置演进上，反而不稳。
     private ObjectMapper eventObjectMapper() {
-        return new ObjectMapper().registerModule(new JavaTimeModule());
+        return new ObjectMapper()
+                .registerModule(new JavaTimeModule())
+                // 🔴 跨域线格式契约，不得移除：移除即令 document / policy 两条消费链路再次全量失败
+                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
     // 创建Kafka主题

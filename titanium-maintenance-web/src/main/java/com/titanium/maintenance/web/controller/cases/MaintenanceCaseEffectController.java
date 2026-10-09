@@ -20,6 +20,8 @@ import com.titanium.maintenance.application.command.retroactive.MaintenanceRetro
 import com.titanium.maintenance.application.command.retroactive.MaintenanceRetroactivePeriodResolutionInput;
 import com.titanium.maintenance.application.model.effect.MaintenanceEffectScheduleResult;
 import com.titanium.maintenance.application.model.effect.MaintenanceInvestmentSwitchInput;
+import com.titanium.maintenance.application.model.effect.MaintenanceLoanDisbursementInput;
+import com.titanium.maintenance.application.model.effect.MaintenanceLoanRepaymentInput;
 import com.titanium.maintenance.application.model.field.MaintenanceFieldConflictOperationResult;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.web.dto.effect.ApplyMaintenanceEffectDTO;
@@ -69,7 +71,8 @@ public class MaintenanceCaseEffectController extends MaintenanceCaseControllerSu
         String operatorId = RequestContextHolder.requireOperatorId();
         MaintenanceEffectApplicationInput input = new MaintenanceEffectApplicationInput(
                 caseId, taskId, request.operationId(), operatorId, tenantId, source(servletRequest),
-                switchInput(request.investmentSwitch()));
+                switchInput(request.investmentSwitch()), loanInput(request.loanDisbursement()),
+                repaymentInput(request.loanRepayment()));
         return caseCommandService.applyEffect(input).thenApply(result -> ResponseEntity.ok(ApiResponse.success(
                 new MaintenanceEffectApplicationVO(
                         result.requestId(), result.endorsementNo(), result.actualPolicyVersion(),
@@ -260,5 +263,21 @@ public class MaintenanceCaseEffectController extends MaintenanceCaseControllerSu
         }
         return new MaintenanceInvestmentSwitchInput(parameters.switchOutUnits(), parameters.targetUnitPrice(),
                 parameters.targetCurrency(), parameters.targetFund());
+    }
+
+    /** 贷款参数翻译：未传（非贷款案件）时为 null，交由应用层按案件类型判定必要性。 */
+    private MaintenanceLoanDisbursementInput loanInput(ApplyMaintenanceEffectDTO.LoanDisbursementDTO parameters) {
+        if (parameters == null) {
+            return null;
+        }
+        return new MaintenanceLoanDisbursementInput(parameters.loanAmount());
+    }
+
+    /** 贷款还款参数翻译：未传（非还款案件）时为 null，交由应用层按案件类型判定必要性。 */
+    private MaintenanceLoanRepaymentInput repaymentInput(ApplyMaintenanceEffectDTO.LoanRepaymentDTO parameters) {
+        if (parameters == null) {
+            return null;
+        }
+        return new MaintenanceLoanRepaymentInput(parameters.loanId(), parameters.repaymentAmount());
     }
 }

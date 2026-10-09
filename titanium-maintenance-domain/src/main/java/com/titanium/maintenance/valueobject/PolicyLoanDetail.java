@@ -5,6 +5,9 @@ import java.math.RoundingMode;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.metadata.errorcode.MaintenanceErrorCode;
+
 /**
  * 保单贷款明细值对象
  * <p>
@@ -65,6 +68,20 @@ public record PolicyLoanDetail(BigDecimal cashValue, BigDecimal loanableRatio, B
     @JsonIgnore
     public boolean isWithinLoanableLimit() {
         return requestedAmount.compareTo(maxLoanableAmount()) <= 0;
+    }
+
+    /**
+     * 强制校验申请贷款金额在可贷上限内：超限即抛业务异常（携 71 段
+     * {@link MaintenanceErrorCode#MAINTENANCE_LOAN_EXCEEDS_QUOTA} 错误码），
+     * 不得静默截断到上限——额度拒绝必须是显式失败（g04-01 / AC-01）。
+     *
+     * @throws MaintenanceValidationException 申请额超过可贷上限时抛出
+     */
+    public void requireWithinLoanableLimit() {
+        if (!isWithinLoanableLimit()) {
+            throw new MaintenanceValidationException(MaintenanceErrorCode.MAINTENANCE_LOAN_EXCEEDS_QUOTA,
+                    "PolicyLoanDetail", "申请贷款金额超过可贷上限 " + maxLoanableAmount());
+        }
     }
 
     /**

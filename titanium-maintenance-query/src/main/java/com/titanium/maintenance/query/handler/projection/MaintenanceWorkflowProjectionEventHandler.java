@@ -269,6 +269,51 @@ public class MaintenanceWorkflowProjectionEventHandler {
                 investmentSwitch == null ? null : investmentSwitch.currency());
         view.setSwitchSwitchedAt(
                 investmentSwitch == null ? null : investmentSwitch.switchedAt());
+        var loanDisbursement = effect == null ? null : effect.loanDisbursement();
+        view.setLoanId(
+                loanDisbursement == null ? null : loanDisbursement.loanId());
+        view.setLoanAmount(
+                loanDisbursement == null ? null : loanDisbursement.loanAmount());
+        view.setLoanInterestRate(
+                loanDisbursement == null ? null : loanDisbursement.interestRate());
+        view.setLoanDate(
+                loanDisbursement == null ? null : loanDisbursement.loanDate());
+        view.setLoanBillingPostingId(
+                loanDisbursement == null ? null : loanDisbursement.billingPostingId());
+        view.setLoanPaymentOrderId(
+                loanDisbursement == null ? null : loanDisbursement.paymentOrderId());
+        view.setLoanDisbursedAt(
+                loanDisbursement == null ? null : loanDisbursement.disbursedAt());
+        var loanRepayment = effect == null ? null : effect.loanRepayment();
+        view.setLoanRepaymentId(
+                loanRepayment == null ? null : loanRepayment.repaymentId());
+        view.setLoanRepaymentAmount(
+                loanRepayment == null ? null : loanRepayment.repaymentAmount());
+        view.setLoanRepaymentInterestPortion(
+                loanRepayment == null ? null : loanRepayment.interestPortion());
+        view.setLoanRepaymentPrincipalPortion(
+                loanRepayment == null ? null : loanRepayment.principalPortion());
+        view.setLoanRepaymentAccruedInterest(
+                loanRepayment == null ? null : loanRepayment.accruedInterest());
+        view.setLoanOutstandingPrincipalAfter(
+                loanRepayment == null ? null : loanRepayment.outstandingPrincipalAfter());
+        view.setLoanOutstandingInterestAfter(
+                loanRepayment == null ? null : loanRepayment.outstandingInterestAfter());
+        view.setLoanRepaymentSettled(
+                loanRepayment == null ? null : loanRepayment.settled());
+        view.setLoanRepaymentDate(
+                loanRepayment == null ? null : loanRepayment.repaymentDate());
+        view.setLoanRepaymentBillingPostingId(
+                loanRepayment == null ? null : loanRepayment.billingPostingId());
+        view.setLoanRepaymentPaymentOrderId(
+                loanRepayment == null ? null : loanRepayment.paymentOrderId());
+        view.setLoanRepaidAt(
+                loanRepayment == null ? null : loanRepayment.repaidAt());
+        var policyReissue = effect == null ? null : effect.policyReissue();
+        view.setReissueRequestId(
+                policyReissue == null ? null : policyReissue.reissueRequestId());
+        view.setReissueRequestedAt(
+                policyReissue == null ? null : policyReissue.requestedAt());
         view.setLastOperationId(
                 task.lastOperation() == null ? null : task.lastOperation().operationId());
         view.setLastOperationAction(

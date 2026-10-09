@@ -10,6 +10,8 @@ import java.util.HexFormat;
 import java.util.List;
 
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
+import com.titanium.maintenance.valueobject.effect.MaintenanceAmountEffect;
+import com.titanium.maintenance.valueobject.effect.MaintenanceServiceRestrictionEffect;
 import com.titanium.metadata.enums.maintenance.PolicyMaintenanceAction;
 import com.titanium.metadata.enums.policy.PolicyEnum.TerminationReason;
 
@@ -30,6 +32,8 @@ public interface PolicyMaintenanceApplicationPort {
             LocalDateTime effectiveAt,
             String changeSummary,
             List<FieldChange> changes,
+            MaintenanceAmountEffect amountEffect,
+            MaintenanceServiceRestrictionEffect serviceRestrictionEffect,
             PolicyMaintenanceAction stateAction,
             String stateReason,
             TerminationReason terminationReason,
@@ -46,9 +50,19 @@ public interface PolicyMaintenanceApplicationPort {
             changeSummary = requireText(changeSummary, "changeSummary");
             operatorId = requireText(operatorId, "operatorId");
             stateAction = stateAction == null ? PolicyMaintenanceAction.NONE : stateAction;
+            // 🔴 四种生效载荷（字段变更 / 金额事实 / 合同状态动作 / 服务受限事实）至少其一：
+            //    这是「空交易」的最后一道闸口。金额型保全项无字段、无状态动作，其变更实质就是 amountEffect；
+            //    挂失类保全项同形——无字段、无金额、无状态动作，其变更实质就是 serviceRestrictionEffect。
             if (expectedPolicyVersion < 0 || effectiveAt == null || changes == null
-                    || (changes.isEmpty() && !stateAction.changesStatus())) {
-                throw validation("Policy 应用请求的版本、生效时间、字段变更或状态动作不完整");
+                    || (changes.isEmpty() && !stateAction.changesStatus() && amountEffect == null
+                            && serviceRestrictionEffect == null)) {
+                throw validation("Policy 应用请求的版本、生效时间、字段变更、金额事实、服务受限事实或状态动作不完整");
+            }
+            // 🔴 载荷种类互斥：受限事实只推进「服务受限」这条与合同状态正交的维度，
+            //    与另三种载荷混装即语义不明（保单域 validateNewMaintenanceRequest 侧二次把关）。
+            if (serviceRestrictionEffect != null
+                    && (!changes.isEmpty() || amountEffect != null || stateAction.changesStatus())) {
+                throw validation("服务受限事实不得与字段变更、金额事实或状态动作混合提交");
             }
             changes = List.copyOf(changes);
             validateStateChange(stateAction, stateReason, terminationReason);
@@ -61,7 +75,8 @@ public interface PolicyMaintenanceApplicationPort {
             String calculated = calculateHash(
                     tenantId, policyId, requestId, maintenanceCaseId, expectedPolicyVersion,
                     proposedSnapshotHash, effectiveTimeType, effectiveAt, changeSummary, changes,
-                    stateAction, stateReason, terminationReason, retroactiveEvidence);
+                    amountEffect, serviceRestrictionEffect, stateAction, stateReason, terminationReason,
+                    retroactiveEvidence);
             if (requestPayloadHash != null && !requestPayloadHash.isBlank()
                     && !calculated.equalsIgnoreCase(requestPayloadHash)) {
                 throw validation("Policy 应用请求摘要与结构化载荷不一致");
@@ -85,7 +100,7 @@ public interface PolicyMaintenanceApplicationPort {
                 String operatorId) {
             this(tenantId, policyId, requestId, maintenanceCaseId, expectedPolicyVersion,
                     requestPayloadHash, proposedSnapshotHash, effectiveTimeType, effectiveAt,
-                    changeSummary, changes, PolicyMaintenanceAction.NONE, null, null, null, operatorId);
+                    changeSummary, changes, null, null, PolicyMaintenanceAction.NONE, null, null, null, operatorId);
         }
 
         /** 兼容 M5-03 状态类请求。 */
@@ -107,7 +122,7 @@ public interface PolicyMaintenanceApplicationPort {
                 String operatorId) {
             this(tenantId, policyId, requestId, maintenanceCaseId, expectedPolicyVersion,
                     requestPayloadHash, proposedSnapshotHash, effectiveTimeType, effectiveAt,
-                    changeSummary, changes, stateAction, stateReason, terminationReason, null, operatorId);
+                    changeSummary, changes, null, null, stateAction, stateReason, terminationReason, null, operatorId);
         }
 
         private static String calculateHash(
@@ -121,6 +136,8 @@ public interface PolicyMaintenanceApplicationPort {
                 LocalDateTime effectiveAt,
                 String changeSummary,
                 List<FieldChange> changes,
+                MaintenanceAmountEffect amountEffect,
+                MaintenanceServiceRestrictionEffect serviceRestrictionEffect,
                 PolicyMaintenanceAction stateAction,
                 String stateReason,
                 TerminationReason terminationReason,
@@ -144,6 +161,20 @@ public interface PolicyMaintenanceApplicationPort {
                         append(canonical, field.dataType());
                         append(canonical, field.canonicalValue());
                     });
+            if (amountEffect != null) {
+                append(canonical, amountEffect.itemCode());
+                append(canonical, amountEffect.amount().toPlainString());
+                append(canonical, amountEffect.direction().getCode());
+                append(canonical, amountEffect.currency());
+                append(canonical, amountEffect.sourceRef());
+            }
+            // 🔴 与保单域 PolicyMaintenanceHashing.requestHash 逐字同序，且同纪律：非 null 才追加，
+            //    使字段型/金额型/状态型案件的 canonical 串逐字不变（存量已冻结请求与在途重试不得失配）。
+            //    取枚举 code 而非 name()——code 是跨域契约且不可改名。
+            if (serviceRestrictionEffect != null) {
+                append(canonical, serviceRestrictionEffect.type().getCode());
+                append(canonical, serviceRestrictionEffect.action().getCode());
+            }
             if (stateAction.changesStatus()) {
                 append(canonical, stateAction.name());
                 append(canonical, stateReason);

@@ -1,5 +1,7 @@
 package com.titanium.maintenance.infrastructure.adapter.product;
 
+import java.util.List;
+
 import org.springframework.stereotype.Component;
 
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
@@ -27,7 +29,10 @@ public class ProductSurrenderValueAdapter implements ProductSurrenderValuePort {
                         request.surrenderRequestId(), request.bizNo(), request.originalBizNo(),
                         request.originalCalculationId(),
                         request.policyEffectiveDate(), request.surrenderDate(), request.policyYear(),
-                        request.businessTime(), request.reason()));
+                        request.businessTime(), request.reason(),
+                        request.annualPremium(), request.coverageEndDate(), request.premiumPaidUp(),
+                        request.loanOutstandingPrincipal(), request.loanOutstandingInterest(),
+                        request.overduePremium(), request.dividendBalance(), request.accountValue()));
         if (apiResponse == null || !apiResponse.isSuccess() || apiResponse.getData() == null) {
             String detail = apiResponse == null ? "空响应" : apiResponse.getCode() + ":" + apiResponse.getMessage();
             throw new MaintenanceRemoteCallException(
@@ -35,6 +40,11 @@ public class ProductSurrenderValueAdapter implements ProductSurrenderValuePort {
                     MaintenanceErrorCode.MAINTENANCE_SURRENDER_REMOTE_ERROR);
         }
         SurrenderValueCalculationResponse response = apiResponse.getData();
+        List<SurrenderFactorFact> factors = response.factors() == null ? List.of()
+                : response.factors().stream()
+                        .map(factor -> new SurrenderFactorFact(
+                                factor.factorType(), factor.direction(), factor.amount(), factor.explainKey()))
+                        .toList();
         return new SurrenderFact(
                 response.surrenderRequestId(), response.policyCode(), response.policyVersion(),
                 response.policyContentHash(), response.policyYear(), response.coolingOffDays(),
@@ -44,6 +54,7 @@ public class ProductSurrenderValueAdapter implements ProductSurrenderValuePort {
                 response.replacementCalculationId(), response.replacementResultHash(),
                 response.adjustmentId(), response.requestHash(), response.adjustmentResultHash(),
                 response.pricingPlanVersion(), response.pricingPlanContentHash(),
-                MaintenanceBalanceDirection.fromCode(response.direction()), response.amount(), response.currency());
+                MaintenanceBalanceDirection.fromCode(response.direction()), response.amount(), response.currency(),
+                factors);
     }
 }

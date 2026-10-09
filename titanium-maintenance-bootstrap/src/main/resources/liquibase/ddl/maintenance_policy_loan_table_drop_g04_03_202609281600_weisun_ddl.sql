@@ -1,0 +1,25 @@
+--liquibase formatted sql
+--changeset weisun:maintenance-policy-loan-table-drop-g04-03-202609281600
+-- 保单贷款原表清理（g04-03）：贷款账户已落 policy 域（PolicyLoan 事件溯源聚合 + t_policy_loan 读模型，
+-- policy-bootstrap/liquibase/ddl/policy_loan_202609281030_weisun_ddl.sql 建表）。
+-- 本表为「方案清单§3.9」遗留：无聚合根实体、无仓储、从未写入（迁移前已只读核对行数为 0，见 G04 R-8 要求），
+-- 直接 DROP；若执行时表非空（理论不可能），本变更集会因表结构差异报错而不会静默丢数据。
+DROP TABLE t_policy_loan;
+
+--rollback CREATE TABLE t_policy_loan (
+--rollback   id varchar(32) NOT NULL COMMENT '主键(雪花)',
+--rollback   policy_id varchar(36) NOT NULL COMMENT '保单ID',
+--rollback   loan_amount decimal(18,2) NOT NULL COMMENT '贷款金额',
+--rollback   interest_rate decimal(9,6) DEFAULT NULL COMMENT '贷款利率',
+--rollback   loan_date datetime DEFAULT NULL COMMENT '贷款日期',
+--rollback   repaid tinyint NOT NULL DEFAULT '0' COMMENT '已偿还(0否1是)',
+--rollback   tenant_id varchar(32) NOT NULL COMMENT '租户ID',
+--rollback   create_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+--rollback   update_time datetime NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+--rollback   created_by varchar(32) NOT NULL DEFAULT 'system' COMMENT '创建人',
+--rollback   updated_by varchar(32) NOT NULL DEFAULT 'system' COMMENT '更新人',
+--rollback   is_deleted tinyint NOT NULL DEFAULT '0' COMMENT '逻辑删除(0否1是)',
+--rollback   PRIMARY KEY (id),
+--rollback   KEY idx_policy_loan_tenant (tenant_id),
+--rollback   KEY idx_policy_loan_policy (policy_id)
+--rollback ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='保单贷款表(方案清单§3.9,无聚合根实体)';

@@ -1,0 +1,25 @@
+--liquibase formatted sql
+--changeset weisun:maintenance-evidence-version-widen-g04-fix-202609281630
+-- 证据版本列宽 64 → 128（G04 真机缺陷修复）。
+--
+-- 🔴 缺陷：g04-03/g04-04 新增的贷款证据把 evidenceVersion 实现为**生效请求号**
+--   （MaintenanceLoanDisbursementEvidence / MaintenanceLoanRepaymentEvidence 均 `return requestId`），
+--   其形态为 "effect-case-" + sha256(64) = **76 字符**（task 级 "effect-" + sha256 = 71 字符），
+--   超出本列 varchar(64)。投影写 t_maintenance_workflow_task_view 时抛
+--   MysqlDataTruncation: Data too long for column 'last_evidence_version'，
+--   致「生效回执」事件整条投影失败并进死信队列 —— 实测 6 个贷款案件（g04-03 放款 1 + g04-04 还款 5）
+--   EFFECT 任务**全部卡在 WAITING_EXTERNAL、无一到 COMPLETED**，后继 COMPLETE 任务永不激活，
+--   案件在读写模型上永远无法收口。历史非贷款证据取 actualPolicyVersion 等短值故不受影响
+--   （故全库仍有 16 个 EFFECT 任务正常 COMPLETED，暴露面仅在贷款类案件）。
+--
+-- 🔴 为何扩列宽而非改证据版本取值：evidenceVersion 参与领域比对
+--   （MaintenanceWorkflowTask `evidence.evidenceVersion().equals(operation.evidenceVersion())`）
+--   并已写入事件流，改其形态会使存量案件重放/重试时新旧值不等、幂等失效；
+--   列宽是**纯读模型属性**（ddl-auto: none，本表由投影写入、可由事件流重建），零事件流影响。
+--
+-- 只扩本列：另两处 evidence_version 列经实测无超长写入 ——
+--   t_maintenance_retroactive_impact_view.evidence_version 最大 21；
+--   t_maintenance_view.retroactive_impact_evidence_version 最大 64（来源为 sha256 定长 64，恒不超）。
+ALTER TABLE t_maintenance_workflow_task_view MODIFY COLUMN last_evidence_version VARCHAR(128) COMMENT '最后证据版本（贷款类证据取生效请求号，形态 76 字符，故宽于 64 位摘要列）';
+
+--rollback ALTER TABLE t_maintenance_workflow_task_view MODIFY COLUMN last_evidence_version VARCHAR(64) COMMENT '最后证据版本';
