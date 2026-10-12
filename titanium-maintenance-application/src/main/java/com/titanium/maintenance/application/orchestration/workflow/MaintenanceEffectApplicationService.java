@@ -50,6 +50,9 @@ import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionFact;
 import com.titanium.maintenance.port.document.PolicyReissueDocumentPort;
+import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort;
+import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort.InvestmentRedeemFact;
+import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort.InvestmentRedeemRequest;
 import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort;
 import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort.InvestmentSwitchFact;
 import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort.InvestmentSwitchRequest;
@@ -110,6 +113,7 @@ public class MaintenanceEffectApplicationService {
     private final PolicyMaintenanceApplicationPort policyApplicationPort;
     private final BillingRetroactivePeriodResolutionPort billingResolutionPort;
     private final InvestmentAccountSwitchPort investmentAccountSwitchPort;
+    private final InvestmentAccountRedeemPort investmentAccountRedeemPort;
     private final PolicyReissueDocumentPort policyReissueDocumentPort;
     private final LoanDisbursementOrchestrator loanDisbursementOrchestrator;
     private final LoanRepaymentOrchestrator loanRepaymentOrchestrator;
@@ -788,6 +792,13 @@ public class MaintenanceEffectApplicationService {
         } catch (RuntimeException exception) {
             return recordCompensation(input, context, fact, exception);
         }
+        try {
+            redeemPartialWithdrawal(input, context);
+        } catch (RuntimeException exception) {
+            log.error("部分领取的投资侧赎回未完成，转补偿通道: maintenanceId={}, policyId={}, 原因={}",
+                    input.maintenanceId(), context.caseView().getPolicyId(), exception.getMessage(), exception);
+            return recordCompensation(input, context, fact, exception);
+        }
         String operationId = PolicyMaintenanceApplicationPort.stageOperationId(
                 input.operationId(), "receipt", context.retryCount());
         return send(new RecordMaintenanceCasePolicyApplicationCommand(
@@ -798,6 +809,62 @@ public class MaintenanceEffectApplicationService {
                         fact.applicationHash(), fact.appliedAt()))
                 .exceptionallyCompose(exception -> recordCompensation(
                         input, context, fact, rootCause(exception)));
+    }
+
+    /**
+     * 部分领取的<b>投资侧效果</b>：把客户实领金额交投资域账户，由其按当日净值折算为赎回单位数并扣减账户价值
+     * （G14/g14-06，「部分领取 → 投资侧赎回单位」；折算精度同 AC-03，入口只在账户侧）。
+     * <p>
+     * 🔴 <b>必须置于 policy 生效之后、案件回执之前</b>——两个方向的次序都错不得：
+     * </p>
+     * <ul>
+     * <li><b>不得先于 policy 生效</b>：赎回是资金动作，而本域唯一可用的补偿通道 {@link #recordCompensation}
+     * 的合法性前提正是「合同变更已生效、客户已可领钱」。若赎回先行而 policy 拒绝，赎回既无处补偿（合同未变），
+     * 也无从撤销（投资域无反向命令），只能挂人工；</li>
+     * <li><b>不得后于案件回执</b>：回执 {@code RecordMaintenanceCasePolicyApplicationCommand} 会把生效任务直接置为
+     * {@code COMPLETED}，而 {@link #recoverCompletedResult} 在全部任务 COMPLETED 时短路返回——赎回若排在回执之后
+     * 而未发生，重试将<b>永远不会再走到赎回</b>：客户领了钱、账户价值未扣减，且案件侧无任何失败痕迹
+     * （静默少单位）。置于回执之前时，赎回失败即走补偿通道，案件停在补偿态、可人工接续。</li>
+     * </ul>
+     * <p>
+     * ⚠️ <b>已知窗口（如实登记，勿误认为已幂等）</b>：赎回成功而紧接的回执命令失败时，重试会<b>重复赎回</b>
+     * （at-least-once）。本出口与账户转换出口（{@code executeInvestmentSwitch}）同形，均未引入幂等键。运行时缓解
+     * 有两处：① 赎回金额与 policy 生效请求<b>同源</b>（同取 {@link EffectContext#amountEffect()}），后者已由请求
+     * 冻结机制（{@link #validateFrozenRequest}）保证重试金额一致；② 请求携带由案件号派生的稳定
+     * {@code reason}，重复赎回可按案在投资域事件流中检出并人工冲正。若后续要做强幂等，正确落点是<b>投资域按稳定
+     * 请求号去重</b>（与 policy 侧 {@code stableCaseRequestId} 同法），而非在本域加状态。
+     * </p>
+     */
+    private void redeemPartialWithdrawal(
+            MaintenanceEffectApplicationInput input,
+            EffectContext context) {
+        if (!isPartialWithdrawalCase(context.effectTasks())) {
+            return;
+        }
+        MaintenanceAmountEffect amountEffect = context.amountEffect();
+        // 不变量断言（非可达的业务分支）：部分领取属金额型，闸口 requireContext 已解析出差额事实；
+        // 若此处取不到，宁可失败可见也不静默跳过赎回——静默少单位正是本任务要修的缺陷形态。
+        if (amountEffect == null) {
+            throw validation("amountEffect", "部分领取案件缺少已登记的收付差额事实，无法折算赎回单位数");
+        }
+        InvestmentRedeemFact fact = investmentAccountRedeemPort.redeemByPolicy(new InvestmentRedeemRequest(
+                input.tenantId(), context.caseView().getPolicyId(), input.maintenanceId(),
+                amountEffect.amount(), amountEffect.currency(), input.operatorId()));
+        if (fact == null) {
+            throw new MaintenanceRemoteCallException(
+                    "保单名下无可用投资账户，部分领取的赎回无处可施, policyId=" + context.caseView().getPolicyId(),
+                    MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_MISSING);
+        }
+        log.info("[部分领取] 投资侧赎回完成: maintenanceId={}, accountId={}, 实领金额={} {}, 赎回后账户价值={}",
+                input.maintenanceId(), fact.accountId(), amountEffect.amount(), amountEffect.currency(),
+                fact.accountValue());
+    }
+
+    /** 部分领取出口判定：全部生效任务同属部分领取保全项（混案已由 {@code requireContext} 显式拒绝）。 */
+    private boolean isPartialWithdrawalCase(List<MaintenanceWorkflowTaskView> effectTasks) {
+        return !effectTasks.isEmpty() && effectTasks.stream()
+                .allMatch(task -> MaintenanceItemCode.of(task.getItemCode()).legacyMaintenanceType()
+                        == MaintenanceType.PARTIAL_WITHDRAWAL);
     }
 
     private CompletableFuture<MaintenanceEffectApplicationResult> recordCompensation(

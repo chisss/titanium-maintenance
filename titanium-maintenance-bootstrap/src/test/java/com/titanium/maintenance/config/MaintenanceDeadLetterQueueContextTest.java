@@ -31,6 +31,7 @@ import com.titanium.maintenance.infrastructure.client.billing.PolicyLoanRepaymen
 import com.titanium.maintenance.infrastructure.client.claim.ClaimRetroactiveImpactClient;
 import com.titanium.maintenance.infrastructure.client.customer.CustomerServiceClient;
 import com.titanium.maintenance.infrastructure.client.insurance.InsuranceServiceClient;
+import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountRedeemClient;
 import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountSwitchClient;
 import com.titanium.maintenance.infrastructure.client.payment.LoanDisbursementPayoutClient;
 import com.titanium.maintenance.infrastructure.client.payment.LoanRepaymentCollectionClient;
@@ -119,6 +120,7 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
         CustomerServiceClient.class,
         InsuranceServiceClient.class,
         InvestmentAccountSwitchClient.class,
+        InvestmentAccountRedeemClient.class,
         LoanDisbursementPayoutClient.class,
         LoanRepaymentCollectionClient.class,
         PaymentMaintenanceRefundClient.class,
@@ -147,7 +149,7 @@ class MaintenanceDeadLetterQueueContextTest {
     private static final String FEIGN_CLIENT_PACKAGE = "com.titanium.maintenance.infrastructure.client";
 
     /** 域内 Feign 契约数下界：客户端增删须同步此值——扫描规则一旦失效则扫出空集，「全部已登记」会恒真。 */
-    private static final int FEIGN_CLIENT_LOWER_BOUND = 23;
+    private static final int FEIGN_CLIENT_LOWER_BOUND = 24;
 
     @Autowired
     private EventProcessingConfiguration eventProcessingConfiguration;

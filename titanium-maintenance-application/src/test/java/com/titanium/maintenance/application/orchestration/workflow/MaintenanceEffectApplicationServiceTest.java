@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -31,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 import com.titanium.maintenance.application.command.effect.MaintenanceEffectApplicationInput;
 import com.titanium.maintenance.application.model.effect.LoanDisbursementFact;
@@ -65,11 +67,15 @@ import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeri
 import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceConflictException;
+import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.common.exception.MaintenanceValidationException;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionFact;
 import com.titanium.maintenance.port.billing.BillingRetroactivePeriodResolutionPort.ResolutionLineFact;
 import com.titanium.maintenance.port.document.PolicyReissueDocumentPort;
+import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort;
+import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort.InvestmentRedeemFact;
+import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort.InvestmentRedeemRequest;
 import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort;
 import com.titanium.maintenance.port.policy.PolicyFieldCatalogPort.PolicyFieldCapabilityEvidence;
@@ -115,6 +121,7 @@ class MaintenanceEffectApplicationServiceTest {
     private PolicyMaintenanceApplicationPort policyApplicationPort;
     private BillingRetroactivePeriodResolutionPort billingResolutionPort;
     private InvestmentAccountSwitchPort investmentAccountSwitchPort;
+    private InvestmentAccountRedeemPort investmentAccountRedeemPort;
     private PolicyReissueDocumentPort policyReissueDocumentPort;
     private LoanDisbursementOrchestrator loanDisbursementOrchestrator;
     private LoanRepaymentOrchestrator loanRepaymentOrchestrator;
@@ -134,6 +141,7 @@ class MaintenanceEffectApplicationServiceTest {
         policyApplicationPort = mock(PolicyMaintenanceApplicationPort.class);
         billingResolutionPort = mock(BillingRetroactivePeriodResolutionPort.class);
         investmentAccountSwitchPort = mock(InvestmentAccountSwitchPort.class);
+        investmentAccountRedeemPort = mock(InvestmentAccountRedeemPort.class);
         policyReissueDocumentPort = mock(PolicyReissueDocumentPort.class);
         loanDisbursementOrchestrator = mock(LoanDisbursementOrchestrator.class);
         loanRepaymentOrchestrator = mock(LoanRepaymentOrchestrator.class);
@@ -142,7 +150,7 @@ class MaintenanceEffectApplicationServiceTest {
                 commandGateway, maintenanceViewRepository, taskRepository, fieldRepository,
                 snapshotRepository, periodAdjustmentRepository, fieldConflictApplicationService, fieldCatalogPort,
                 policyApplicationPort, billingResolutionPort, investmentAccountSwitchPort,
-                policyReissueDocumentPort,
+                investmentAccountRedeemPort, policyReissueDocumentPort,
                 loanDisbursementOrchestrator, loanRepaymentOrchestrator, reducedPaidUpOrchestrator);
         when(commandGateway.send(any())).thenReturn(CompletableFuture.completedFuture(null));
         when(fieldConflictApplicationService.refreshIfVersionChanged(any(), anyLong()))
@@ -1424,6 +1432,9 @@ class MaintenanceEffectApplicationServiceTest {
     @ValueSource(strings = {"ADDITIONAL_PAYMENT", "REDUCTION_PAYMENT", "TOP_UP", "PARTIAL_WITHDRAWAL"})
     void shouldSubmitRecordedPostingDifferenceAsAmountFact(String itemCode) {
         amountContext(itemCode, MaintenanceWorkflowTaskStatus.READY, true);
+        // 部分领取（第 4 个参数）在 G14/g14-06 中新增了投资侧赎回，须给出账户事实桩；其余三类金额项不经该出口，
+        // 宽桩不被调用（本类未启用 strict stubs）。该用例对四类项同时成立本身即是「赎回只属部分领取」的旁证。
+        when(investmentAccountRedeemPort.redeemByPolicy(any())).thenReturn(redeemFact());
         ArgumentCaptor<PolicyMaintenanceApplicationPort.ApplicationRequest> requestCaptor =
                 ArgumentCaptor.forClass(PolicyMaintenanceApplicationPort.ApplicationRequest.class);
         when(policyApplicationPort.apply(any())).thenAnswer(invocation -> {
@@ -1480,10 +1491,150 @@ class MaintenanceEffectApplicationServiceTest {
         verify(policyApplicationPort, never()).apply(any());
     }
 
+    // ==================== 部分领取的投资侧赎回编排（G14/g14-06） ====================
+
+    /**
+     * 部分领取必须触发投资侧赎回，且<b>严格落在 policy 生效之后、案件回执之前</b>。
+     * <p>
+     * 顺序是本出口的核心判据，两个方向各对应一种事故：
+     * </p>
+     * <ul>
+     * <li>赎回<b>先于</b> policy 生效 ⇒ policy 一旦拒绝，赎回既无处补偿（合同未变）也无从撤销；</li>
+     * <li>赎回<b>后于</b>案件回执 ⇒ 回执把生效任务置 {@code COMPLETED} 后，重试会被 {@code recoverCompletedResult}
+     * 短路，赎回漏做即永远不会重跑（客户领钱而账户价值未扣，静默少单位）。</li>
+     * </ul>
+     * <p>
+     * 载荷断言锁死「金额取自已登记的收付差额事实」与「原因由案件号派生」——前者防调用方自报金额，
+     * 后者使重复赎回可按案在投资域事件流中检索。
+     * </p>
+     */
+    @Test
+    void shouldRedeemInvestmentUnitsBetweenPolicyApplicationAndReceipt() {
+        amountContext("PARTIAL_WITHDRAWAL", MaintenanceWorkflowTaskStatus.READY, true);
+        when(policyApplicationPort.apply(any())).thenAnswer(
+                invocation -> successfulPolicyFact(invocation.getArgument(0)));
+        when(investmentAccountRedeemPort.redeemByPolicy(any())).thenReturn(redeemFact());
+
+        service.apply(input()).join();
+
+        ArgumentCaptor<InvestmentRedeemRequest> redeemCaptor =
+                ArgumentCaptor.forClass(InvestmentRedeemRequest.class);
+        verify(investmentAccountRedeemPort).redeemByPolicy(redeemCaptor.capture());
+        InvestmentRedeemRequest redeemRequest = redeemCaptor.getValue();
+        assertEquals("tenant-1", redeemRequest.tenantId());
+        assertEquals("policy-1", redeemRequest.policyId());
+        assertEquals("maintenance-1", redeemRequest.maintenanceId());
+        assertEquals(0, redeemRequest.redeemAmount().compareTo(new BigDecimal("1000.00")),
+                "赎回金额取自已登记的收付差额事实，不由调用方自报");
+        assertEquals("CNY", redeemRequest.currency());
+        assertEquals("MAINTENANCE_PARTIAL_WITHDRAWAL:maintenance-1", redeemRequest.reason(),
+                "赎回原因由案件号派生，重复赎回须可按案检索");
+
+        InOrder ordered = inOrder(policyApplicationPort, investmentAccountRedeemPort, commandGateway);
+        ordered.verify(policyApplicationPort).apply(any());
+        ordered.verify(investmentAccountRedeemPort).redeemByPolicy(any());
+        ordered.verify(commandGateway).send(any(RecordMaintenanceCasePolicyApplicationCommand.class));
+    }
+
+    /**
+     * 反向判据：赎回只属部分领取，其余金额型保全项（追加缴费 / 减额缴费 / 追加投资）不得触达投资侧。
+     * <p>
+     * 若判定误写成「金额型即赎回」，追加投资会把客户的钱从账户里赎出来——方向性错误，且金额型案件不带字段
+     * 变更，事后无从从批单里看出。
+     * </p>
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {"ADDITIONAL_PAYMENT", "REDUCTION_PAYMENT", "TOP_UP"})
+    void shouldNotRedeemForOtherAmountItems(String itemCode) {
+        amountContext(itemCode, MaintenanceWorkflowTaskStatus.READY, true);
+        when(policyApplicationPort.apply(any())).thenAnswer(
+                invocation -> successfulPolicyFact(invocation.getArgument(0)));
+
+        service.apply(input()).join();
+
+        verifyNoInteractions(investmentAccountRedeemPort);
+    }
+
+    /**
+     * 赎回失败：转补偿通道（policy 已生效，唯一合法的收口方式），且<b>不得</b>发案件回执——
+     * 回执会让任务直接 COMPLETED，把「账户价值未扣减」这一事实彻底隐去。
+     */
+    @Test
+    void shouldRouteRedeemFailureToCompensationWithoutReceipt() {
+        amountContext("PARTIAL_WITHDRAWAL", MaintenanceWorkflowTaskStatus.READY, true);
+        when(policyApplicationPort.apply(any())).thenAnswer(
+                invocation -> successfulPolicyFact(invocation.getArgument(0)));
+        when(investmentAccountRedeemPort.redeemByPolicy(any())).thenThrow(
+                new MaintenanceRemoteCallException("投资域部分领取赎回失败(服务不可达), policyId=policy-1",
+                        MaintenanceErrorCode.MAINTENANCE_INVESTMENT_REMOTE_ERROR));
+
+        assertThrows(java.util.concurrent.CompletionException.class, () -> service.apply(input()).join());
+
+        List<Object> commands = capturedCommands(2);
+        assertInstanceOf(RequestMaintenanceCaseEffectCommand.class, commands.get(0));
+        assertInstanceOf(RecordMaintenanceEffectCompensationCommand.class, commands.get(1));
+        verify(commandGateway, never()).send(any(RecordMaintenanceCasePolicyApplicationCommand.class));
+    }
+
+    /**
+     * 保单名下无投资账户：失败关闭（{@code 71006016}），不得静默跳过赎回。
+     * <p>
+     * 与账户转换出口同规——「对端明确未命中」是业务事实而非技术故障，但本出口无「无账户也就无需赎回」这一说：
+     * 部分领取的实质效果就是赎回，跳过等于给了客户钱却不扣账户。
+     * </p>
+     */
+    @Test
+    void shouldFailClosedWhenPartialWithdrawalHasNoInvestmentAccount() {
+        amountContext("PARTIAL_WITHDRAWAL", MaintenanceWorkflowTaskStatus.READY, true);
+        when(policyApplicationPort.apply(any())).thenAnswer(
+                invocation -> successfulPolicyFact(invocation.getArgument(0)));
+        when(investmentAccountRedeemPort.redeemByPolicy(any())).thenReturn(null);
+
+        java.util.concurrent.CompletionException wrapper = assertThrows(
+                java.util.concurrent.CompletionException.class, () -> service.apply(input()).join());
+
+        MaintenanceRemoteCallException cause = assertInstanceOf(
+                MaintenanceRemoteCallException.class, wrapper.getCause());
+        assertEquals(MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_MISSING.getCode(),
+                cause.getErrorCodeValue());
+        verify(commandGateway, never()).send(any(RecordMaintenanceCasePolicyApplicationCommand.class));
+    }
+
+    /** 币种随已登记差额：USD 案件不得按缺省 CNY 赎回。 */
+    @Test
+    void shouldPassRecordedCurrencyToRedemption() {
+        amountContext("PARTIAL_WITHDRAWAL", MaintenanceWorkflowTaskStatus.READY, true, "USD");
+        when(policyApplicationPort.apply(any())).thenAnswer(
+                invocation -> successfulPolicyFact(invocation.getArgument(0)));
+        when(investmentAccountRedeemPort.redeemByPolicy(any())).thenReturn(redeemFact());
+
+        service.apply(input()).join();
+
+        ArgumentCaptor<InvestmentRedeemRequest> redeemCaptor =
+                ArgumentCaptor.forClass(InvestmentRedeemRequest.class);
+        verify(investmentAccountRedeemPort).redeemByPolicy(redeemCaptor.capture());
+        assertEquals("USD", redeemCaptor.getValue().currency());
+    }
+
+    /** 赎回后的账户事实（口径与适配器一致：字段全部取自对端应答）。 */
+    private InvestmentRedeemFact redeemFact() {
+        return new InvestmentRedeemFact("account-1", new BigDecimal("1.25000000"),
+                new BigDecimal("200.00000000"), new BigDecimal("250.00000000"), "CNY");
+    }
+
     private MaintenanceView amountContext(
             String itemCode,
             MaintenanceWorkflowTaskStatus status,
             boolean withRecordedDifference) {
+        return amountContext(itemCode, status, withRecordedDifference, "CNY");
+    }
+
+    /** 同上，并指定已登记差额的币种（用于断言币种随差额而非缺省值）。 */
+    private MaintenanceView amountContext(
+            String itemCode,
+            MaintenanceWorkflowTaskStatus status,
+            boolean withRecordedDifference,
+            String currency) {
         MaintenanceView caseView = visibleContext(true);
         MaintenanceWorkflowTaskView effect = effectTask("effect-task-1", itemCode, 0);
         effect.setStatus(status);
@@ -1495,7 +1646,7 @@ class MaintenanceEffectApplicationServiceTest {
             fee.setBillingPostingStatus(MaintenanceBillingPostingStatus.POSTED);
             fee.setBillingPostingDirection(MaintenanceBalanceDirection.DEBIT);
             fee.setBillingPostingAmount(new BigDecimal("1000.00"));
-            fee.setBillingPostingCurrency("CNY");
+            fee.setBillingPostingCurrency(currency);
         }
         when(taskRepository.findByTenantIdAndMaintenanceIdAndTaskId(
                 "tenant-1", "maintenance-1", "effect-task-1")).thenReturn(Optional.of(effect));
