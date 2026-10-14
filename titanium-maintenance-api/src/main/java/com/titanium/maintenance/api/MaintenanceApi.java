@@ -17,6 +17,7 @@ import com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest;
 import com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse;
 import com.titanium.maintenance.api.response.MaintenanceResponse;
 import com.titanium.maintenance.api.response.MaintenanceSurrenderSettlementResponse;
+import com.titanium.metadata.enums.Reserved;
 import com.titanium.metadata.response.ApiResponse;
 
 import jakarta.validation.Valid;
@@ -50,6 +51,7 @@ public interface MaintenanceApi {
      * @return 统一信封，data 为保全案件ID
      */
     @PostMapping
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<String> createMaintenance(@RequestBody @Valid CreateMaintenanceRequest request);
 
     /**
@@ -60,11 +62,13 @@ public interface MaintenanceApi {
      * @return 统一信封，data 为保全案件ID
      */
     @PutMapping("/{id}/status")
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<String> changeMaintenanceStatus(@PathVariable String id,
                                                 @RequestBody @Valid ChangeMaintenanceStatusRequest request);
 
     /** 由 Maintenance 编排 Product 替代计算、差额确认与 Billing 余额登记。 */
     @PostMapping("/{id}/premium-settlements")
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<MaintenancePremiumSettlementResponse> settlePremium(
             @PathVariable String id,
             @RequestBody @Valid SettleMaintenancePremiumRequest request);
@@ -85,6 +89,7 @@ public interface MaintenanceApi {
      * </p>
      */
     @PostMapping("/{id}/surrender-settlements")
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<MaintenanceSurrenderSettlementResponse> settleSurrender(
             @PathVariable String id,
             @RequestBody @Valid SettleMaintenanceSurrenderRequest request);
@@ -96,6 +101,7 @@ public interface MaintenanceApi {
      * @return 统一信封，data 为保全案件详情
      */
     @GetMapping("/{id}")
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<MaintenanceResponse> getMaintenanceById(@PathVariable String id);
 
     /**
@@ -105,5 +111,6 @@ public interface MaintenanceApi {
      * @return 统一信封，data 为保全案件列表
      */
     @GetMapping("/policy/{policyId}")
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<List<MaintenanceResponse>> getMaintenancesByPolicyId(@PathVariable String policyId);
 }

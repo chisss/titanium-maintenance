@@ -1,6 +1,7 @@
 package com.titanium.maintenance.common.enums.config;
 
 import com.titanium.metadata.enums.BaseEnum;
+import com.titanium.metadata.enums.Reserved;
 
 import lombok.Getter;
 
@@ -13,6 +14,7 @@ public enum MaintenanceStepType implements BaseEnum {
     REVIEW(4, "REVIEW", "保全审核"),
     UNDERWRITING(5, "UNDERWRITING", "核保"),
     FEE_SETTLEMENT(6, "FEE_SETTLEMENT", "保全收退费"),
+    @Reserved("2026-10-14 g16-05 零引用登记（未见消费）：待业务核对——接入触发链路或删除；核毕摘标注+删清单行。见 docs/技术文档/枚举零引用清单.md")
     WAITING_EFFECTIVE(7, "WAITING_EFFECTIVE", "等待生效"),
     EFFECT(8, "EFFECT", "保全生效"),
     DOCUMENT(9, "DOCUMENT", "出具凭证"),

@@ -29,6 +29,13 @@
             <version>1.0.0-SNAPSHOT</version>
         </dependency>
 
+        <!-- 通用内核：死信指标装饰器 DltMetricsRecoverer 所在模块（G16 跨域 Kafka 死信可见性） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-common</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
         <!-- Spring Boot -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -37,6 +44,13 @@
         <dependency>
             <groupId>org.springframework.kafka</groupId>
             <artifactId>spring-kafka</artifactId>
+        </dependency>
+
+        <!-- 死信投递指标：DltMetricsRecoverer 直接引用 MeterRegistry（编译期类型）；
+             运行时 registry 由 bootstrap 的 actuator/prometheus 提供，版本由 Boot BOM 管理 -->
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
         </dependency>
         <!-- Jackson JSR-310：Kafka 事件序列化 LocalDateTime 所需 -->
         <dependency>

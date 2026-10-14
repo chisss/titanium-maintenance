@@ -31,7 +31,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import com.titanium.common.messaging.DltMetricsRecoverer;
 import com.titanium.maintenance.common.constant.MaintenanceConstants;
+
+import io.micrometer.core.instrument.MeterRegistry;
 
 @Configuration
 @EnableKafka
@@ -159,12 +162,13 @@ public class KafkaConfig {
     }
 
     @Bean
-    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory() {
+    public ConcurrentKafkaListenerContainerFactory<String, Object> kafkaListenerContainerFactory(
+            MeterRegistry meterRegistry) {
         ConcurrentKafkaListenerContainerFactory<String, Object> factory = new ConcurrentKafkaListenerContainerFactory<>();
         factory.setConsumerFactory(consumerFactory());
         // 🔴 必须显式挂载：本仓未引入 spring-boot-kafka，Boot 不会把 CommonErrorHandler 自动接到
         //    容器工厂上；不挂载即退回 Spring Kafka 默认（10 次零间隔重试后丢弃），重试耗尽的消息静默丢失。
-        factory.setCommonErrorHandler(kafkaDefaultErrorHandler());
+        factory.setCommonErrorHandler(kafkaDefaultErrorHandler(meterRegistry));
         return factory;
     }
 
@@ -175,10 +179,15 @@ public class KafkaConfig {
      * {@code {原主题}-dlt}，不再静默丢弃。死信主题在 Broker 端按需创建
      * （生产环境应显式建主题并配监控告警——见 policy 域的 INBOUND_TOPICS + KafkaAdmin 加强版）。
      * </p>
+     * <p>
+     * 死信投递经 {@link DltMetricsRecoverer} 旁路计数（{@code titanium.kafka.dlt.published} /
+     * {@code titanium.kafka.dlt.recovery.failed}），死信条数与投递失败可被 Prometheus 采集告警（G16/AC-03）。
+     * </p>
      */
     @Bean
-    public DefaultErrorHandler kafkaDefaultErrorHandler() {
-        return new DefaultErrorHandler(new DeadLetterPublishingRecoverer(kafkaTemplate()),
+    public DefaultErrorHandler kafkaDefaultErrorHandler(MeterRegistry meterRegistry) {
+        return new DefaultErrorHandler(
+                new DltMetricsRecoverer(new DeadLetterPublishingRecoverer(kafkaTemplate()), meterRegistry),
                 new FixedBackOff(2000L, 3L));
     }
 }
