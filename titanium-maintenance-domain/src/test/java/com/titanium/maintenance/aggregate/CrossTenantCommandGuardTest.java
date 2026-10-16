@@ -65,8 +65,17 @@ class CrossTenantCommandGuardTest {
     /** 非本聚合归属的租户 */
     private static final String OTHER_TENANT_ID = "tenant-2";
 
-    /** 聚合根源码文件（相对模块根，surefire 以模块目录为工作目录） */
-    private static final List<String> AGGREGATE_SOURCES = List.of("Maintenance.java");
+    /**
+     * 聚合源文件（相对模块根，surefire 以模块目录为工作目录）。
+     * <p>
+     * 🔴 含 @AggregateMember 成员实体：DSN-01c（m25-03）起部分命令处理器下沉成员类，
+     * Axon 自动路由——成员处理器同样直接处理外部命令，故同受「首条语句跨租户守护」约束。
+     * 新增成员实体时必须同步登记本清单，否则成员成为无守护盲区。
+     * </p>
+     */
+    private static final List<String> AGGREGATE_SOURCES = List.of("Maintenance.java",
+            "MaintenanceRetroactiveResolution.java", "MaintenanceSettlement.java", "MaintenanceWorkflow.java",
+            "MaintenanceEffectPlan.java");
 
     private static final String GUARD_STATEMENT = "requireSameTenant(command.tenantId());";
 
@@ -180,10 +189,10 @@ class CrossTenantCommandGuardTest {
         assertEquals(List.of(), violations,
                 "以下 @CommandHandler 未把跨租户守护放在首条语句：" + String.join("；", violations));
         // 守护一旦失效（例如结构变更导致一个都没扫到）本测试必须失败，而非静默通过
-        assertEquals(54, inspected, "首条守护的 @CommandHandler 数量异常，守护规则可能已失效");
+        assertEquals(54, inspected, "首条守护的 @CommandHandler 数量异常，守护规则可能已失效（聚合根 25 + 成员实体 10 + 5 + 11 + 3）");
         assertEquals(1, constructors, "扫描到的创建构造器数量异常（Maintenance 1）");
         assertEquals(1, deferredGuards, "扫描到的幂等建案处理器数量异常（Maintenance 1）");
-        assertEquals(56, handlers, "扫描到的 @CommandHandler 总数异常（Maintenance 56）");
+        assertEquals(56, handlers, "扫描到的 @CommandHandler 总数异常（聚合根 27 + 成员实体 10 + 5 + 11 + 3 = 56）");
     }
 
     /** 判定该 {@code @CommandHandler} 是否标注在创建构造器上（方法名即聚合类名） */

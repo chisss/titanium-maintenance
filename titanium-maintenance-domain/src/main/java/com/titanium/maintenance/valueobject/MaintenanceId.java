@@ -1,6 +1,5 @@
 package com.titanium.maintenance.valueobject;
 
-import com.titanium.common.util.SnowflakeIdGenerator;
 
 /**
  * 保全案件标识值对象（Axon 聚合根标识）。
@@ -12,10 +11,6 @@ import com.titanium.common.util.SnowflakeIdGenerator;
  * @param id 保全案件唯一标识
  */
 public record MaintenanceId(String id) {
-
-    public static MaintenanceId generate() {
-        return new MaintenanceId(SnowflakeIdGenerator.generate());
-    }
 
     public static MaintenanceId of(String id) {
         return new MaintenanceId(id);

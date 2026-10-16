@@ -20,6 +20,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.titanium.common.number.IdGenerator;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceSearchPageResult;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceInFlightAdmissionPolicy;
 import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
@@ -54,9 +55,12 @@ class MaintenanceApplicationServiceSearchTest {
 
     @BeforeEach
     void setUp() {
+        // DSN-05：保全 ID 由应用边界经 IdGenerator 生成；单方法接口用 lambda 给确定性值（本类用例不触达该路径）
+        IdGenerator idGenerator = () -> "MNT-DSN05-001";
         service = new MaintenanceApplicationService(
                 commandGateway, repository, inFlightAdmissionPolicy, policyServicePort, customerServicePort,
-                legacyCreationFeaturePort, legacyPremiumCalculationFeaturePort, legacyExecutionFeaturePort);
+                legacyCreationFeaturePort, legacyPremiumCalculationFeaturePort, legacyExecutionFeaturePort,
+                idGenerator);
     }
 
     @Test

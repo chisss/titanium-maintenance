@@ -1,18 +1,15 @@
 package com.titanium.maintenance.aggregate;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 
 import org.axonframework.commandhandling.CommandHandler;
@@ -20,37 +17,24 @@ import org.axonframework.eventsourcing.EventSourcingHandler;
 import org.axonframework.modelling.command.AggregateCreationPolicy;
 import org.axonframework.modelling.command.AggregateIdentifier;
 import org.axonframework.modelling.command.AggregateLifecycle;
+import org.axonframework.modelling.command.AggregateMember;
 import org.axonframework.modelling.command.CreationPolicy;
 import org.axonframework.spring.stereotype.Aggregate;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import com.titanium.common.domain.BaseAggregate;
 import com.titanium.maintenance.command.AddMaintenanceChangeCommand;
 import com.titanium.maintenance.command.AddMaintenanceItemCommand;
-import com.titanium.maintenance.command.CalculateMaintenancePremiumCommand;
 import com.titanium.maintenance.command.ChangeMaintenanceStatusCommand;
-import com.titanium.maintenance.command.ClaimMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceCaseInitializationCommand;
-import com.titanium.maintenance.command.CompleteMaintenanceEffectScheduleCommand;
-import com.titanium.maintenance.command.CompleteMaintenanceItemCommand;
-import com.titanium.maintenance.command.CompleteMaintenanceRetroactiveImpactAnalysisCommand;
-import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodRecalculationCommand;
-import com.titanium.maintenance.command.CompleteMaintenanceRetroactivePeriodResolutionCommand;
 import com.titanium.maintenance.command.CompleteMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.ConfigureMaintenanceItemWithdrawalRecoveryCommand;
 import com.titanium.maintenance.command.CreateMaintenanceCaseCommand;
 import com.titanium.maintenance.command.CreateMaintenanceCommand;
-import com.titanium.maintenance.command.DecideMaintenanceReviewCommand;
-import com.titanium.maintenance.command.DecideMaintenanceUnderwritingCommand;
-import com.titanium.maintenance.command.DecideMaintenanceWorkflowConditionCommand;
 import com.titanium.maintenance.command.ExecuteMaintenanceCommand;
 import com.titanium.maintenance.command.FailMaintenanceCaseEffectCommand;
 import com.titanium.maintenance.command.FailMaintenanceItemWithdrawalCommand;
-import com.titanium.maintenance.command.FailMaintenancePremiumSettlementCommand;
-import com.titanium.maintenance.command.FailMaintenanceRetroactiveImpactAnalysisCommand;
-import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodRecalculationCommand;
-import com.titanium.maintenance.command.FailMaintenanceRetroactivePeriodResolutionCommand;
-import com.titanium.maintenance.command.FailMaintenanceWorkflowTaskCommand;
-import com.titanium.maintenance.command.PauseMaintenanceEffectScheduleCommand;
 import com.titanium.maintenance.command.ProposeMaintenanceFieldChangesCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCaseInvestmentSwitchCommand;
 import com.titanium.maintenance.command.RecordMaintenanceCaseLoanDisbursementCommand;
@@ -59,45 +43,24 @@ import com.titanium.maintenance.command.RecordMaintenanceCasePolicyApplicationCo
 import com.titanium.maintenance.command.RecordMaintenanceCasePolicyReissueCommand;
 import com.titanium.maintenance.command.RecordMaintenanceDocumentCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectCompensationCommand;
-import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleAttemptCommand;
 import com.titanium.maintenance.command.RecordMaintenanceEffectScheduleFailureCommand;
-import com.titanium.maintenance.command.RecordMaintenanceFinancialSettlementCommand;
 import com.titanium.maintenance.command.RecordMaintenanceItemWithdrawalCompensationCommand;
-import com.titanium.maintenance.command.RecordMaintenancePremiumAdjustmentCommand;
-import com.titanium.maintenance.command.RecordMaintenancePremiumPostingCommand;
-import com.titanium.maintenance.command.RecordMaintenancePremiumQuoteCommand;
-import com.titanium.maintenance.command.RecordMaintenancePremiumSettlementCommand;
-import com.titanium.maintenance.command.RecordMaintenanceRetroactiveProductRecalculationCommand;
-import com.titanium.maintenance.command.RecordMaintenanceSurrenderValueCommand;
 import com.titanium.maintenance.command.RefreshMaintenanceFieldConflictsCommand;
 import com.titanium.maintenance.command.RequestMaintenanceCaseEffectCommand;
 import com.titanium.maintenance.command.ResolveMaintenanceFieldConflictCommand;
 import com.titanium.maintenance.command.ResumeMaintenanceEffectScheduleCommand;
-import com.titanium.maintenance.command.RetryMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.command.ScheduleMaintenanceEffectCommand;
 import com.titanium.maintenance.command.StartMaintenanceItemWithdrawalCommand;
-import com.titanium.maintenance.command.StartMaintenanceRetroactiveImpactAnalysisCommand;
-import com.titanium.maintenance.command.StartMaintenanceRetroactivePeriodRecalculationCommand;
-import com.titanium.maintenance.command.StartMaintenanceRetroactivePeriodResolutionCommand;
-import com.titanium.maintenance.command.StartMaintenanceWorkflowTaskCommand;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
 import com.titanium.maintenance.common.enums.MaintenanceBalanceDirection;
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
 import com.titanium.maintenance.common.enums.MaintenanceStatus;
-import com.titanium.maintenance.common.enums.PaymentRefundStatus;
 import com.titanium.maintenance.common.enums.config.MaintenanceChannel;
 import com.titanium.maintenance.common.enums.config.MaintenanceStepType;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceBillingPostingStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceEffectScheduleStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceEffectStatus;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceItemWithdrawalStatus;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactiveImpactAnalysisStatus;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodRecalculationStatus;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceRetroactivePeriodResolutionStatus;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewDecision;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceReviewMode;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowAction;
-import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowConditionDecision;
 import com.titanium.maintenance.common.enums.workflow.MaintenanceWorkflowTaskStatus;
 import com.titanium.maintenance.common.exception.MaintenanceConflictException;
 import com.titanium.maintenance.common.exception.MaintenanceNotFoundException;
@@ -151,11 +114,12 @@ import com.titanium.maintenance.event.MaintenanceWorkflowInitializedEvent;
 import com.titanium.maintenance.event.MaintenanceWorkflowTaskTransitionedEvent;
 import com.titanium.maintenance.service.MaintenanceFieldConflictPlanner;
 import com.titanium.maintenance.service.MaintenanceFieldProposalPlanner;
-import com.titanium.maintenance.service.MaintenanceWorkflowPlanner;
 import com.titanium.maintenance.valueobject.CustomerId;
 import com.titanium.maintenance.valueobject.MaintenanceChange;
 import com.titanium.maintenance.valueobject.MaintenanceId;
+import com.titanium.maintenance.valueobject.MaintenanceSettlementRefs;
 import com.titanium.maintenance.valueobject.PolicyId;
+import com.titanium.maintenance.valueobject.SurrenderPolicySnapshot;
 import com.titanium.maintenance.valueobject.casecreation.PolicyMaintenanceSnapshot;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldCatalogSnapshot;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldChange;
@@ -170,35 +134,30 @@ import com.titanium.maintenance.valueobject.item.MaintenanceItemSelectionEvidenc
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawalRecoveryContext;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceAppliedFieldEvidence;
-import com.titanium.maintenance.valueobject.workflow.MaintenanceBillingPostingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceDocumentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectRequestEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectSchedule;
-import com.titanium.maintenance.valueobject.workflow.MaintenanceFundSettlementEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceInvestmentSwitchEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceLoanDisbursementEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceLoanRepaymentEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyApplicationEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenancePolicyReissueEvidence;
-import com.titanium.maintenance.valueobject.workflow.MaintenancePremiumQuoteEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactAnalysis;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactivePeriodRecalculation;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactivePeriodResolution;
-import com.titanium.maintenance.valueobject.workflow.MaintenanceUnderwritingEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowOperation;
-import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowReviewEvidence;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowTask;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
-import com.titanium.metadata.enums.underwriting.MaintenanceUnderwritingConclusion;
+import com.titanium.metadata.valueobject.Money;
 
+import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import lombok.experimental.SuperBuilder;
 
 @Aggregate
-@NoArgsConstructor
-@SuperBuilder(toBuilder = true)
+/** 仅供 Axon 回放使用（Lombok 生成 protected 无参构造器），业务代码禁止调用 */
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Maintenance extends BaseAggregate {
     @AggregateIdentifier
     private MaintenanceId                                id;
@@ -208,38 +167,10 @@ public class Maintenance extends BaseAggregate {
     private MaintenanceStatus                            status;
     private EffectiveTimeType                            effectiveTimeType;
     private LocalDateTime                                specificEffectiveDate;
-    private BigDecimal                                   totalAmount;
-    private BigDecimal                                   refundAmount;
-    private MaintenancePremiumSettlementStatus           premiumSettlementStatus;
-    private MaintenanceEffectStatus                      effectStatus;
-    private MaintenanceEffectSchedule                    effectSchedule;
-    private MaintenanceEffectCompensationEvidence        effectCompensationEvidence;
-    private MaintenanceRetroactiveImpactAnalysis         retroactiveImpactAnalysis;
-    private MaintenanceRetroactivePeriodRecalculation    retroactivePeriodRecalculation;
-    private MaintenanceRetroactivePeriodResolution       retroactivePeriodResolution;
-    private boolean                                      effectCompensationRequired;
-    private String                                       originalCalculationId;
-    private String                                       replacementCalculationId;
-    private String                                       premiumAdjustmentId;
-    private String                                       premiumAdjustmentResultHash;
-    private String                                       billingPostingId;
-    private String                                       refundInstructionId;
-    private String                                       refundOrderId;
-    private String                                       refundStatus;
-    private Integer                                      commissionAdjustmentCount;
-    private MaintenanceBalanceDirection                  balanceDirection;
-    private BigDecimal                                   balanceAmount;
-    private String                                       balanceCurrency;
-    private String                                       surrenderPolicyCode;
-    private String                                       surrenderPolicyVersion;
-    private String                                       surrenderPolicyContentHash;
-    private Integer                                      surrenderPolicyYear;
-    private Integer                                      coolingOffDays;
-    private String                                       surrenderRefundType;
-    private Boolean                                      withinCoolingOff;
-    private BigDecimal                                   cashValueRate;
-    private BigDecimal                                   retainedCustomerAmount;
-    private BigDecimal                                   internalCostRetentionRate;
+    @AggregateMember
+    private MaintenanceRetroactiveResolution             retroactiveResolution;
+    @AggregateMember
+    private MaintenanceSettlement                        settlement;
     private String                                       description;
     private List<MaintenanceChange>                      changes;
     private List<MaintenanceItemInstance>                itemInstances;
@@ -255,8 +186,10 @@ public class Maintenance extends BaseAggregate {
     private Map<String, MaintenanceFieldValue>           proposedFieldValues;
     private Map<String, MaintenanceFieldCatalogSnapshot> fieldCatalogSnapshots;
     private Map<String, String>                          fieldConflictOperationHashes;
-    private List<MaintenanceWorkflowTask>                workflowTasks;
-    private Map<String, String>                          workflowOperationHashes;
+    @AggregateMember
+    private MaintenanceWorkflow                          workflow;
+    @AggregateMember
+    private MaintenanceEffectPlan                        effectPlan;
     private String                                       createdBy;
     private String                                       updatedBy;
 
@@ -301,12 +234,6 @@ public class Maintenance extends BaseAggregate {
         this.status = MaintenanceStatus.PENDING;
         this.effectiveTimeType = event.effectiveTimeType();
         this.specificEffectiveDate = event.specificEffectiveDate();
-        this.totalAmount = BigDecimal.ZERO;
-        this.refundAmount = BigDecimal.ZERO;
-        this.premiumSettlementStatus = MaintenancePremiumSettlementStatus.NOT_STARTED;
-        this.effectStatus = MaintenanceEffectStatus.NOT_STARTED;
-        this.commissionAdjustmentCount = 0;
-        this.balanceAmount = BigDecimal.ZERO;
         this.description = event.description();
         this.changes = new ArrayList<>();
         this.itemInstances = new ArrayList<>();
@@ -317,13 +244,22 @@ public class Maintenance extends BaseAggregate {
         this.proposedFieldValues = new TreeMap<>();
         this.fieldCatalogSnapshots = new HashMap<>();
         this.fieldConflictOperationHashes = new HashMap<>();
-        this.workflowTasks = new ArrayList<>();
-        this.workflowOperationHashes = new HashMap<>();
         this.createTime = event.createdAt();
         this.createdBy = event.createdBy();
         this.updateTime = event.createdAt();
         this.updatedBy = event.createdBy();
         this.tenantId = event.tenantId();
+        // 追溯处置成员实体（DSN-01c 下沉）：创建时注入静态上下文，业务状态由成员自身事件溯源处理器重建
+        this.retroactiveResolution = new MaintenanceRetroactiveResolution(event.tenantId(), event.maintenanceId(),
+                event.effectiveTimeType(), event.specificEffectiveDate());
+        // 费用结算成员实体（DSN-01c 下沉）：创建时注入静态上下文与初始状态，业务状态由成员自身事件溯源处理器重建
+        this.settlement = new MaintenanceSettlement(event.tenantId(), event.maintenanceId(),
+                event.maintenanceType(), MaintenanceStatus.PENDING);
+        // 流程任务成员实体（DSN-01c 下沉）：创建时注入静态上下文与初始状态（建案人供审核职责分离判定），业务状态由成员自身事件溯源处理器重建
+        this.workflow = new MaintenanceWorkflow(event.tenantId(), event.maintenanceId(), this.status,
+                this.initializationCompleted, this.createdBy);
+        // 生效计划成员实体（DSN-01c 批 4 下沉）：创建时注入静态上下文，业务状态由成员自身事件溯源处理器重建
+        this.effectPlan = new MaintenanceEffectPlan(event.tenantId(), event.maintenanceId());
     }
 
     @EventSourcingHandler
@@ -345,6 +281,12 @@ public class Maintenance extends BaseAggregate {
     @EventSourcingHandler
     public void on(MaintenanceCaseInitializationCompletedEvent event) {
         this.initializationCompleted = true;
+        if (retroactiveResolution != null) {
+            retroactiveResolution.markInitialized();
+        }
+        if (workflow != null) {
+            workflow.markInitialized();
+        }
         this.updateTime = event.completedAt();
         this.updatedBy = event.completedBy();
     }
@@ -440,189 +382,45 @@ public class Maintenance extends BaseAggregate {
             AggregateLifecycle.apply(new MaintenanceCaseInitializationCompletedEvent(command.id(), command.itemCodes(),
                     LocalDateTime.now(), command.completedBy(), tenantId));
         }
-        initializeWorkflow(command.completedBy());
+        workflow.initializeWorkflow(id, itemInstances, command.completedBy());
     }
 
+    // 流程任务清单初始化事件：业务状态由 @AggregateMember 成员实体（MaintenanceWorkflow）的同名
+    // 事件处理器重建，聚合根侧仅维护审计字段——双监听为设计意图，勿合并或迁移。
     @EventSourcingHandler
     public void on(MaintenanceWorkflowInitializedEvent event) {
-        this.workflowTasks = new ArrayList<>(event.tasks());
-        if (this.workflowOperationHashes == null) {
-            this.workflowOperationHashes = new HashMap<>();
-        }
         this.updateTime = event.initializedAt();
         this.updatedBy = event.initializedBy();
     }
 
-    /** 领取可处理任务。 */
-    @CommandHandler
-    public void handle(ClaimMaintenanceWorkflowTaskCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.CLAIM, command.taskId(), null, null, null, null, command.operatorId());
-        transition(command.taskId(), operation, task -> {
-            requireSeparatedReviewer(task, command.operatorId());
-            return task.claim(operation);
-        }, false);
-    }
-
-    /** 开始处理已领取任务。 */
-    @CommandHandler
-    public void handle(StartMaintenanceWorkflowTaskCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.START, command.taskId(), null, null, null, null, command.operatorId());
-        transition(command.taskId(), operation, task -> task.start(operation), false);
-    }
+    // 流程任务命令处理器（Claim / Start / Fail / Retry / DecideCondition / DecideReview /
+    // DecideUnderwriting / RecordPremiumQuote / RecordPremiumSettlement / FailPremiumSettlement /
+    // CompleteItem）已随成员实体 MaintenanceWorkflow 下沉（DSN-01c 批 3），Axon 按 @AggregateMember
+    // 自动路由——勿在聚合根重建同名处理器。依赖保全项状态或字段事实的处理器（CompleteWorkflowTask /
+    // RecordDocument / CompleteCaseInitialization）留驻聚合根，经 workflow 成员转发。
 
     /** 完成信息录入或业务校验任务。 */
     @CommandHandler
     public void handle(CompleteMaintenanceWorkflowTaskCommand command) {
         requireSameTenant(command.tenantId());
-        MaintenanceWorkflowTask task = findWorkflowTask(command.taskId());
+        MaintenanceWorkflowTask task = workflow.findWorkflowTask(command.taskId());
         if (task.stepType() == MaintenanceStepType.DATA_ENTRY
                 && findItem(task.itemCode()).fieldChanges().isEmpty()) {
             throw new MaintenanceValidationException(
                     "CompleteMaintenanceWorkflowTaskCommand", "fieldChanges", "信息录入至少需要一项实际字段变更");
         }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
+        MaintenanceWorkflowOperation operation = workflow.workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.COMPLETE, command.taskId(), command.evidenceVersion(), command.evidenceHash(),
                 command.resultCode(), command.reason(), command.operatorId());
-        transition(command.taskId(), operation, currentTask -> currentTask.complete(operation), true);
-    }
-
-    /** 将处理中任务记为失败。 */
-    @CommandHandler
-    public void handle(FailMaintenanceWorkflowTaskCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.FAIL, command.taskId(), null, null, command.failureCode(),
-                command.failureReason(), command.operatorId());
-        transition(command.taskId(), operation, task -> task.fail(operation), false);
-    }
-
-    /** 将失败任务恢复为可领取状态。 */
-    @CommandHandler
-    public void handle(RetryMaintenanceWorkflowTaskCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.RETRY, command.taskId(), null, null, null, command.reason(),
-                command.operatorId());
-        transition(command.taskId(), operation, task -> task.retry(operation), false);
-    }
-
-    /** 记录条件规则结论。 */
-    @CommandHandler
-    public void handle(DecideMaintenanceWorkflowConditionCommand command) {
-        requireSameTenant(command.tenantId());
-        String resultCode = command.decision() == null ? null : command.decision().getCode();
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.DECIDE_CONDITION, command.taskId(), command.ruleVersion(),
-                command.inputHash(), resultCode, command.reason(), command.operatorId());
-        boolean activateNext = command.decision() == MaintenanceWorkflowConditionDecision.SKIP;
-        transition(command.taskId(), operation, task -> task.decideCondition(command.decision(), operation),
-                activateNext);
-    }
-
-    /** 使用人工或自动审核专用证据决定审核任务。 */
-    @CommandHandler
-    public void handle(DecideMaintenanceReviewCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowReviewEvidence evidence = command.evidence();
-        if (evidence == null) {
-            throw new MaintenanceValidationException("DecideMaintenanceReviewCommand", "evidence", "审核证据不能为空");
-        }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.DECIDE_REVIEW, command.taskId(), evidence.policyVersion(),
-                evidence.contentHash(), evidence.decision().getCode(), evidence.comment(), command.operatorId());
-        boolean approved = evidence.decision() == MaintenanceReviewDecision.APPROVE;
-        boolean applied = transition(command.taskId(), operation, task -> {
-            if (evidence.mode() == MaintenanceReviewMode.MANUAL) {
-                requireSeparatedReviewer(task, command.operatorId());
-            }
-            return task.decideReview(evidence, operation);
-        }, approved);
-        if (applied && !approved) {
-            AggregateLifecycle.apply(new MaintenanceCaseRejectedByReviewEvent(id, command.taskId(),
-                    evidence.contentHash(), evidence.policyCode(), evidence.policyVersion(), evidence.comment(),
-                    operation.operatedAt(), command.operatorId(), tenantId));
-        }
-    }
-
-    /** 使用 Underwriting 权威证据决定核保任务，不接受调用方自报结论。 */
-    @CommandHandler
-    public void handle(DecideMaintenanceUnderwritingCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceUnderwritingEvidence evidence = command.evidence();
-        if (evidence == null) {
-            throw new MaintenanceValidationException("DecideMaintenanceUnderwritingCommand", "evidence", "核保证据不能为空");
-        }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.DECIDE_UNDERWRITING, command.taskId(), evidence.ruleVersion(),
-                evidence.contentHash(), evidence.conclusion().getCode(), evidence.summary(), command.operatorId());
-        boolean accepted = evidence.conclusion().accepted()
-                && evidence.conclusion() != MaintenanceUnderwritingConclusion.NOT_REQUIRED;
-        boolean applied = transition(command.taskId(), operation, task -> task.decideUnderwriting(evidence, operation),
-                accepted);
-        if (applied && evidence.conclusion() == MaintenanceUnderwritingConclusion.REJECTED) {
-            AggregateLifecycle.apply(
-                    new MaintenanceCaseRejectedByUnderwritingEvent(id, command.taskId(), evidence.underwritingCaseId(),
-                            evidence.contentHash(), evidence.ruleVersion(), evidence.modelVersion(), evidence.summary(),
-                            operation.operatedAt(), command.operatorId(), tenantId));
-        }
-    }
-
-    /** 使用 Product 权威报价或配置无需报价结论更新费用任务，不提前激活生效步骤。 */
-    @CommandHandler
-    public void handle(RecordMaintenancePremiumQuoteCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenancePremiumQuoteEvidence evidence = command.evidence();
-        if (evidence == null) {
-            throw new MaintenanceValidationException("RecordMaintenancePremiumQuoteCommand", "evidence", "报价证据不能为空");
-        }
-        if (premiumQuoteOperationAlreadyApplied(command, evidence)) {
-            return;
-        }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.RECORD_PREMIUM_QUOTE, command.taskId(), evidence.evidenceVersion(),
-                evidence.contentHash(), evidence.status().getCode(), evidence.detailSummary(), command.operatorId());
-        transition(command.taskId(), operation, task -> task.recordPremiumQuote(evidence, operation), false);
-    }
-
-    /** 记录 Billing 与 Payment 双重门禁，资金成功后才激活后继生效任务。 */
-    @CommandHandler
-    public void handle(RecordMaintenancePremiumSettlementCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceBillingPostingEvidence posting = command.postingEvidence();
-        MaintenanceFundSettlementEvidence funds = command.fundEvidence();
-        if (posting == null || funds == null) {
-            throw new MaintenanceValidationException("RecordMaintenancePremiumSettlementCommand", "evidence",
-                    "入账和资金证据不能为空");
-        }
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.SETTLE_PREMIUM, command.taskId(), funds.evidenceVersion(posting),
-                funds.gateContentHash(posting),
-                posting.status() == MaintenanceBillingPostingStatus.REVERSED ? posting.status().getCode()
-                        : funds.status().getCode(),
-                funds.detailSummary(), command.operatorId());
-        transition(command.taskId(), operation, task -> task.settlePremium(posting, funds, operation),
-                posting.status() == MaintenanceBillingPostingStatus.POSTED && funds.status().completed());
-    }
-
-    /** 外部结算调用失败时记录可恢复失败，不激活后继任务。 */
-    @CommandHandler
-    public void handle(FailMaintenancePremiumSettlementCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.FAIL_PREMIUM_SETTLEMENT, command.taskId(), null, null, command.failureCode(),
-                command.failureReason(), command.operatorId());
-        transition(command.taskId(), operation, task -> task.failPremiumSettlement(operation), false);
+        workflow.transition(command.taskId(), operation, currentTask -> currentTask.complete(operation), true);
     }
 
     /** 为案件建立未来生效计划；此时不冻结 Policy 请求证据。 */
     @CommandHandler
     public void handle(ScheduleMaintenanceEffectCommand command) {
         requireSameTenant(command.tenantId());
-        if (!initializationCompleted || workflowTasks == null || activeEffectTaskIds().isEmpty()) {
+        if (!initializationCompleted || workflow.getWorkflowTasks().isEmpty()
+                || workflow.activeEffectTaskIds().isEmpty()) {
             throw new MaintenanceValidationException(
                     "ScheduleMaintenanceEffectCommand", "workflow", "案件流程尚未完成初始化或缺少生效任务");
         }
@@ -630,8 +428,9 @@ public class Maintenance extends BaseAggregate {
         MaintenanceEffectSchedule candidate = MaintenanceEffectSchedule.create(
                 command.scheduleId(), effectiveTimeType, command.tenantZoneId(),
                 command.nextExecutionAt(), scheduledAt);
-        if (effectSchedule != null) {
-            if (effectSchedule.samePlan(
+        MaintenanceEffectSchedule existingSchedule = effectPlan.getEffectSchedule();
+        if (existingSchedule != null) {
+            if (existingSchedule.samePlan(
                     candidate.scheduleId(), candidate.tenantZoneId(), candidate.nextExecutionAt())) {
                 return;
             }
@@ -639,352 +438,77 @@ public class Maintenance extends BaseAggregate {
                     "ScheduleMaintenanceEffectCommand", "schedule", "案件已存在不同的未来生效计划");
         }
         AggregateLifecycle.apply(new MaintenanceEffectScheduledEvent(id, candidate, command.operatorId(), tenantId));
-        changeEffectStatus(activeEffectTaskIds().getFirst(), MaintenanceEffectStatus.SCHEDULED,
+        changeEffectStatus(workflow.activeEffectTaskIds().getFirst(), MaintenanceEffectStatus.SCHEDULED,
                 "未来生效计划已建立", command.operatorId());
     }
 
-    /** 暂停尚未完成的未来生效计划。 */
-    @CommandHandler
-    public void handle(PauseMaintenanceEffectScheduleCommand command) {
-        requireSameTenant(command.tenantId());
-        requireSchedule(command.scheduleId());
-        if (command.reason() == null || command.reason().isBlank()) {
-            throw new MaintenanceValidationException(
-                    "PauseMaintenanceEffectScheduleCommand", "reason", "暂停原因不能为空");
-        }
-        if (effectSchedule.status() == MaintenanceEffectScheduleStatus.PAUSED) {
-            return;
-        }
-        LocalDateTime pausedAt = LocalDateTime.now();
-        effectSchedule.pause(pausedAt);
-        AggregateLifecycle.apply(new MaintenanceEffectSchedulePausedEvent(
-                id, effectSchedule.scheduleId(), command.reason().trim(), pausedAt,
-                command.operatorId(), tenantId));
-    }
+    // 计划族三个处理器（PauseMaintenanceEffectScheduleCommand / RecordMaintenanceEffectScheduleAttemptCommand /
+    // CompleteMaintenanceEffectScheduleCommand）已随成员实体 MaintenanceEffectPlan 下沉（DSN-01c 批 4），Axon 按
+    // @AggregateMember 自动路由——勿在聚合根重建同名处理器。建立 / 恢复 / 记录失败三个处理器因依赖流程任务成员
+    // （活跃生效任务查询与失败任务重试）留驻聚合根，经 effectPlan 的包级方法转发。
 
     /** 恢复暂停或失败计划，并将可重试的生效任务恢复到 READY。 */
     @CommandHandler
     public void handle(ResumeMaintenanceEffectScheduleCommand command) {
         requireSameTenant(command.tenantId());
-        requireSchedule(command.scheduleId());
+        effectPlan.requireSchedule(command.scheduleId());
         if (command.nextExecutionAt() == null || command.reason() == null || command.reason().isBlank()) {
             throw new MaintenanceValidationException(
                     "ResumeMaintenanceEffectScheduleCommand", "resume", "恢复时间和原因不能为空");
         }
-        if (effectSchedule.status() == MaintenanceEffectScheduleStatus.ACTIVE) {
+        if (effectPlan.getEffectSchedule().status() == MaintenanceEffectScheduleStatus.ACTIVE) {
             return;
         }
         LocalDateTime resumedAt = LocalDateTime.now();
-        effectSchedule.resume(command.nextExecutionAt(), resumedAt);
-        retryFailedEffectTasks(command.operationId(), command.reason(), command.operatorId());
+        effectPlan.resume(command.nextExecutionAt(), resumedAt);
+        workflow.retryFailedEffectTasks(command.operationId(), command.reason(), command.operatorId());
         AggregateLifecycle.apply(new MaintenanceEffectScheduleResumedEvent(
-                id, effectSchedule.scheduleId(), command.nextExecutionAt(), command.reason().trim(),
+                id, effectPlan.getEffectSchedule().scheduleId(), command.nextExecutionAt(), command.reason().trim(),
                 resumedAt, command.operatorId(), tenantId));
-        changeEffectStatus(activeEffectTaskIds().getFirst(), MaintenanceEffectStatus.SCHEDULED,
+        changeEffectStatus(workflow.activeEffectTaskIds().getFirst(), MaintenanceEffectStatus.SCHEDULED,
                 "未来生效计划已恢复", command.operatorId());
-    }
-
-    /** 记录一次持有租约的计划执行尝试。 */
-    @CommandHandler
-    public void handle(RecordMaintenanceEffectScheduleAttemptCommand command) {
-        requireSameTenant(command.tenantId());
-        requireSchedule(command.scheduleId());
-        if (command.attemptId() != null && command.attemptId().equals(effectSchedule.lastAttemptId())) {
-            return;
-        }
-        MaintenanceEffectSchedule attempted = effectSchedule.recordAttempt(
-                command.attemptId(), command.attemptedAt());
-        AggregateLifecycle.apply(new MaintenanceEffectScheduleAttemptedEvent(
-                id, attempted.scheduleId(), attempted.lastAttemptId(), attempted.attemptCount(),
-                attempted.lastAttemptAt(), command.operatorId(), tenantId));
     }
 
     /** 记录计划失败；可重试失败同时恢复生效任务并继续保持计划状态。 */
     @CommandHandler
     public void handle(RecordMaintenanceEffectScheduleFailureCommand command) {
         requireSameTenant(command.tenantId());
-        requireSchedule(command.scheduleId());
-        if (currentEffectStatus() == MaintenanceEffectStatus.APPLIED) {
+        effectPlan.requireSchedule(command.scheduleId());
+        if (effectPlan.currentEffectStatus() == MaintenanceEffectStatus.APPLIED) {
             return;
         }
         LocalDateTime failedAt = LocalDateTime.now();
-        effectSchedule.recordFailure(
+        effectPlan.recordFailure(
                 command.attemptId(), command.errorCode(), command.errorMessage(),
                 command.retryAt(), command.terminal(), failedAt);
         if (!command.terminal()) {
-            retryFailedEffectTasks(command.attemptId() + ":retry", command.errorMessage(), command.operatorId());
+            workflow.retryFailedEffectTasks(command.attemptId() + ":retry", command.errorMessage(), command.operatorId());
         }
         AggregateLifecycle.apply(new MaintenanceEffectScheduleFailedEvent(
-                id, effectSchedule.scheduleId(), command.attemptId(), command.errorCode(),
+                id, effectPlan.getEffectSchedule().scheduleId(), command.attemptId(), command.errorCode(),
                 command.errorMessage(), command.retryAt(), command.terminal(), failedAt,
                 command.operatorId(), tenantId));
-        changeEffectStatus(activeEffectTaskIds().getFirst(),
+        changeEffectStatus(workflow.activeEffectTaskIds().getFirst(),
                 command.terminal() ? MaintenanceEffectStatus.FAILED : MaintenanceEffectStatus.SCHEDULED,
                 command.errorMessage(), command.operatorId());
-    }
-
-    /** Policy 权威回执已记录后关闭计划。 */
-    @CommandHandler
-    public void handle(CompleteMaintenanceEffectScheduleCommand command) {
-        requireSameTenant(command.tenantId());
-        requireSchedule(command.scheduleId());
-        if (effectSchedule.status() == MaintenanceEffectScheduleStatus.COMPLETED) {
-            if (effectSchedule.lastAttemptId().equals(command.attemptId())) {
-                return;
-            }
-            throw new MaintenanceValidationException(
-                    "CompleteMaintenanceEffectScheduleCommand", "attemptId", "已完成计划的执行标识不匹配");
-        }
-        if (currentEffectStatus() != MaintenanceEffectStatus.APPLIED) {
-            throw new MaintenanceValidationException(
-                    "CompleteMaintenanceEffectScheduleCommand", "effectStatus", "案件尚未取得 Policy 权威成功回执");
-        }
-        effectSchedule.complete(command.attemptId(), command.completedAt());
-        AggregateLifecycle.apply(new MaintenanceEffectScheduleCompletedEvent(
-                id, effectSchedule.scheduleId(), command.attemptId(), command.completedAt(),
-                command.operatorId(), tenantId));
-    }
-
-    /** 冻结一次追溯影响分析范围；新操作会形成递增版本。 */
-    @CommandHandler
-    public void handle(StartMaintenanceRetroactiveImpactAnalysisCommand command) {
-        requireSameTenant(command.tenantId());
-        if (!initializationCompleted || effectiveTimeType != EffectiveTimeType.RETROACTIVE
-                || specificEffectiveDate == null) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactiveImpactAnalysisCommand", "case", "只有已初始化的追溯案件可以分析影响");
-        }
-        if (!specificEffectiveDate.equals(command.scopeFrom())) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactiveImpactAnalysisCommand", "scopeFrom", "分析起点必须等于案件追溯生效时间");
-        }
-        if (retroactiveImpactAnalysis != null
-                && retroactiveImpactAnalysis.operationId().equals(command.operationId())) {
-            if (retroactiveImpactAnalysis.sameStartRequest(command.operationId(), command.requestHash())) {
-                return;
-            }
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactiveImpactAnalysisCommand", "operationId", "同一操作标识的分析请求不一致");
-        }
-        if (retroactiveImpactAnalysis != null
-                && retroactiveImpactAnalysis.status() == MaintenanceRetroactiveImpactAnalysisStatus.ANALYZING) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactiveImpactAnalysisCommand", "status", "已有追溯影响分析正在执行");
-        }
-        int nextVersion = retroactiveImpactAnalysis == null ? 1 : retroactiveImpactAnalysis.analysisVersion() + 1;
-        MaintenanceRetroactiveImpactAnalysis analysis = MaintenanceRetroactiveImpactAnalysis.start(
-                command.analysisId(), nextVersion, command.operationId(), command.requestHash(),
-                command.scopeFrom(), command.scopeTo(), command.startedAt());
-        AggregateLifecycle.apply(new MaintenanceRetroactiveImpactAnalysisStartedEvent(
-                id, analysis, command.operatorId(), tenantId));
-    }
-
-    /** 保存全部权威域的结构化影响清单；完成分析不改变案件生效状态。 */
-    @CommandHandler
-    public void handle(CompleteMaintenanceRetroactiveImpactAnalysisCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactiveImpactAnalysis(command.analysisId(), command.operationId());
-        MaintenanceRetroactiveImpactAnalysis completed = retroactiveImpactAnalysis.complete(
-                command.coveredDomains(), command.items(), command.evidenceVersion(),
-                command.resultHash(), command.completedAt());
-        if (completed == retroactiveImpactAnalysis) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactiveImpactAnalysisCompletedEvent(
-                id, completed, command.operatorId(), tenantId));
-    }
-
-    /** 权威取证失败时记录可重试失败事实。 */
-    @CommandHandler
-    public void handle(FailMaintenanceRetroactiveImpactAnalysisCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactiveImpactAnalysis(command.analysisId(), command.operationId());
-        MaintenanceRetroactiveImpactAnalysis failed = retroactiveImpactAnalysis.fail(
-                command.failureCode(), command.failureMessage(), command.failedAt());
-        if (failed == retroactiveImpactAnalysis) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactiveImpactAnalysisFailedEvent(
-                id, failed, command.operatorId(), tenantId));
-    }
-
-    /** 冻结影响分析版本及本次 Product/Billing 期间重算请求。 */
-    @CommandHandler
-    public void handle(StartMaintenanceRetroactivePeriodRecalculationCommand command) {
-        requireSameTenant(command.tenantId());
-        if (!initializationCompleted || effectiveTimeType != EffectiveTimeType.RETROACTIVE
-                || retroactiveImpactAnalysis == null
-                || retroactiveImpactAnalysis.status() != MaintenanceRetroactiveImpactAnalysisStatus.COMPLETED) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodRecalculationCommand", "analysis", "必须先完成追溯影响分析");
-        }
-        if (!retroactiveImpactAnalysis.analysisId().equals(command.analysisId())
-                || retroactiveImpactAnalysis.analysisVersion() != command.analysisVersion()
-                || !retroactiveImpactAnalysis.resultHash().equals(command.analysisResultHash())) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodRecalculationCommand", "analysis", "影响分析版本或摘要已经漂移");
-        }
-        if (retroactivePeriodRecalculation != null
-                && retroactivePeriodRecalculation.operationId().equals(command.operationId())) {
-            if (retroactivePeriodRecalculation.sameRequest(command.operationId(), command.requestHash())) {
-                return;
-            }
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodRecalculationCommand", "operationId", "同一操作标识的重算请求不一致");
-        }
-        if (retroactivePeriodRecalculation != null
-                && retroactivePeriodRecalculation.status()
-                        != MaintenanceRetroactivePeriodRecalculationStatus.FAILED
-                && !retroactivePeriodRecalculation.terminal()) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodRecalculationCommand", "status", "已有追溯期间重算正在执行");
-        }
-        int nextVersion = retroactivePeriodRecalculation == null
-                ? 1 : retroactivePeriodRecalculation.periodRecalculationVersion() + 1;
-        MaintenanceRetroactivePeriodRecalculation recalculation =
-                MaintenanceRetroactivePeriodRecalculation.start(
-                        command.periodRecalculationId(), nextVersion, command.operationId(), command.requestHash(),
-                        command.analysisId(), command.analysisVersion(), command.analysisResultHash(),
-                        command.startedAt());
-        AggregateLifecycle.apply(new MaintenanceRetroactivePeriodRecalculationStartedEvent(
-                id, recalculation, command.operatorId(), tenantId));
-    }
-
-    /** 保存 Product 期间重算权威检查点，Billing 失败后重试可复用。 */
-    @CommandHandler
-    public void handle(RecordMaintenanceRetroactiveProductRecalculationCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactivePeriodRecalculation(command.periodRecalculationId(), command.operationId());
-        MaintenanceRetroactivePeriodRecalculation recalculation = retroactivePeriodRecalculation.recordProduct(
-                command.evidence(), command.recordedAt());
-        if (recalculation == retroactivePeriodRecalculation) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactiveProductRecalculationRecordedEvent(
-                id, recalculation, command.operatorId(), tenantId));
-    }
-
-    /** 保存 Billing 期间调整或关闭期间复核事实。 */
-    @CommandHandler
-    public void handle(CompleteMaintenanceRetroactivePeriodRecalculationCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactivePeriodRecalculation(command.periodRecalculationId(), command.operationId());
-        MaintenanceRetroactivePeriodRecalculation recalculation = retroactivePeriodRecalculation.completeBilling(
-                command.evidence(), command.completedAt());
-        if (recalculation == retroactivePeriodRecalculation) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactivePeriodRecalculationCompletedEvent(
-                id, recalculation, command.operatorId(), tenantId));
-    }
-
-    /** 保存重算失败事实，同时保留已经成功的 Product 检查点。 */
-    @CommandHandler
-    public void handle(FailMaintenanceRetroactivePeriodRecalculationCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactivePeriodRecalculation(command.periodRecalculationId(), command.operationId());
-        MaintenanceRetroactivePeriodRecalculation recalculation = retroactivePeriodRecalculation.fail(
-                command.failureCode(), command.failureMessage(), command.failedAt());
-        if (recalculation == retroactivePeriodRecalculation) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactivePeriodRecalculationFailedEvent(
-                id, recalculation, command.operatorId(), tenantId));
-    }
-
-    /** 冻结关闭会计期间处理请求，只允许处理当前 Billing 复核批次。 */
-    @CommandHandler
-    public void handle(StartMaintenanceRetroactivePeriodResolutionCommand command) {
-        requireSameTenant(command.tenantId());
-        if (retroactivePeriodRecalculation == null
-                || retroactivePeriodRecalculation.status()
-                        != MaintenanceRetroactivePeriodRecalculationStatus.REVIEW_REQUIRED
-                || retroactivePeriodRecalculation.billingEvidence() == null
-                || retroactivePeriodRecalculation.billingEvidence().reviewCount() < 1) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodResolutionCommand", "recalculation",
-                    "必须先完成存在关闭期间复核项的期间重算");
-        }
-        var billingEvidence = retroactivePeriodRecalculation.billingEvidence();
-        if (!billingEvidence.batchId().equals(command.billingBatchId())
-                || !billingEvidence.resultHash().equals(command.sourceBatchResultHash())) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodResolutionCommand", "billingBatch",
-                    "关闭期间处理请求与当前Billing批次不一致");
-        }
-        if (retroactivePeriodResolution != null
-                && retroactivePeriodResolution.operationId().equals(command.operationId())) {
-            if (retroactivePeriodResolution.sameRequest(command.operationId(), command.requestHash())) {
-                return;
-            }
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodResolutionCommand", "operationId",
-                    "同一操作标识的关闭期间处理请求不一致");
-        }
-        if (retroactivePeriodResolution != null
-                && retroactivePeriodResolution.status()
-                        != MaintenanceRetroactivePeriodResolutionStatus.FAILED) {
-            throw new MaintenanceValidationException(
-                    "StartMaintenanceRetroactivePeriodResolutionCommand", "status",
-                    "已有关闭期间处理正在执行或已经完成");
-        }
-        MaintenanceRetroactivePeriodResolution resolution = MaintenanceRetroactivePeriodResolution.start(
-                command.periodResolutionId(), command.operationId(), command.requestHash(),
-                command.billingBatchId(), command.sourceBatchResultHash(), command.targetAccountingPeriod(),
-                command.reason(), command.startedAt());
-        AggregateLifecycle.apply(new MaintenanceRetroactivePeriodResolutionStartedEvent(
-                id, resolution, command.operatorId(), tenantId));
-    }
-
-    /** 保存 Billing 关闭期间处理权威结论。 */
-    @CommandHandler
-    public void handle(CompleteMaintenanceRetroactivePeriodResolutionCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactivePeriodResolution(command.periodResolutionId(), command.operationId());
-        if (command.evidence() == null) {
-            throw new MaintenanceValidationException(
-                    "CompleteMaintenanceRetroactivePeriodResolutionCommand", "evidence",
-                    "Billing关闭期间处理结论不能为空");
-        }
-        MaintenanceRetroactivePeriodResolution resolution = retroactivePeriodResolution.complete(
-                command.evidence(), command.completedAt());
-        if (resolution == retroactivePeriodResolution) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactivePeriodResolutionCompletedEvent(
-                id, resolution, command.operatorId(), tenantId));
-    }
-
-    /** 保存关闭期间处理失败事实，允许同一请求幂等续跑。 */
-    @CommandHandler
-    public void handle(FailMaintenanceRetroactivePeriodResolutionCommand command) {
-        requireSameTenant(command.tenantId());
-        requireRetroactivePeriodResolution(command.periodResolutionId(), command.operationId());
-        MaintenanceRetroactivePeriodResolution resolution = retroactivePeriodResolution.fail(
-                command.failureCode(), command.failureMessage(), command.failedAt());
-        if (resolution == retroactivePeriodResolution) {
-            return;
-        }
-        AggregateLifecycle.apply(new MaintenanceRetroactivePeriodResolutionFailedEvent(
-                id, resolution, command.operatorId(), tenantId));
     }
 
     /** 在一个聚合命令事务中冻结案件全部生效任务。 */
     @CommandHandler
     public void handle(RequestMaintenanceCaseEffectCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         MaintenanceEffectRequestEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RequestMaintenanceCaseEffectCommand", "evidence", "生效请求证据不能为空");
         }
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId), MaintenanceWorkflowAction.REQUEST_EFFECT,
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId), MaintenanceWorkflowAction.REQUEST_EFFECT,
                     taskId, evidence.evidenceVersion(), evidence.requestPayloadHash(),
                     MaintenanceEffectStatus.EFFECTING.getCode(), null, command.operatorId());
-            applied |= transition(taskId, operation, task -> task.requestEffect(evidence, operation), false);
+            applied |= workflow.transition(taskId, operation, task -> task.requestEffect(evidence, operation), false);
         }
         if (applied) {
             changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.EFFECTING, "案件级 Policy 应用请求已冻结",
@@ -996,7 +520,7 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(RecordMaintenanceCasePolicyApplicationCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         MaintenancePolicyApplicationEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceCasePolicyApplicationCommand", "evidence",
@@ -1004,23 +528,23 @@ public class Maintenance extends BaseAggregate {
         }
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId),
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId),
                     MaintenanceWorkflowAction.RECORD_POLICY_APPLICATION, taskId, evidence.evidenceVersion(),
                     evidence.applicationHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.endorsementNo(),
                     command.operatorId());
-            applied |= transition(taskId, operation, task -> task.recordPolicyApplication(evidence, operation), true);
+            applied |= workflow.transition(taskId, operation, task -> task.recordPolicyApplication(evidence, operation), true);
         }
         if (applied) {
-            if (!allEffectTasksApplied()) {
+            if (!workflow.allEffectTasksApplied()) {
                 throw new MaintenanceValidationException("RecordMaintenanceCasePolicyApplicationCommand", "taskIds",
                         "案件生效任务未全部完成");
             }
             changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.APPLIED, "案件级 Policy 权威回执已记录",
                     command.operatorId());
-            if (effectCompensationRequired && effectCompensationEvidence != null) {
+            if (effectPlan.isEffectCompensationRequired() && effectPlan.getEffectCompensationEvidence() != null) {
                 AggregateLifecycle.apply(
-                        new MaintenanceEffectCompensationResolvedEvent(id, effectCompensationEvidence.compensationId(),
+                        new MaintenanceEffectCompensationResolvedEvent(id, effectPlan.getEffectCompensationEvidence().compensationId(),
                                 evidence.endorsementNo(), LocalDateTime.now(), command.operatorId(), tenantId));
             }
         }
@@ -1036,7 +560,7 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(RecordMaintenanceCaseInvestmentSwitchCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         MaintenanceInvestmentSwitchEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceCaseInvestmentSwitchCommand", "evidence",
@@ -1044,15 +568,15 @@ public class Maintenance extends BaseAggregate {
         }
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId),
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId),
                     MaintenanceWorkflowAction.RECORD_INVESTMENT_SWITCH, taskId, evidence.evidenceVersion(),
                     evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.accountId(),
                     command.operatorId());
-            applied |= transition(taskId, operation, task -> task.recordInvestmentSwitch(evidence, operation), true);
+            applied |= workflow.transition(taskId, operation, task -> task.recordInvestmentSwitch(evidence, operation), true);
         }
         if (applied) {
-            if (!allEffectTasksApplied()) {
+            if (!workflow.allEffectTasksApplied()) {
                 throw new MaintenanceValidationException("RecordMaintenanceCaseInvestmentSwitchCommand", "taskIds",
                         "案件生效任务未全部完成");
             }
@@ -1071,7 +595,7 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(RecordMaintenanceCaseLoanDisbursementCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         MaintenanceLoanDisbursementEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceCaseLoanDisbursementCommand", "evidence",
@@ -1079,15 +603,15 @@ public class Maintenance extends BaseAggregate {
         }
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId),
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId),
                     MaintenanceWorkflowAction.RECORD_LOAN_DISBURSEMENT, taskId, evidence.evidenceVersion(),
                     evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.loanId(),
                     command.operatorId());
-            applied |= transition(taskId, operation, task -> task.recordLoanDisbursement(evidence, operation), true);
+            applied |= workflow.transition(taskId, operation, task -> task.recordLoanDisbursement(evidence, operation), true);
         }
         if (applied) {
-            if (!allEffectTasksApplied()) {
+            if (!workflow.allEffectTasksApplied()) {
                 throw new MaintenanceValidationException("RecordMaintenanceCaseLoanDisbursementCommand", "taskIds",
                         "案件生效任务未全部完成");
             }
@@ -1107,7 +631,7 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(RecordMaintenanceCaseLoanRepaymentCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         MaintenanceLoanRepaymentEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceCaseLoanRepaymentCommand", "evidence",
@@ -1115,15 +639,15 @@ public class Maintenance extends BaseAggregate {
         }
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId),
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId),
                     MaintenanceWorkflowAction.RECORD_LOAN_REPAYMENT, taskId, evidence.evidenceVersion(),
                     evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(), evidence.repaymentId(),
                     command.operatorId());
-            applied |= transition(taskId, operation, task -> task.recordLoanRepayment(evidence, operation), true);
+            applied |= workflow.transition(taskId, operation, task -> task.recordLoanRepayment(evidence, operation), true);
         }
         if (applied) {
-            if (!allEffectTasksApplied()) {
+            if (!workflow.allEffectTasksApplied()) {
                 throw new MaintenanceValidationException("RecordMaintenanceCaseLoanRepaymentCommand", "taskIds",
                         "案件生效任务未全部完成");
             }
@@ -1147,7 +671,7 @@ public class Maintenance extends BaseAggregate {
     @CommandHandler
     public void handle(RecordMaintenanceCasePolicyReissueCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         MaintenancePolicyReissueEvidence evidence = command.evidence();
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceCasePolicyReissueCommand", "evidence",
@@ -1155,15 +679,15 @@ public class Maintenance extends BaseAggregate {
         }
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId),
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId),
                     MaintenanceWorkflowAction.RECORD_POLICY_REISSUE, taskId, evidence.evidenceVersion(),
                     evidence.contentHash(), MaintenanceEffectStatus.APPLIED.getCode(),
                     evidence.reissueRequestId(), command.operatorId());
-            applied |= transition(taskId, operation, task -> task.recordPolicyReissue(evidence, operation), true);
+            applied |= workflow.transition(taskId, operation, task -> task.recordPolicyReissue(evidence, operation), true);
         }
         if (applied) {
-            if (!allEffectTasksApplied()) {
+            if (!workflow.allEffectTasksApplied()) {
                 throw new MaintenanceValidationException("RecordMaintenanceCasePolicyReissueCommand", "taskIds",
                         "案件生效任务未全部完成");
             }
@@ -1180,38 +704,25 @@ public class Maintenance extends BaseAggregate {
         if (evidence == null) {
             throw new MaintenanceValidationException("RecordMaintenanceDocumentCommand", "evidence", "凭证出具事实不能为空");
         }
-        requireDocumentTemplate(findWorkflowTask(command.taskId()), evidence);
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
+        requireDocumentTemplate(workflow.findWorkflowTask(command.taskId()), evidence);
+        MaintenanceWorkflowOperation operation = workflow.workflowOperation(command.operationId(),
                 MaintenanceWorkflowAction.RECORD_DOCUMENT, command.taskId(), evidence.templateCode(),
                 evidence.contentHash(), MaintenanceWorkflowTaskStatus.COMPLETED.getCode(),
                 evidence.voucherNo(), command.operatorId());
-        transition(command.taskId(), operation, task -> task.recordDocument(evidence, operation), true);
-    }
-
-    /** 完成案件终结标记步骤；同项目前序任务须全部形成终态。 */
-    @CommandHandler
-    public void handle(CompleteMaintenanceItemCommand command) {
-        requireSameTenant(command.tenantId());
-        MaintenanceWorkflowOperation operation = workflowOperation(command.operationId(),
-                MaintenanceWorkflowAction.COMPLETE_ITEM, command.taskId(), null, null,
-                MaintenanceWorkflowTaskStatus.COMPLETED.getCode(), null, command.operatorId());
-        transition(command.taskId(), operation, task -> {
-            requirePredecessorsTerminal(task);
-            return task.completeItem(operation);
-        }, false);
+        workflow.transition(command.taskId(), operation, task -> task.recordDocument(evidence, operation), true);
     }
 
     /** 在一个聚合命令事务中将案件全部已发起生效任务置为失败。 */
     @CommandHandler
     public void handle(FailMaintenanceCaseEffectCommand command) {
         requireSameTenant(command.tenantId());
-        List<String> taskIds = requireAllEffectTaskIds(command.taskIds());
+        List<String> taskIds = workflow.requireAllEffectTaskIds(command.taskIds());
         boolean applied = false;
         for (String taskId : taskIds) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(command.operationId(), taskId), MaintenanceWorkflowAction.FAIL_EFFECT, taskId,
-                    null, null, command.failureCode(), command.failureReason(), command.operatorId());
-            applied |= transition(taskId, operation, task -> task.failEffect(operation), false);
+            MaintenanceWorkflowOperation operation = workflow.workflowOperation(
+                    workflow.caseTaskOperationId(command.operationId(), taskId), MaintenanceWorkflowAction.FAIL_EFFECT,
+                    taskId, null, null, command.failureCode(), command.failureReason(), command.operatorId());
+            applied |= workflow.transition(taskId, operation, task -> task.failEffect(operation), false);
         }
         if (applied) {
             changeEffectStatus(taskIds.getFirst(), MaintenanceEffectStatus.FAILED, command.failureReason(),
@@ -1228,9 +739,9 @@ public class Maintenance extends BaseAggregate {
             throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "evidence",
                     "补偿事实不能为空");
         }
-        requireEffectCompensationContext(command.taskId(), evidence);
-        if (effectCompensationEvidence != null) {
-            if (effectCompensationEvidence.equals(evidence)) {
+        workflow.requireEffectCompensationContext(command.taskId(), evidence);
+        if (effectPlan.getEffectCompensationEvidence() != null) {
+            if (effectPlan.getEffectCompensationEvidence().equals(evidence)) {
                 return;
             }
             throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "evidence",
@@ -1242,25 +753,27 @@ public class Maintenance extends BaseAggregate {
                 command.operatorId());
     }
 
+    // 流程任务迁移事件：业务状态由 @AggregateMember 成员实体（MaintenanceWorkflow）的同名事件
+    // 处理器重建，聚合根侧仅维护审计字段——双监听为设计意图，勿合并或迁移。
     @EventSourcingHandler
     public void on(MaintenanceWorkflowTaskTransitionedEvent event) {
-        replaceWorkflowTask(event.afterTask());
-        if (event.activatedTaskAfter() != null) {
-            replaceWorkflowTask(event.activatedTaskAfter());
-        }
-        if (workflowOperationHashes == null) {
-            workflowOperationHashes = new HashMap<>();
-        }
-        workflowOperationHashes.put(event.operationId(), event.operationHash());
         this.updateTime = event.transitionedAt();
         this.updatedBy = event.operatedBy();
     }
 
+    // 生效族事件：业务状态由 @AggregateMember 成员实体（MaintenanceEffectPlan）的同名事件处理器重建，
+    // 聚合根侧仅维护审计字段与跨成员联动（生效状态变更还须联动案件状态与结算 / 流程成员镜像）
+    // ——双监听为设计意图，勿合并或迁移。
     @EventSourcingHandler
     public void on(MaintenanceEffectStatusChangedEvent event) {
-        this.effectStatus = event.currentStatus();
         if (event.currentStatus() == MaintenanceEffectStatus.APPLIED) {
             this.status = MaintenanceStatus.COMPLETED;
+            if (settlement != null) {
+                settlement.markStatus(MaintenanceStatus.COMPLETED);
+            }
+            if (workflow != null) {
+                workflow.markStatus(MaintenanceStatus.COMPLETED);
+            }
         }
         this.updateTime = event.changedAt();
         this.updatedBy = event.changedBy();
@@ -1280,129 +793,110 @@ public class Maintenance extends BaseAggregate {
 
     @EventSourcingHandler
     public void on(MaintenanceEffectScheduledEvent event) {
-        this.effectSchedule = event.schedule();
         this.updateTime = event.schedule().createdAt();
         this.updatedBy = event.scheduledBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectSchedulePausedEvent event) {
-        this.effectSchedule = effectSchedule.pause(event.pausedAt());
         this.updateTime = event.pausedAt();
         this.updatedBy = event.pausedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectScheduleResumedEvent event) {
-        this.effectSchedule = effectSchedule.resume(event.nextExecutionAt(), event.resumedAt());
         this.updateTime = event.resumedAt();
         this.updatedBy = event.resumedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectScheduleAttemptedEvent event) {
-        this.effectSchedule = effectSchedule.recordAttempt(event.attemptId(), event.attemptedAt());
         this.updateTime = event.attemptedAt();
         this.updatedBy = event.attemptedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectScheduleFailedEvent event) {
-        this.effectSchedule = effectSchedule.recordFailure(
-                event.attemptId(), event.errorCode(), event.errorMessage(), event.retryAt(),
-                event.terminal(), event.failedAt());
         this.updateTime = event.failedAt();
         this.updatedBy = event.failedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectScheduleCompletedEvent event) {
-        this.effectSchedule = effectSchedule.complete(event.attemptId(), event.completedAt());
         this.updateTime = event.completedAt();
         this.updatedBy = event.completedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectCompensationRequiredEvent event) {
-        this.effectCompensationEvidence = event.evidence();
-        this.effectCompensationRequired = true;
         this.updateTime = event.recordedAt();
         this.updatedBy = event.recordedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceEffectCompensationResolvedEvent event) {
-        this.effectCompensationRequired = false;
         this.updateTime = event.resolvedAt();
         this.updatedBy = event.resolvedBy();
     }
 
+    // 追溯三段链路事件：业务状态由 @AggregateMember 成员实体（MaintenanceRetroactiveResolution）
+    // 的同名事件处理器重建，聚合根侧仅维护审计字段——双监听为设计意图，勿合并或迁移。
     @EventSourcingHandler
     public void on(MaintenanceRetroactiveImpactAnalysisStartedEvent event) {
-        this.retroactiveImpactAnalysis = event.analysis();
         this.updateTime = event.analysis().startedAt();
         this.updatedBy = event.startedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactiveImpactAnalysisCompletedEvent event) {
-        this.retroactiveImpactAnalysis = event.analysis();
         this.updateTime = event.analysis().completedAt();
         this.updatedBy = event.completedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactiveImpactAnalysisFailedEvent event) {
-        this.retroactiveImpactAnalysis = event.analysis();
         this.updateTime = event.analysis().completedAt();
         this.updatedBy = event.failedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactivePeriodRecalculationStartedEvent event) {
-        this.retroactivePeriodRecalculation = event.recalculation();
         this.updateTime = event.recalculation().startedAt();
         this.updatedBy = event.startedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactiveProductRecalculationRecordedEvent event) {
-        this.retroactivePeriodRecalculation = event.recalculation();
         this.updateTime = event.recalculation().updatedAt();
         this.updatedBy = event.recordedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactivePeriodRecalculationCompletedEvent event) {
-        this.retroactivePeriodRecalculation = event.recalculation();
         this.updateTime = event.recalculation().completedAt();
         this.updatedBy = event.completedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactivePeriodRecalculationFailedEvent event) {
-        this.retroactivePeriodRecalculation = event.recalculation();
         this.updateTime = event.recalculation().completedAt();
         this.updatedBy = event.failedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactivePeriodResolutionStartedEvent event) {
-        this.retroactivePeriodResolution = event.resolution();
         this.updateTime = event.resolution().startedAt();
         this.updatedBy = event.startedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactivePeriodResolutionCompletedEvent event) {
-        this.retroactivePeriodResolution = event.resolution();
         this.updateTime = event.resolution().completedAt();
         this.updatedBy = event.completedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceRetroactivePeriodResolutionFailedEvent event) {
-        this.retroactivePeriodResolution = event.resolution();
         this.updateTime = event.resolution().completedAt();
         this.updatedBy = event.failedBy();
     }
@@ -1410,6 +904,12 @@ public class Maintenance extends BaseAggregate {
     @EventSourcingHandler
     public void on(MaintenanceCaseRejectedByReviewEvent event) {
         this.status = MaintenanceStatus.REJECTED;
+        if (settlement != null) {
+            settlement.markStatus(MaintenanceStatus.REJECTED);
+        }
+        if (workflow != null) {
+            workflow.markStatus(MaintenanceStatus.REJECTED);
+        }
         this.updateTime = event.rejectedAt();
         this.updatedBy = event.rejectedBy();
     }
@@ -1417,6 +917,12 @@ public class Maintenance extends BaseAggregate {
     @EventSourcingHandler
     public void on(MaintenanceCaseRejectedByUnderwritingEvent event) {
         this.status = MaintenanceStatus.REJECTED;
+        if (settlement != null) {
+            settlement.markStatus(MaintenanceStatus.REJECTED);
+        }
+        if (workflow != null) {
+            workflow.markStatus(MaintenanceStatus.REJECTED);
+        }
         this.updateTime = event.rejectedAt();
         this.updatedBy = event.rejectedBy();
     }
@@ -1447,12 +953,12 @@ public class Maintenance extends BaseAggregate {
             throw new MaintenanceValidationException(
                     "StartMaintenanceItemWithdrawalCommand", "itemCode", "首批项目撤销只允许多项目案件使用");
         }
-        if (currentEffectStatus() == MaintenanceEffectStatus.EFFECTING
-                || currentEffectStatus() == MaintenanceEffectStatus.APPLIED) {
+        if (effectPlan.currentEffectStatus() == MaintenanceEffectStatus.EFFECTING
+                || effectPlan.currentEffectStatus() == MaintenanceEffectStatus.APPLIED) {
             throw new MaintenanceValidationException(
                     "StartMaintenanceItemWithdrawalCommand", "effectStatus", "Policy 生效已发起，必须新建反向保全案件");
         }
-        if (itemTasks(command.itemCode()).stream()
+        if (workflow.itemTasks(command.itemCode()).stream()
                 .filter(task -> task.stepType() == MaintenanceStepType.EFFECT)
                 .anyMatch(task -> task.effectEvidence() != null && task.effectEvidence().isApplied())) {
             throw new MaintenanceValidationException(
@@ -1642,123 +1148,17 @@ public class Maintenance extends BaseAggregate {
         return plan;
     }
 
-    // 处理计算保费命令
-    @CommandHandler
-    public void handle(CalculateMaintenancePremiumCommand command) {
-        requireSameTenant(command.tenantId());
-        if (premiumAdjustmentId != null) {
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(),
-                    "CALCULATE_MAINTENANCE_PREMIUM", "已进入结构化生命周期计价后不能再写入人工金额");
-        }
-        AggregateLifecycle.apply(
-                new MaintenancePremiumCalculatedEvent(command.id(), command.totalAmount(), command.refundAmount(),
-                        command.calculationDetails(), LocalDateTime.now(), command.updatedBy(), this.tenantId));
-    }
-
-    /** 记录 Product 差额检查点；同一事实重放为幂等，不允许一个案件绑定不同差额。 */
-    @CommandHandler
-    public void handle(RecordMaintenancePremiumAdjustmentCommand command) {
-        requireSameTenant(command.tenantId());
-        if (premiumAdjustmentId != null) {
-            if (sameAdjustment(command)) {
-                return;
-            }
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "RECORD_PREMIUM_ADJUSTMENT",
-                    "同一保全案件不能绑定不同的费用差额事实");
-        }
-        requireSettlementMutable("RECORD_PREMIUM_ADJUSTMENT");
-        validateAdjustment(command);
-        AggregateLifecycle.apply(new MaintenancePremiumAdjustmentRecordedEvent(command.id(),
-                command.originalCalculationId(), command.replacementCalculationId(), command.adjustmentId(),
-                command.adjustmentResultHash(), command.direction(), command.amount(), command.currency(),
-                LocalDateTime.now(), command.updatedBy(), tenantId));
-    }
-
-    /** 记录退保价值策略证据；只允许保单终止案件绑定已记录的 Product 差额。 */
-    @CommandHandler
-    public void handle(RecordMaintenanceSurrenderValueCommand command) {
-        requireSameTenant(command.tenantId());
-        if (surrenderPolicyContentHash != null) {
-            if (sameSurrenderValue(command)) {
-                return;
-            }
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "RECORD_SURRENDER_VALUE",
-                    "同一退保案件不能绑定不同的现金价值策略事实");
-        }
-        if (maintenanceType != MaintenanceType.POLICY_TERMINATION) {
-            throw new MaintenanceValidationException("RecordMaintenanceSurrenderValueCommand", "maintenanceType",
-                    "只有保单终止案件可以记录退保价值");
-        }
-        if (!Objects.equals(premiumAdjustmentId, command.adjustmentId())) {
-            throw new MaintenanceValidationException("RecordMaintenanceSurrenderValueCommand", "adjustmentId",
-                    "退保价值来源与 Product 差额不一致");
-        }
-        validateSurrenderValue(command);
-        AggregateLifecycle.apply(new MaintenanceSurrenderValueRecordedEvent(command.id(), command.adjustmentId(),
-                command.policyCode(), command.policyVersion(), command.policyContentHash(), command.policyYear(),
-                command.coolingOffDays(), command.refundType(), command.withinCoolingOff(), command.cashValueRate(),
-                command.retainedCustomerAmount(), command.internalCostRetentionRate(), LocalDateTime.now(),
-                command.updatedBy(), tenantId, command.factors()));
-    }
-
-    /** 记录 Billing 入账检查点；POSTED 仅表示余额事实登记成功，不表示资金已结算。 */
-    @CommandHandler
-    public void handle(RecordMaintenancePremiumPostingCommand command) {
-        requireSameTenant(command.tenantId());
-        if (billingPostingId != null) {
-            if (samePosting(command)) {
-                return;
-            }
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "RECORD_PREMIUM_POSTING",
-                    "同一保全案件不能绑定不同的 Billing 入账事实");
-        }
-        requireSettlementMutable("RECORD_PREMIUM_POSTING");
-        if (premiumSettlementStatus != MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED
-                || balanceDirection == MaintenanceBalanceDirection.NONE) {
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "RECORD_PREMIUM_POSTING",
-                    "当前差额不需要或尚不能登记 Billing 余额事实");
-        }
-        if (!Objects.equals(premiumAdjustmentId, command.adjustmentId())
-                || !Objects.equals(premiumAdjustmentResultHash, command.adjustmentResultHash())) {
-            throw new MaintenanceValidationException("RecordMaintenancePremiumPostingCommand", "adjustmentId",
-                    "Billing 入账来源与 Product 差额不一致");
-        }
-        if (command.postingId() == null || command.postingId().isBlank() || !"POSTED".equals(command.postingStatus())) {
-            throw new MaintenanceValidationException("RecordMaintenancePremiumPostingCommand", "postingId",
-                    "Billing 入账事实无效");
-        }
-        AggregateLifecycle.apply(new MaintenancePremiumPostingRecordedEvent(command.id(), command.adjustmentId(),
-                command.adjustmentResultHash(), command.postingId(), command.postingStatus(), LocalDateTime.now(),
-                command.updatedBy(), tenantId));
-    }
-
-    /**
-     * 记录独立资金结算检查点。CREDIT 可从处理中或失败状态恢复，DEBIT 始终只保留余额已登记语义。
-     */
-    @CommandHandler
-    public void handle(RecordMaintenanceFinancialSettlementCommand command) {
-        requireSameTenant(command.tenantId());
-        validateFinancialSettlement(command);
-        MaintenancePremiumSettlementStatus targetStatus = financialSettlementStatus(command.refundStatus());
-        if (sameFinancialSettlement(command, targetStatus)) {
-            return;
-        }
-        if (premiumSettlementStatus == MaintenancePremiumSettlementStatus.SETTLED) {
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "RECORD_FINANCIAL_SETTLEMENT",
-                    "已完成资金结算的保全不能回退结算事实");
-        }
-        AggregateLifecycle.apply(new MaintenanceFinancialSettlementRecordedEvent(command.id(), command.postingId(),
-                command.refundInstructionId(), command.refundOrderId(), command.refundStatus(),
-                command.commissionAdjustmentCount(), targetStatus, LocalDateTime.now(), command.updatedBy(), tenantId));
-    }
+    // 结算族命令处理器（CalculateMaintenancePremium / PremiumAdjustment / SurrenderValue / PremiumPosting /
+    // FinancialSettlement）已随成员实体 MaintenanceSettlement 下沉（DSN-01c），Axon 按 @AggregateMember
+    // 自动路由——勿在聚合根重建同名处理器。
 
     // 处理执行保全命令
     @CommandHandler
     public void handle(ExecuteMaintenanceCommand command) {
         requireSameTenant(command.tenantId());
-        if (requiresPremiumSettlement() && !hasRecordedBalanceFact()) {
-            throw new MaintenanceStatusException(id.id(), premiumSettlementStatus.name(), "EXECUTE_MAINTENANCE",
-                    "价格影响型保全必须先完成 Product 差额和 Billing 余额事实登记");
+        if (requiresPremiumSettlement() && !settlement.hasRecordedBalanceFact()) {
+            throw new MaintenanceStatusException(id.id(), settlement.getPremiumSettlementStatus().name(),
+                    "EXECUTE_MAINTENANCE", "价格影响型保全必须先完成 Product 差额和 Billing 余额事实登记");
         }
         // enrich policyId 与 maintenanceType 作为跨域上下文，供 policy 域监听回写保单状态
         AggregateLifecycle.apply(new MaintenanceExecutedEvent(command.id(), this.policyId.id(), this.maintenanceType,
@@ -1770,6 +1170,12 @@ public class Maintenance extends BaseAggregate {
     @EventSourcingHandler
     public void on(MaintenanceStatusChangedEvent event) {
         this.status = event.newStatus();
+        if (settlement != null) {
+            settlement.markStatus(event.newStatus());
+        }
+        if (workflow != null) {
+            workflow.markStatus(event.newStatus());
+        }
         this.updateTime = event.changedAt();
         this.updatedBy = event.changedBy();
     }
@@ -1826,67 +1232,34 @@ public class Maintenance extends BaseAggregate {
         this.fieldCatalogSnapshots.put(event.itemCode(), event.fieldCatalogSnapshot());
     }
 
-    // 处理保费计算事件
+    // 结算族事件：业务状态由 @AggregateMember 成员实体（MaintenanceSettlement）
+    // 的同名事件处理器重建，聚合根侧仅维护审计字段——双监听为设计意图，勿合并或迁移。
     @EventSourcingHandler
     public void on(MaintenancePremiumCalculatedEvent event) {
-        this.totalAmount = event.totalAmount();
-        this.refundAmount = event.refundAmount();
         this.updateTime = event.updatedAt();
         this.updatedBy = event.updatedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenancePremiumAdjustmentRecordedEvent event) {
-        this.originalCalculationId = event.originalCalculationId();
-        this.replacementCalculationId = event.replacementCalculationId();
-        this.premiumAdjustmentId = event.adjustmentId();
-        this.premiumAdjustmentResultHash = event.adjustmentResultHash();
-        this.balanceDirection = event.direction();
-        this.balanceAmount = event.amount();
-        this.balanceCurrency = event.currency();
-        this.totalAmount = event.direction() == MaintenanceBalanceDirection.DEBIT ? event.amount() : BigDecimal.ZERO;
-        this.refundAmount = event.direction() == MaintenanceBalanceDirection.CREDIT ? event.amount() : BigDecimal.ZERO;
-        this.premiumSettlementStatus = event.direction() == MaintenanceBalanceDirection.NONE
-                ? MaintenancePremiumSettlementStatus.NOT_REQUIRED
-                : MaintenancePremiumSettlementStatus.ADJUSTMENT_CONFIRMED;
         this.updateTime = event.recordedAt();
         this.updatedBy = event.updatedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceSurrenderValueRecordedEvent event) {
-        this.surrenderPolicyCode = event.policyCode();
-        this.surrenderPolicyVersion = event.policyVersion();
-        this.surrenderPolicyContentHash = event.policyContentHash();
-        this.surrenderPolicyYear = event.policyYear();
-        this.coolingOffDays = event.coolingOffDays();
-        this.surrenderRefundType = event.refundType();
-        this.withinCoolingOff = event.withinCoolingOff();
-        this.cashValueRate = event.cashValueRate();
-        this.retainedCustomerAmount = event.retainedCustomerAmount();
-        this.internalCostRetentionRate = event.internalCostRetentionRate();
         this.updateTime = event.recordedAt();
         this.updatedBy = event.updatedBy();
-        // 🔴 event.factors()（g05-06）刻意**不进聚合状态**：它是下游展示/对账用的明细，
-        //    本聚合的任何业务判定（含 sameSurrenderValue 幂等比较）都不依赖它 —— 存了也只是死字段。
-        //    读侧投影直接从事件取用，无需回查聚合。若将来出现「按明细判定」的行为，再补状态字段。
     }
 
     @EventSourcingHandler
     public void on(MaintenancePremiumPostingRecordedEvent event) {
-        this.billingPostingId = event.postingId();
-        this.premiumSettlementStatus = MaintenancePremiumSettlementStatus.POSTED;
         this.updateTime = event.recordedAt();
         this.updatedBy = event.updatedBy();
     }
 
     @EventSourcingHandler
     public void on(MaintenanceFinancialSettlementRecordedEvent event) {
-        this.refundInstructionId = event.refundInstructionId();
-        this.refundOrderId = event.refundOrderId();
-        this.refundStatus = event.refundStatus();
-        this.commissionAdjustmentCount = event.commissionAdjustmentCount();
-        this.premiumSettlementStatus = event.premiumSettlementStatus();
         this.updateTime = event.recordedAt();
         this.updatedBy = event.updatedBy();
     }
@@ -1895,6 +1268,12 @@ public class Maintenance extends BaseAggregate {
     @EventSourcingHandler
     public void on(MaintenanceExecutedEvent event) {
         this.status = MaintenanceStatus.COMPLETED;
+        if (settlement != null) {
+            settlement.markStatus(MaintenanceStatus.COMPLETED);
+        }
+        if (workflow != null) {
+            workflow.markStatus(MaintenanceStatus.COMPLETED);
+        }
         this.updateTime = event.updatedAt();
         this.updatedBy = event.updatedBy();
     }
@@ -1928,12 +1307,16 @@ public class Maintenance extends BaseAggregate {
         return specificEffectiveDate;
     }
 
-    public BigDecimal getTotalAmount() {
-        return totalAmount;
+    // 🔴 @JsonIgnore 不可删（D-501-19）：以下结算族转发 getter 无对应字段，Jackson 会把它们
+    //    写进载荷（快照/事件），反序列化时无写入面 ⇒ UnrecognizedPropertyException → 聚合无法加载。
+    @JsonIgnore
+    public Money getTotalAmount() {
+        return settlement == null ? null : settlement.getTotalAmount();
     }
 
-    public BigDecimal getRefundAmount() {
-        return refundAmount;
+    @JsonIgnore
+    public Money getRefundAmount() {
+        return settlement == null ? null : settlement.getRefundAmount();
     }
 
     public String getDescription() {
@@ -1941,7 +1324,7 @@ public class Maintenance extends BaseAggregate {
     }
 
     public List<MaintenanceChange> getChanges() {
-        return changes;
+        return changes == null ? null : List.copyOf(changes);
     }
 
     public List<MaintenanceItemInstance> getItemInstances() {
@@ -1982,6 +1365,18 @@ public class Maintenance extends BaseAggregate {
 
     public Map<String, MaintenanceFieldCatalogSnapshot> getFieldCatalogSnapshots() {
         return Map.copyOf(fieldCatalogSnapshots);
+    }
+
+    /**
+     * 冲突操作幂等账本（operationId → 请求指纹哈希）。
+     * <p>🔴 此 getter 不可删（DSN-01c 批 4 评估修复）：Jackson 只把「有 getter 的字段」纳入序列化属性，
+     * 无 getter 的字段不进快照；而 Axon 恢复聚合时被快照覆盖的事件不再重放，由事件回放重建的账本条目
+     * 会随快照恢复整体丢失——同一 operationId 的重试将绕过幂等保护（重复追加冲突事实）。
+     * 账本必须跨快照存活，故必须暴露本 getter。返回只读拷贝、null 防御覆盖「旧快照无此键」的恢复路径
+     * （与 {@link #getItemWithdrawals()} 同法）。</p>
+     */
+    public Map<String, String> getFieldConflictOperationHashes() {
+        return fieldConflictOperationHashes == null ? Map.of() : Map.copyOf(fieldConflictOperationHashes);
     }
 
     public String getCreatedBy() {
@@ -2025,108 +1420,128 @@ public class Maintenance extends BaseAggregate {
         }
     }
 
+    // 🔴 @JsonIgnore 不可删（D-501-19）：结算族转发 getter 无对应字段，说明见 getTotalAmount 处注释块。
+    @JsonIgnore
     public MaintenancePremiumSettlementStatus getPremiumSettlementStatus() {
-        return premiumSettlementStatus;
+        return settlement == null ? null : settlement.getPremiumSettlementStatus();
     }
 
+    // 🔴 以下四个转发 getter 不可删（聚合对外读取生效状态的 API 面），且 @JsonIgnore 不可删（D-501-19）：
+    //    字段已随成员实体 MaintenanceEffectPlan 维护，聚合根侧无对应写入面，序列化输出这些键会让反序列化
+    //    触发 UnrecognizedPropertyException——生效状态已随 effectPlan 成员对象整体序列化，勿重复暴露。
+    @JsonIgnore
     public MaintenanceEffectStatus getEffectStatus() {
-        return currentEffectStatus();
+        return effectPlan == null ? MaintenanceEffectStatus.NOT_STARTED : effectPlan.currentEffectStatus();
     }
 
+    @JsonIgnore
     public MaintenanceEffectSchedule getEffectSchedule() {
-        return effectSchedule;
+        return effectPlan == null ? null : effectPlan.getEffectSchedule();
     }
 
+    @JsonIgnore
     public boolean isEffectCompensationRequired() {
-        return effectCompensationRequired;
+        return effectPlan != null && effectPlan.isEffectCompensationRequired();
     }
 
+    @JsonIgnore
     public MaintenanceEffectCompensationEvidence getEffectCompensationEvidence() {
-        return effectCompensationEvidence;
+        return effectPlan == null ? null : effectPlan.getEffectCompensationEvidence();
     }
 
+    /**
+     * 生效计划成员实体（DSN-01c 批 4）。
+     * <p>🔴 此 getter 不可删：Jackson 只把「有 getter 的字段」纳入序列化属性，无 getter 的字段
+     * 不进 JSON ⇒ 快照恢复后成员状态整体丢失（且无判据可察）。序列化与反序列化依
+     * 「getter + 私有字段」成对工作（字段即写入面，无需 setter）。</p>
+     */
+    public MaintenanceEffectPlan getEffectPlan() {
+        return effectPlan;
+    }
+
+    /**
+     * 追溯处置成员实体（DSN-01c）。
+     * <p>🔴 此 getter 不可删：Jackson 只把「有 getter 的字段」纳入序列化属性，无 getter 的字段
+     * 不进 JSON ⇒ 快照恢复后成员状态整体丢失（且无判据可察）。序列化与反序列化依
+     * 「getter + 私有字段」成对工作（字段即写入面，无需 setter）。</p>
+     */
+    public MaintenanceRetroactiveResolution getRetroactiveResolution() {
+        return retroactiveResolution;
+    }
+
+    /**
+     * 费用结算成员实体（DSN-01c 批 2）。
+     * <p>🔴 此 getter 不可删：Jackson 只把「有 getter 的字段」纳入序列化属性，无 getter 的字段
+     * 不进 JSON ⇒ 快照恢复后成员状态整体丢失（且无判据可察）。序列化与反序列化依
+     * 「getter + 私有字段」成对工作（字段即写入面，无需 setter）。</p>
+     */
+    public MaintenanceSettlement getSettlement() {
+        return settlement;
+    }
+
+    /**
+     * 流程任务成员实体（DSN-01c 批 3）。
+     * <p>🔴 此 getter 不可删：Jackson 只把「有 getter 的字段」纳入序列化属性，无 getter 的字段
+     * 不进 JSON ⇒ 快照恢复后成员状态整体丢失（且无判据可察）。序列化与反序列化依
+     * 「getter + 私有字段」成对工作（字段即写入面，无需 setter）。</p>
+     */
+    public MaintenanceWorkflow getWorkflow() {
+        return workflow;
+    }
+
+    // 🔴 @JsonIgnore 不可删（D-501-19）：以下三个转发 getter 无对应字段，Jackson 会把它们
+    //    写进载荷（快照/事件），反序列化时无写入面 ⇒ UnrecognizedPropertyException → 聚合无法加载。
+    @JsonIgnore
     public MaintenanceRetroactiveImpactAnalysis getRetroactiveImpactAnalysis() {
-        return retroactiveImpactAnalysis;
+        return retroactiveResolution == null ? null : retroactiveResolution.getRetroactiveImpactAnalysis();
     }
 
+    @JsonIgnore
     public MaintenanceRetroactivePeriodRecalculation getRetroactivePeriodRecalculation() {
-        return retroactivePeriodRecalculation;
+        return retroactiveResolution == null ? null : retroactiveResolution.getRetroactivePeriodRecalculation();
     }
 
+    @JsonIgnore
     public MaintenanceRetroactivePeriodResolution getRetroactivePeriodResolution() {
-        return retroactivePeriodResolution;
+        return retroactiveResolution == null ? null : retroactiveResolution.getRetroactivePeriodResolution();
     }
 
+    /** 流程任务清单（只读视图；转发成员实体）。 */
+    // 🔴 @JsonIgnore 不可删（D-501-19）：转发 getter 无对应字段，序列化输出该键会让反序列化
+    // 触发 UnrecognizedPropertyException——任务清单已随 workflow 成员对象整体序列化，勿重复暴露。
+    @JsonIgnore
     public List<MaintenanceWorkflowTask> getWorkflowTasks() {
-        return workflowTasks == null ? List.of() : List.copyOf(workflowTasks);
+        return workflow == null ? List.of() : workflow.getWorkflowTasks();
     }
 
-    public String getOriginalCalculationId() {
-        return originalCalculationId;
+    /** 结算引用值对象（未经历结算记录事件时为空对象；分量判空即「未记录」）。 */
+    // 🔴 @JsonIgnore 不可删（D-501-19）：结算族转发 getter 无对应字段，说明见 getTotalAmount 处注释块。
+    @JsonIgnore
+    public MaintenanceSettlementRefs getSettlementRefs() {
+        return settlement == null ? MaintenanceSettlementRefs.empty() : settlement.getSettlementRefs();
     }
 
-    public String getReplacementCalculationId() {
-        return replacementCalculationId;
-    }
-
-    public String getPremiumAdjustmentId() {
-        return premiumAdjustmentId;
-    }
-
-    public String getPremiumAdjustmentResultHash() {
-        return premiumAdjustmentResultHash;
-    }
-
-    public String getBillingPostingId() {
-        return billingPostingId;
-    }
-
-    public String getRefundInstructionId() {
-        return refundInstructionId;
-    }
-
-    public String getRefundOrderId() {
-        return refundOrderId;
-    }
-
-    public String getRefundStatus() {
-        return refundStatus;
-    }
-
+    // 🔴 @JsonIgnore 不可删（D-501-19）：以下结算族转发 getter 无对应字段，说明见 getTotalAmount 处注释块。
+    @JsonIgnore
     public Integer getCommissionAdjustmentCount() {
-        return commissionAdjustmentCount;
+        return settlement == null ? null : settlement.getCommissionAdjustmentCount();
     }
 
+    @JsonIgnore
     public MaintenanceBalanceDirection getBalanceDirection() {
-        return balanceDirection;
+        return settlement == null ? null : settlement.getBalanceDirection();
     }
 
-    public BigDecimal getBalanceAmount() {
-        return balanceAmount;
+    @JsonIgnore
+    public Money getBalance() {
+        return settlement == null ? null : settlement.getBalance();
     }
 
-    public String getBalanceCurrency() {
-        return balanceCurrency;
-    }
-
-    public String getSurrenderPolicyCode() {
-        return surrenderPolicyCode;
-    }
-
-    public String getSurrenderPolicyVersion() {
-        return surrenderPolicyVersion;
-    }
-
-    public String getSurrenderPolicyContentHash() {
-        return surrenderPolicyContentHash;
-    }
-
-    public Integer getSurrenderPolicyYear() {
-        return surrenderPolicyYear;
-    }
-
-    public Integer getCoolingOffDays() {
-        return coolingOffDays;
+    /** 退保政策快照值对象（未记录时为空对象；有效性以 {@code policyContentHash} 非空为准）。 */
+    // 🔴 @JsonIgnore 不可删（D-501-19）：结算族转发 getter 无对应字段，说明见 getTotalAmount 处注释块。
+    @JsonIgnore
+    public SurrenderPolicySnapshot getSurrenderPolicy() {
+        return settlement == null ? SurrenderPolicySnapshot.empty() : settlement.getSurrenderPolicy();
     }
 
     public Map<String, MaintenanceItemWithdrawal> getItemWithdrawals() {
@@ -2137,25 +1552,6 @@ public class Maintenance extends BaseAggregate {
         return itemWithdrawalRecoveryContexts == null ? Map.of() : Map.copyOf(itemWithdrawalRecoveryContexts);
     }
 
-    public String getSurrenderRefundType() {
-        return surrenderRefundType;
-    }
-
-    public Boolean getWithinCoolingOff() {
-        return withinCoolingOff;
-    }
-
-    public BigDecimal getCashValueRate() {
-        return cashValueRate;
-    }
-
-    public BigDecimal getRetainedCustomerAmount() {
-        return retainedCustomerAmount;
-    }
-
-    public BigDecimal getInternalCostRetentionRate() {
-        return internalCostRetentionRate;
-    }
 
     private void requireItemEditingAllowed(String target) {
         requireItemStatusMutable(target);
@@ -2169,8 +1565,8 @@ public class Maintenance extends BaseAggregate {
         if (!initializationCompleted || itemInstances == null || itemInstances.isEmpty()) {
             throw new MaintenanceValidationException("MaintenanceFieldConflict", "itemInstances", "案件尚未完成保全项初始化");
         }
-        if (currentEffectStatus() == MaintenanceEffectStatus.APPLIED
-                || currentEffectStatus() == MaintenanceEffectStatus.EFFECTING) {
+        if (effectPlan.currentEffectStatus() == MaintenanceEffectStatus.APPLIED
+                || effectPlan.currentEffectStatus() == MaintenanceEffectStatus.EFFECTING) {
             throw new MaintenanceValidationException(
                     "MaintenanceFieldConflict", "effectStatus", "Policy 请求冻结后不能刷新或解决字段冲突");
         }
@@ -2258,15 +1654,16 @@ public class Maintenance extends BaseAggregate {
     }
 
     private void updateEffectStatusAfterConflictPlan(MaintenanceFieldConflictPlan plan, String changedBy) {
-        MaintenanceEffectStatus current = currentEffectStatus();
+        MaintenanceEffectStatus current = effectPlan.currentEffectStatus();
         if (plan.conflictCount() > 0) {
             changeEffectStatus(conflictEffectTaskId(), MaintenanceEffectStatus.CONFLICTED,
                     "检测到顺序外字段冲突", changedBy);
             return;
         }
         if (current == MaintenanceEffectStatus.CONFLICTED) {
-            MaintenanceEffectStatus restored = effectSchedule != null
-                    && effectSchedule.status() != MaintenanceEffectScheduleStatus.COMPLETED
+            MaintenanceEffectSchedule schedule = effectPlan.getEffectSchedule();
+            MaintenanceEffectStatus restored = schedule != null
+                    && schedule.status() != MaintenanceEffectScheduleStatus.COMPLETED
                             ? MaintenanceEffectStatus.SCHEDULED
                             : MaintenanceEffectStatus.NOT_STARTED;
             changeEffectStatus(conflictEffectTaskId(), restored, "字段冲突已全部解决", changedBy);
@@ -2274,7 +1671,7 @@ public class Maintenance extends BaseAggregate {
     }
 
     private String conflictEffectTaskId() {
-        return activeEffectTaskIds().stream().findFirst().orElseThrow(() -> new MaintenanceValidationException(
+        return workflow.activeEffectTaskIds().stream().findFirst().orElseThrow(() -> new MaintenanceValidationException(
                 "MaintenanceFieldConflict", "workflowTasks", "案件缺少生效流程任务"));
     }
 
@@ -2324,14 +1721,8 @@ public class Maintenance extends BaseAggregate {
                 .count();
     }
 
-    private List<MaintenanceWorkflowTask> itemTasks(String itemCode) {
-        return workflowTasks == null ? List.of() : workflowTasks.stream()
-                .filter(task -> task.itemCode().equals(itemCode))
-                .toList();
-    }
-
     private MaintenanceWorkflowTask sourceFeeTask(String itemCode) {
-        List<MaintenanceWorkflowTask> postedFeeTasks = itemTasks(itemCode).stream()
+        List<MaintenanceWorkflowTask> postedFeeTasks = workflow.itemTasks(itemCode).stream()
                 .filter(task -> task.stepType() == MaintenanceStepType.FEE_SETTLEMENT)
                 .filter(task -> task.billingPostingEvidence() != null)
                 .toList();
@@ -2356,7 +1747,7 @@ public class Maintenance extends BaseAggregate {
             MaintenanceItemWithdrawal withdrawal,
             String operatorId) {
         LocalDateTime operatedAt = withdrawal.completedAt();
-        itemTasks(withdrawal.itemCode()).stream()
+        workflow.itemTasks(withdrawal.itemCode()).stream()
                 .filter(task -> task.status() != MaintenanceWorkflowTaskStatus.COMPLETED)
                 .filter(task -> task.status() != MaintenanceWorkflowTaskStatus.SKIPPED)
                 .forEach(task -> {
@@ -2393,23 +1784,8 @@ public class Maintenance extends BaseAggregate {
                 () -> new MaintenanceValidationException("Maintenance", "itemCode", "案件中不存在保全项: " + itemCode));
     }
 
-    private void requireSettlementMutable(String target) {
-        if (status == MaintenanceStatus.COMPLETED || status == MaintenanceStatus.REJECTED) {
-            throw new MaintenanceStatusException(id.id(), status.name(), target, "已完成或已拒绝的保全不能登记费用差额");
-        }
-    }
-
-    private void initializeWorkflow(String initializedBy) {
-        if (workflowTasks != null && !workflowTasks.isEmpty()) {
-            return;
-        }
-        List<MaintenanceWorkflowTask> tasks = new MaintenanceWorkflowPlanner().plan(id, itemInstances);
-        AggregateLifecycle.apply(
-                new MaintenanceWorkflowInitializedEvent(id, tasks, LocalDateTime.now(), initializedBy, tenantId));
-    }
-
     private void changeEffectStatus(String taskId, MaintenanceEffectStatus next, String reason, String changedBy) {
-        MaintenanceEffectStatus previous = currentEffectStatus();
+        MaintenanceEffectStatus previous = effectPlan.currentEffectStatus();
         if (previous == next) {
             return;
         }
@@ -2464,10 +1840,10 @@ public class Maintenance extends BaseAggregate {
      * @throws MaintenanceValidationException 多个生效任务回执携带不同批单号（事实不自洽）
      */
     private String appliedEndorsementNo() {
-        if (workflowTasks == null) {
+        if (workflow == null) {
             return null;
         }
-        Set<String> endorsementNos = workflowTasks.stream()
+        Set<String> endorsementNos = workflow.getWorkflowTasks().stream()
                 .map(MaintenanceWorkflowTask::effectEvidence)
                 .filter(Objects::nonNull)
                 .map(MaintenanceEffectEvidence::application)
@@ -2494,10 +1870,10 @@ public class Maintenance extends BaseAggregate {
      * @return 键由 {@link EndorsementDocument#fieldKey} 构造的实际生效值索引
      */
     private Map<String, String> appliedFieldValues() {
-        if (workflowTasks == null) {
+        if (workflow == null) {
             return Map.of();
         }
-        return workflowTasks.stream()
+        return workflow.getWorkflowTasks().stream()
                 .map(MaintenanceWorkflowTask::effectEvidence)
                 .filter(Objects::nonNull)
                 .map(MaintenanceEffectEvidence::application)
@@ -2509,238 +1885,6 @@ public class Maintenance extends BaseAggregate {
                         (existing, replacement) -> replacement));
     }
 
-    private MaintenanceEffectStatus currentEffectStatus() {
-        return effectStatus == null ? MaintenanceEffectStatus.NOT_STARTED : effectStatus;
-    }
-
-    private List<String> activeEffectTaskIds() {
-        return workflowTasks == null ? List.of()
-                : workflowTasks.stream()
-                        .filter(task -> task.stepType() == MaintenanceStepType.EFFECT)
-                        .filter(task -> task.status() != MaintenanceWorkflowTaskStatus.SKIPPED)
-                        .map(MaintenanceWorkflowTask::taskId)
-                        .sorted()
-                        .toList();
-    }
-
-    private void requireSchedule(String scheduleId) {
-        if (effectSchedule == null || scheduleId == null
-                || !effectSchedule.scheduleId().equals(scheduleId.trim())) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceEffectSchedule", "scheduleId", "未来生效计划不存在或不匹配");
-        }
-    }
-
-    private void requireRetroactiveImpactAnalysis(String analysisId, String operationId) {
-        if (retroactiveImpactAnalysis == null || analysisId == null || operationId == null
-                || !retroactiveImpactAnalysis.analysisId().equals(analysisId.trim())
-                || !retroactiveImpactAnalysis.operationId().equals(operationId.trim())) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceRetroactiveImpactAnalysis", "analysisId", "追溯影响分析不存在或操作标识不匹配");
-        }
-    }
-
-    private void requireRetroactivePeriodRecalculation(String recalculationId, String operationId) {
-        if (retroactivePeriodRecalculation == null || recalculationId == null || operationId == null
-                || !retroactivePeriodRecalculation.periodRecalculationId().equals(recalculationId.trim())
-                || !retroactivePeriodRecalculation.operationId().equals(operationId.trim())) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceRetroactivePeriodRecalculation", "periodRecalculationId",
-                    "追溯期间重算不存在或操作标识不匹配");
-        }
-    }
-
-    private void requireRetroactivePeriodResolution(String resolutionId, String operationId) {
-        if (retroactivePeriodResolution == null || resolutionId == null || operationId == null
-                || !retroactivePeriodResolution.periodResolutionId().equals(resolutionId.trim())
-                || !retroactivePeriodResolution.operationId().equals(operationId.trim())) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceRetroactivePeriodResolution", "periodResolutionId",
-                    "关闭会计期间处理不存在或操作标识不匹配");
-        }
-    }
-
-    private void retryFailedEffectTasks(String operationId, String reason, String operatorId) {
-        if (operationId == null || operationId.isBlank()) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceEffectSchedule", "operationId", "恢复操作号不能为空");
-        }
-        List<MaintenanceWorkflowTask> failedTasks = workflowTasks.stream()
-                .filter(task -> task.stepType() == MaintenanceStepType.EFFECT)
-                .filter(task -> task.status() == MaintenanceWorkflowTaskStatus.FAILED)
-                .toList();
-        for (MaintenanceWorkflowTask task : failedTasks) {
-            MaintenanceWorkflowOperation operation = workflowOperation(
-                    caseTaskOperationId(operationId, task.taskId()), MaintenanceWorkflowAction.RETRY,
-                    task.taskId(), null, null, null, reason, operatorId);
-            transition(task.taskId(), operation, candidate -> candidate.retry(operation), false);
-        }
-    }
-
-    private boolean allEffectTasksApplied() {
-        List<MaintenanceWorkflowTask> effectTasks = workflowTasks.stream()
-                .filter(task -> task.stepType() == MaintenanceStepType.EFFECT).toList();
-        return !effectTasks.isEmpty()
-                && effectTasks.stream().allMatch(task -> task.status() == MaintenanceWorkflowTaskStatus.COMPLETED
-                        || task.status() == MaintenanceWorkflowTaskStatus.SKIPPED);
-    }
-
-    private List<String> requireAllEffectTaskIds(List<String> taskIds) {
-        if (taskIds == null || taskIds.isEmpty()
-                || taskIds.stream().anyMatch(taskId -> taskId == null || taskId.isBlank())
-                || new HashSet<>(taskIds).size() != taskIds.size()) {
-            throw new MaintenanceValidationException("MaintenanceCaseEffect", "taskIds", "案件级生效任务不能为空、空白或重复");
-        }
-        List<String> expected = workflowTasks == null ? List.of()
-                : workflowTasks.stream().filter(task -> task.stepType() == MaintenanceStepType.EFFECT)
-                        .filter(task -> task.status() != MaintenanceWorkflowTaskStatus.SKIPPED)
-                        .map(MaintenanceWorkflowTask::taskId).sorted().toList();
-        List<String> actual = taskIds.stream().map(String::trim).sorted().toList();
-        if (!expected.equals(actual)) {
-            throw new MaintenanceValidationException("MaintenanceCaseEffect", "taskIds", "案件级生效必须覆盖全部非跳过 EFFECT 任务");
-        }
-        return actual;
-    }
-
-    private void requireEffectCompensationContext(
-            String taskId, MaintenanceEffectCompensationEvidence evidence) {
-        List<MaintenanceWorkflowTask> effectTasks = workflowTasks == null ? List.of()
-                : workflowTasks.stream().filter(task -> task.stepType() == MaintenanceStepType.EFFECT)
-                        .filter(task -> task.status() != MaintenanceWorkflowTaskStatus.SKIPPED).toList();
-        requireAllEffectTaskIds(effectTasks.stream().map(MaintenanceWorkflowTask::taskId).toList());
-        if (taskId == null || taskId.isBlank()
-                || effectTasks.stream().noneMatch(task -> task.taskId().equals(taskId.trim()))) {
-            throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "taskId",
-                    "补偿事实必须关联案件内的非跳过 EFFECT 任务");
-        }
-        if (effectTasks.stream().anyMatch(task -> task.status() != MaintenanceWorkflowTaskStatus.WAITING_EXTERNAL
-                || task.effectEvidence() == null || task.effectEvidence().request() == null)) {
-            throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "effectTasks",
-                    "案件全部非跳过 EFFECT 任务必须等待 Policy 回执");
-        }
-        MaintenanceEffectRequestEvidence request = effectTasks.getFirst().effectEvidence().request();
-        if (effectTasks.stream().anyMatch(task -> !request.equals(task.effectEvidence().request()))) {
-            throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "effectTasks",
-                    "案件全部非跳过 EFFECT 任务必须共享同一 Policy 请求事实");
-        }
-        if (!request.requestId().equals(evidence.requestId())) {
-            throw new MaintenanceValidationException("RecordMaintenanceEffectCompensationCommand", "evidence",
-                    "补偿事实必须关联当前冻结的 Policy 请求");
-        }
-    }
-
-    private String caseTaskOperationId(String operationId, String taskId) {
-        if (operationId == null || operationId.isBlank()) {
-            throw new MaintenanceValidationException("MaintenanceCaseEffect", "operationId", "案件级生效操作号不能为空");
-        }
-        return operationId.trim() + ":" + taskId;
-    }
-
-    private boolean transition(String taskId, MaintenanceWorkflowOperation operation,
-                               UnaryOperator<MaintenanceWorkflowTask> transition, boolean activateNext) {
-        if (workflowOperationAlreadyApplied(operation)) {
-            return false;
-        }
-        MaintenanceWorkflowTask beforeTask = findWorkflowTask(taskId);
-        requireWorkflowMutable(beforeTask, operation.action().getCode());
-        MaintenanceWorkflowTask afterTask = transition.apply(beforeTask);
-        MaintenanceWorkflowTask activatedBefore = null;
-        MaintenanceWorkflowTask activatedAfter = null;
-        if (activateNext) {
-            activatedBefore = findNextPendingTask(beforeTask);
-            if (activatedBefore != null) {
-                activatedAfter = activatedBefore.activate(operation);
-            }
-        }
-        AggregateLifecycle.apply(new MaintenanceWorkflowTaskTransitionedEvent(id, beforeTask, afterTask,
-                activatedBefore, activatedAfter, operation.operationId(), operation.payloadHash(),
-                operation.operatedAt(), operation.operatedBy(), tenantId));
-        return true;
-    }
-
-    private MaintenanceWorkflowOperation workflowOperation(String operationId, MaintenanceWorkflowAction action,
-                                                           String taskId, String evidenceVersion, String evidenceHash,
-                                                           String resultCode, String reason, String operatorId) {
-        return MaintenanceWorkflowOperation.create(operationId, action, taskId, evidenceVersion, evidenceHash,
-                resultCode, reason, LocalDateTime.now(), operatorId);
-    }
-
-    private boolean premiumQuoteOperationAlreadyApplied(
-            RecordMaintenancePremiumQuoteCommand command,
-            MaintenancePremiumQuoteEvidence evidence) {
-        if (workflowOperationHashes == null) {
-            workflowOperationHashes = new HashMap<>();
-        }
-        String existingHash = workflowOperationHashes.get(command.operationId());
-        if (existingHash == null) {
-            return false;
-        }
-        MaintenancePremiumQuoteEvidence existingEvidence =
-                findWorkflowTask(command.taskId()).premiumQuoteEvidence();
-        if (existingEvidence == null || !existingEvidence.sameIdempotencyFact(evidence)) {
-            return false;
-        }
-        MaintenanceWorkflowOperation existingOperation = workflowOperation(
-                command.operationId(), MaintenanceWorkflowAction.RECORD_PREMIUM_QUOTE,
-                command.taskId(), existingEvidence.evidenceVersion(), existingEvidence.contentHash(),
-                existingEvidence.status().getCode(), existingEvidence.detailSummary(), command.operatorId());
-        return existingHash.equals(existingOperation.payloadHash());
-    }
-
-    private boolean workflowOperationAlreadyApplied(MaintenanceWorkflowOperation operation) {
-        if (workflowOperationHashes == null) {
-            workflowOperationHashes = new HashMap<>();
-        }
-        String existingHash = workflowOperationHashes.get(operation.operationId());
-        if (existingHash == null) {
-            return false;
-        }
-        if (existingHash.equals(operation.payloadHash())) {
-            return true;
-        }
-        throw new MaintenanceValidationException("MaintenanceWorkflowOperation", "operationId", "同一操作号不能提交不同载荷");
-    }
-
-    /**
-     * 校验案件与流程任务可推进。
-     * <p>
-     * 收口步骤（{@link MaintenanceStepType#closingPhase()}：出具凭证、完成）发生在案件生效完成之后，**案件级冻结
-     * 不适用于它们**——否则 {@code EFFECT → DOCUMENT → COMPLETE} 模板下收口步骤在结构上不可达（案件于生效回执
-     * 即置 {@code COMPLETED}）。其余步骤沿用原守卫，含收口步骤在案件被拒绝时，避免驳回后仍能改动保单内容。
-     * </p>
-     *
-     * @param task   待推进任务（其步骤类型决定是否豁免案件级冻结）
-     * @param target 目标动作编码，仅用于异常文案定位
-     */
-    private void requireWorkflowMutable(MaintenanceWorkflowTask task, String target) {
-        if (status != MaintenanceStatus.COMPLETED || !task.stepType().closingPhase()) {
-            requireItemStatusMutable(target);
-        }
-        if (!initializationCompleted || workflowTasks == null || workflowTasks.isEmpty()) {
-            throw new MaintenanceValidationException("MaintenanceWorkflowTask", "workflowTasks", "案件流程任务尚未初始化");
-        }
-    }
-
-    /**
-     * 校验同项目全部前序任务已形成终态（已完成或已跳过）。
-     * <p>
-     * 前驱顺序是**项目内**概念（同一 {@code itemCode} 的步骤序），故只在同项目任务间比较，不涉及其它保全项。
-     * </p>
-     */
-    private void requirePredecessorsTerminal(MaintenanceWorkflowTask task) {
-        List<String> unfinished = workflowTasks.stream()
-                .filter(candidate -> candidate.itemCode().equals(task.itemCode()))
-                .filter(candidate -> candidate.sequence() < task.sequence())
-                .filter(candidate -> candidate.status() != MaintenanceWorkflowTaskStatus.COMPLETED
-                        && candidate.status() != MaintenanceWorkflowTaskStatus.SKIPPED)
-                .map(MaintenanceWorkflowTask::taskId)
-                .toList();
-        if (!unfinished.isEmpty()) {
-            throw new MaintenanceConflictException("MaintenanceWorkflowTask", "status",
-                    "前序任务未形成终态，不能完成项目: " + String.join(",", unfinished));
-        }
-    }
-
     /** 校验凭证模板编码取自本保全项冻结配置的输出规则。 */
     private void requireDocumentTemplate(MaintenanceWorkflowTask task, MaintenanceDocumentEvidence evidence) {
         String expected = findItem(task.itemCode()).controls().outputRule().voucherTemplateCode();
@@ -2748,176 +1892,6 @@ public class Maintenance extends BaseAggregate {
             throw new MaintenanceValidationException("RecordMaintenanceDocumentCommand", "templateCode",
                     "凭证模板必须使用冻结配置的输出模板");
         }
-    }
-
-    private MaintenanceWorkflowTask findWorkflowTask(String taskId) {
-        if (taskId == null || taskId.isBlank()) {
-            throw new MaintenanceValidationException("MaintenanceWorkflowTask", "taskId", "任务标识不能为空");
-        }
-        return workflowTasks.stream().filter(task -> task.taskId().equals(taskId.trim())).findFirst().orElseThrow(
-                () -> new MaintenanceValidationException("MaintenanceWorkflowTask", "taskId", "案件中不存在流程任务"));
-    }
-
-    private void requireSeparatedReviewer(MaintenanceWorkflowTask task, String reviewerId) {
-        if (task.stepType() != MaintenanceStepType.REVIEW) {
-            return;
-        }
-        if (createdBy == null || createdBy.isBlank() || reviewerId == null || reviewerId.isBlank()) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceWorkflowTask", "operatorId", "无法证明建案人与审核人职责分离");
-        }
-        if (createdBy.equals(reviewerId.trim())) {
-            throw new MaintenanceValidationException(
-                    "MaintenanceWorkflowTask", "operatorId", "建案人不能领取或决定审核任务");
-        }
-    }
-
-    private MaintenanceWorkflowTask findNextPendingTask(MaintenanceWorkflowTask completedTask) {
-        return workflowTasks.stream().filter(task -> task.itemCode().equals(completedTask.itemCode()))
-                .filter(task -> task.sequence() > completedTask.sequence())
-                .filter(task -> task.status() == MaintenanceWorkflowTaskStatus.PENDING)
-                .min((left, right) -> Integer.compare(left.sequence(), right.sequence())).orElse(null);
-    }
-
-    private void replaceWorkflowTask(MaintenanceWorkflowTask replacement) {
-        for (int index = 0; index < workflowTasks.size(); index++) {
-            if (workflowTasks.get(index).taskId().equals(replacement.taskId())) {
-                workflowTasks.set(index, replacement);
-                return;
-            }
-        }
-        throw new MaintenanceValidationException("MaintenanceWorkflowTaskTransitionedEvent", "taskId", "事件引用了不存在的流程任务");
-    }
-
-    private void validateAdjustment(RecordMaintenancePremiumAdjustmentCommand command) {
-        if (command.originalCalculationId() == null || command.originalCalculationId().isBlank()
-                || command.replacementCalculationId() == null || command.replacementCalculationId().isBlank()
-                || command.adjustmentId() == null || command.adjustmentId().isBlank()
-                || command.adjustmentResultHash() == null || command.adjustmentResultHash().isBlank()
-                || command.direction() == null || command.amount() == null || command.currency() == null
-                || command.currency().isBlank()) {
-            throw new MaintenanceValidationException("RecordMaintenancePremiumAdjustmentCommand", "Product 差额事实字段不完整");
-        }
-        if (command.amount().signum() < 0
-                || (command.direction() == MaintenanceBalanceDirection.NONE && command.amount().signum() != 0)
-                || (command.direction() != MaintenanceBalanceDirection.NONE && command.amount().signum() <= 0)) {
-            throw new MaintenanceValidationException("RecordMaintenancePremiumAdjustmentCommand", "amount",
-                    "余额方向与差额金额不一致");
-        }
-    }
-
-    private boolean sameAdjustment(RecordMaintenancePremiumAdjustmentCommand command) {
-        return Objects.equals(originalCalculationId, command.originalCalculationId())
-                && Objects.equals(replacementCalculationId, command.replacementCalculationId())
-                && Objects.equals(premiumAdjustmentId, command.adjustmentId())
-                && Objects.equals(premiumAdjustmentResultHash, command.adjustmentResultHash())
-                && balanceDirection == command.direction() && balanceAmount.compareTo(command.amount()) == 0
-                && Objects.equals(balanceCurrency, command.currency());
-    }
-
-    private boolean samePosting(RecordMaintenancePremiumPostingCommand command) {
-        return Objects.equals(premiumAdjustmentId, command.adjustmentId())
-                && Objects.equals(premiumAdjustmentResultHash, command.adjustmentResultHash())
-                && Objects.equals(billingPostingId, command.postingId()) && "POSTED".equals(command.postingStatus());
-    }
-
-    private void validateSurrenderValue(RecordMaintenanceSurrenderValueCommand command) {
-        if (!hasText(command.policyCode()) || !hasText(command.policyVersion()) || !hasText(command.policyContentHash())
-                || command.policyContentHash().length() != 64 || command.policyYear() == null
-                || command.policyYear() < 1 || command.coolingOffDays() == null || command.coolingOffDays() < 0
-                || !hasText(command.refundType()) || command.withinCoolingOff() == null
-                || invalidRate(command.cashValueRate()) || invalidRate(command.internalCostRetentionRate())
-                || command.retainedCustomerAmount() == null || command.retainedCustomerAmount().signum() < 0) {
-            throw new MaintenanceValidationException("RecordMaintenanceSurrenderValueCommand", "Product 退保价值策略事实不完整");
-        }
-    }
-
-    private boolean sameSurrenderValue(RecordMaintenanceSurrenderValueCommand command) {
-        return Objects.equals(premiumAdjustmentId, command.adjustmentId())
-                && Objects.equals(surrenderPolicyCode, command.policyCode())
-                && Objects.equals(surrenderPolicyVersion, command.policyVersion())
-                && Objects.equals(surrenderPolicyContentHash, command.policyContentHash())
-                && Objects.equals(surrenderPolicyYear, command.policyYear())
-                && Objects.equals(coolingOffDays, command.coolingOffDays())
-                && Objects.equals(surrenderRefundType, command.refundType())
-                && Objects.equals(withinCoolingOff, command.withinCoolingOff())
-                && cashValueRate.compareTo(command.cashValueRate()) == 0
-                && retainedCustomerAmount.compareTo(command.retainedCustomerAmount()) == 0
-                && internalCostRetentionRate.compareTo(command.internalCostRetentionRate()) == 0;
-    }
-
-    private boolean invalidRate(BigDecimal value) {
-        return value == null || value.signum() < 0 || value.compareTo(BigDecimal.ONE) > 0;
-    }
-
-    private void validateFinancialSettlement(RecordMaintenanceFinancialSettlementCommand command) {
-        if (billingPostingId == null || !Objects.equals(billingPostingId, command.postingId())) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "postingId",
-                    "资金结算来源与 Billing 入账不一致");
-        }
-        if (command.commissionAdjustmentCount() == null || command.commissionAdjustmentCount() < 0) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand",
-                    "commissionAdjustmentCount", "佣金调整数量不能为负数");
-        }
-        boolean hasInstruction = hasText(command.refundInstructionId());
-        boolean hasOrder = hasText(command.refundOrderId());
-        boolean hasRefundStatus = hasText(command.refundStatus());
-        if (hasOrder && !hasInstruction) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "refundOrderId",
-                    "退款订单必须关联退款指令");
-        }
-        if ((hasInstruction || hasOrder) && !hasRefundStatus) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "refundStatus",
-                    "退款事实必须包含退款状态");
-        }
-        if (balanceDirection == MaintenanceBalanceDirection.CREDIT && !hasRefundStatus) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "refundStatus",
-                    "退费资金事实必须包含退款状态");
-        }
-        if (balanceDirection == MaintenanceBalanceDirection.DEBIT
-                && (hasInstruction || hasOrder
-                        || PaymentRefundStatus.fromCode(command.refundStatus()) != PaymentRefundStatus.NOT_REQUIRED)) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "refundStatus",
-                    "追加应收不得包含退款事实");
-        }
-        if (balanceDirection == MaintenanceBalanceDirection.NONE) {
-            throw new MaintenanceValidationException("RecordMaintenanceFinancialSettlementCommand", "refundStatus",
-                    "无余额影响时不得记录资金结算");
-        }
-    }
-
-    private MaintenancePremiumSettlementStatus financialSettlementStatus(String currentRefundStatus) {
-        if (balanceDirection == MaintenanceBalanceDirection.DEBIT) {
-            return MaintenancePremiumSettlementStatus.POSTED;
-        }
-        PaymentRefundStatus status = PaymentRefundStatus.fromCode(currentRefundStatus);
-        if (status == PaymentRefundStatus.SUCCEEDED) {
-            return MaintenancePremiumSettlementStatus.SETTLED;
-        }
-        if (status == PaymentRefundStatus.FAILED || status == PaymentRefundStatus.CANCELLED) {
-            return MaintenancePremiumSettlementStatus.SETTLEMENT_FAILED;
-        }
-        return MaintenancePremiumSettlementStatus.SETTLEMENT_PENDING;
-    }
-
-    private boolean sameFinancialSettlement(RecordMaintenanceFinancialSettlementCommand command,
-                                            MaintenancePremiumSettlementStatus targetStatus) {
-        return Objects.equals(refundInstructionId, command.refundInstructionId())
-                && Objects.equals(refundOrderId, command.refundOrderId())
-                && Objects.equals(refundStatus, command.refundStatus())
-                && Objects.equals(commissionAdjustmentCount, command.commissionAdjustmentCount())
-                && premiumSettlementStatus == targetStatus;
-    }
-
-    private boolean hasText(String value) {
-        return value != null && !value.isBlank();
-    }
-
-    private boolean hasRecordedBalanceFact() {
-        return switch (premiumSettlementStatus) {
-            case POSTED, SETTLEMENT_PENDING, SETTLEMENT_FAILED, SETTLED, NOT_REQUIRED -> true;
-            default -> false;
-        };
     }
 
     /**

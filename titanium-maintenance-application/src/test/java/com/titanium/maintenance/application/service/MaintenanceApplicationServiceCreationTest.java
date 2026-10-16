@@ -23,6 +23,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.titanium.common.number.IdGenerator;
 import com.titanium.maintenance.application.orchestration.casecreation.MaintenanceInFlightAdmissionPolicy;
 import com.titanium.maintenance.command.CreateMaintenanceCommand;
 import com.titanium.maintenance.common.enums.EffectiveTimeType;
@@ -71,10 +72,12 @@ class MaintenanceApplicationServiceCreationTest {
 
     @BeforeEach
     void setUp() {
+        // DSN-05：保全 ID 由应用边界经 IdGenerator 生成；单方法接口用 lambda 给确定性值（生成逻辑非本服务职责）
+        IdGenerator idGenerator = () -> "MNT-DSN05-001";
         service = new MaintenanceApplicationService(
                 commandGateway, maintenanceViewRepository, inFlightAdmissionPolicy, policyServicePort,
                 customerServicePort, legacyCreationFeaturePort, legacyPremiumCalculationFeaturePort,
-                legacyExecutionFeaturePort);
+                legacyExecutionFeaturePort, idGenerator);
         when(legacyCreationFeaturePort.isEnabled()).thenReturn(true);
         when(policyServicePort.policyExists(POLICY_ID, TENANT_ID)).thenReturn(true);
         when(customerServicePort.customerExists(CUSTOMER_ID)).thenReturn(true);

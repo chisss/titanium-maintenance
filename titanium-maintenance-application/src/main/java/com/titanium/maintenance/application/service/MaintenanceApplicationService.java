@@ -10,6 +10,7 @@ import org.axonframework.commandhandling.gateway.CommandGateway;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.titanium.common.number.IdGenerator;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceReadModel;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceSearchPageResult;
 import com.titanium.maintenance.application.model.casecreation.MaintenanceStatisticsResult;
@@ -62,6 +63,7 @@ public class MaintenanceApplicationService {
     private final MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort;
     private final MaintenanceLegacyPremiumCalculationFeaturePort legacyPremiumCalculationFeaturePort;
     private final MaintenanceLegacyExecutionFeaturePort legacyExecutionFeaturePort;
+    private final IdGenerator                     idGenerator;
 
     public MaintenanceApplicationService(CommandGateway commandGateway,
                                          MaintenanceViewRepository maintenanceViewRepository,
@@ -70,7 +72,8 @@ public class MaintenanceApplicationService {
                                          CustomerServicePort customerServicePort,
                                          MaintenanceLegacyCreationFeaturePort legacyCreationFeaturePort,
                                          MaintenanceLegacyPremiumCalculationFeaturePort legacyPremiumCalculationFeaturePort,
-                                         MaintenanceLegacyExecutionFeaturePort legacyExecutionFeaturePort) {
+                                         MaintenanceLegacyExecutionFeaturePort legacyExecutionFeaturePort,
+                                         IdGenerator idGenerator) {
         this.commandGateway = commandGateway;
         this.maintenanceViewRepository = maintenanceViewRepository;
         this.inFlightAdmissionPolicy = inFlightAdmissionPolicy;
@@ -79,6 +82,7 @@ public class MaintenanceApplicationService {
         this.legacyCreationFeaturePort = legacyCreationFeaturePort;
         this.legacyPremiumCalculationFeaturePort = legacyPremiumCalculationFeaturePort;
         this.legacyExecutionFeaturePort = legacyExecutionFeaturePort;
+        this.idGenerator = idGenerator;
     }
 
     // 创建保全案件
@@ -99,8 +103,9 @@ public class MaintenanceApplicationService {
         // 检查在途案件与保全项互斥（与独立建案入口共用同一门面，见 MaintenanceInFlightAdmissionPolicy）
         inFlightAdmissionPolicy.requireNoConflict(policyId, tenantId, null, null, List.of(maintenanceType));
 
-        CreateMaintenanceCommand command = CreateMaintenanceCommand.of(policyId, customerId, maintenanceType,
-                effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
+        // 保全 ID 由应用边界经 IdGenerator 生成后传入（DSN-05 / ADR-0002）
+        CreateMaintenanceCommand command = CreateMaintenanceCommand.of(idGenerator.nextIdString(), policyId,
+                customerId, maintenanceType, effectiveTimeType, specificEffectiveDate, description, createdBy, tenantId);
         return commandGateway.send(command).thenApply(result -> command.id().id());
     }
 
