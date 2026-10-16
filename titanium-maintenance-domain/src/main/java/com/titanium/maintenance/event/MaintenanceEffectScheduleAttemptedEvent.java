@@ -2,9 +2,12 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /** 调度节点已持有租约并开始一次执行尝试。 */
+@Revision("1")
 public record MaintenanceEffectScheduleAttemptedEvent(
         MaintenanceId maintenanceId,
         String scheduleId,

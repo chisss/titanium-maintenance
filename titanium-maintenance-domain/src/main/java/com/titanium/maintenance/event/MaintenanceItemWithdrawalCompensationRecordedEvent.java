@@ -1,10 +1,13 @@
 package com.titanium.maintenance.event;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldConflictPlan;
 import com.titanium.maintenance.valueobject.withdrawal.MaintenanceItemWithdrawal;
 
 /** 项目撤销补偿已记录；完成时同时携带重建后的当前拟快照。 */
+@Revision("1")
 public record MaintenanceItemWithdrawalCompensationRecordedEvent(
         MaintenanceId maintenanceId,
         MaintenanceItemWithdrawal withdrawal,

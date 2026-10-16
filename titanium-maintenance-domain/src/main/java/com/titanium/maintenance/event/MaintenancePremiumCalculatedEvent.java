@@ -3,6 +3,8 @@ package com.titanium.maintenance.event;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /**
@@ -21,6 +23,7 @@ import com.titanium.maintenance.valueobject.MaintenanceId;
  * {@code docs/技术文档/跨域事件目录-2026-09.md} §六.12（2026-09-14 m6-904）。
  * </p>
  */
+@Revision("1")
 public record MaintenancePremiumCalculatedEvent(MaintenanceId maintenanceId, BigDecimal totalAmount,
                                                 BigDecimal refundAmount, String calculationDetails,
                                                 LocalDateTime updatedAt, String updatedBy, String tenantId) {

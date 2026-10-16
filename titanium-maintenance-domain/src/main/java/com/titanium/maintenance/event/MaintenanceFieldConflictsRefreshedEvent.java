@@ -2,10 +2,13 @@ package com.titanium.maintenance.event;
 
 import java.time.OffsetDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldConflictPlan;
 
 /** 案件字段已按 Policy 最新版本刷新并重建拟快照。 */
+@Revision("1")
 public record MaintenanceFieldConflictsRefreshedEvent(
         MaintenanceId maintenanceId,
         String operationId,

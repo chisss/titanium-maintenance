@@ -2,10 +2,13 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.common.enums.MaintenancePremiumSettlementStatus;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /** Billing 资金结算与佣金调整检查点事件。 */
+@Revision("1")
 public record MaintenanceFinancialSettlementRecordedEvent(
         MaintenanceId maintenanceId,
         String postingId,

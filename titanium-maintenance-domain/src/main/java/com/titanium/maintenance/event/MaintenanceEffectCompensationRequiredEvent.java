@@ -2,10 +2,13 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceEffectCompensationEvidence;
 
 /** 案件需要人工重试勾稽 Policy 权威回执。 */
+@Revision("1")
 public record MaintenanceEffectCompensationRequiredEvent(
         MaintenanceId maintenanceId,
         String taskId,

@@ -2,9 +2,12 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /** 一次未来生效执行失败，事件明确是否继续退避重试。 */
+@Revision("1")
 public record MaintenanceEffectScheduleFailedEvent(
         MaintenanceId maintenanceId,
         String scheduleId,

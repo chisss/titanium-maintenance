@@ -101,9 +101,12 @@ axon:
           enabled: true
           max-size: 1000
         batchSize: 1
-  eventstore:
-    event-serializer: jackson
-    snapshot-serializer: jackson
+  # ✅ m26-04（AXN-03 快照治理）：原 eventstore.event-serializer / snapshot-serializer 两键已删除——
+  #    Axon 4.10 无 axon.eventstore.* 绑定（三条独立取证：spring-configuration-metadata.json 38 键无此
+  #    前缀 / autoconfigure jar 全量字节码常量池零 axon.eventstore 字面 / ~/.m2 全部 axonframework jar
+  #    逐 jar 零命中），该段从未生效；快照序列化器实由各域 EventStore 装配绑定主 Serializer
+  #    （即上方 axon.serializer.general: jackson）。保留本行以留痕。
+  #    （同前缀的 eventstore.jpa.* 系 G13 登记保留项、不属本判定面，本域无该键。）
 
 # 日志配置
 logging:

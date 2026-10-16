@@ -2,10 +2,13 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceWorkflowTask;
 
 /** 流程任务状态或领取信息已变更，并完整保留前后任务事实。 */
+@Revision("1")
 public record MaintenanceWorkflowTaskTransitionedEvent(
         MaintenanceId maintenanceId,
         MaintenanceWorkflowTask beforeTask,

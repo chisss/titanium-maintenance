@@ -2,9 +2,12 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
 /** 案件未来生效计划已恢复。 */
+@Revision("1")
 public record MaintenanceEffectScheduleResumedEvent(
         MaintenanceId maintenanceId,
         String scheduleId,

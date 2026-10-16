@@ -2,6 +2,8 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.endorsement.EndorsementDocument;
 
@@ -23,6 +25,7 @@ import com.titanium.maintenance.valueobject.endorsement.EndorsementDocument;
  * @param document      批单要素（跨域自足载荷）
  * @param issuedAt      批单出具时刻（案件级生效回执落定时刻）
  */
+@Revision("1")
 public record MaintenanceEndorsementIssuedEvent(MaintenanceId maintenanceId, EndorsementDocument document,
         LocalDateTime issuedAt) {
 }

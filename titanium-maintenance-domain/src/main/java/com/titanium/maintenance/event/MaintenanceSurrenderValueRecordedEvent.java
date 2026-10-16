@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.port.product.ProductSurrenderValuePort.SurrenderFactorFact;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 
@@ -24,6 +26,7 @@ import com.titanium.maintenance.valueobject.MaintenanceId;
  *
  * @param factors 退费因子明细（历史事件为 {@code null}；新事件为空列表表示「确实无明细」）
  */
+@Revision("1")
 public record MaintenanceSurrenderValueRecordedEvent(
         MaintenanceId maintenanceId,
         String adjustmentId,

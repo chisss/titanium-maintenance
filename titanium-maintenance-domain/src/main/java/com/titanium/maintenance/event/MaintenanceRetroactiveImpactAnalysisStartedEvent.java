@@ -1,9 +1,12 @@
 package com.titanium.maintenance.event;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.workflow.MaintenanceRetroactiveImpactAnalysis;
 
 /** 追溯影响分析范围和幂等请求已冻结。 */
+@Revision("1")
 public record MaintenanceRetroactiveImpactAnalysisStartedEvent(
         MaintenanceId maintenanceId,
         MaintenanceRetroactiveImpactAnalysis analysis,

@@ -2,12 +2,15 @@ package com.titanium.maintenance.event;
 
 import java.time.OffsetDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.common.enums.change.MaintenanceFieldConflictResolutionAction;
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldChange;
 import com.titanium.maintenance.valueobject.change.MaintenanceFieldConflictPlan;
 
 /** 单个字段冲突已经显式解决，并生成新的案件级拟快照。 */
+@Revision("1")
 public record MaintenanceFieldConflictResolvedEvent(
         MaintenanceId maintenanceId,
         String operationId,

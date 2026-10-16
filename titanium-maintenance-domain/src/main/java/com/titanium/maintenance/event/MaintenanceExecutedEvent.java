@@ -2,6 +2,8 @@ package com.titanium.maintenance.event;
 
 import java.time.LocalDateTime;
 
+import org.axonframework.serialization.Revision;
+
 import com.titanium.maintenance.valueobject.MaintenanceId;
 import com.titanium.metadata.enums.maintenance.MaintenanceType;
 
@@ -15,6 +17,7 @@ import com.titanium.metadata.enums.maintenance.MaintenanceType;
  * @param policyId 关联保单ID（回写闭环目标）
  * @param maintenanceType 保全类型（policy 侧据此翻译为暂停/恢复/终止等命令）
  */
+@Revision("1")
 public record MaintenanceExecutedEvent(MaintenanceId maintenanceId, String policyId, MaintenanceType maintenanceType,
                                        LocalDateTime effectiveTime, String executionDetails, LocalDateTime updatedAt,
                                        String updatedBy, String tenantId) {

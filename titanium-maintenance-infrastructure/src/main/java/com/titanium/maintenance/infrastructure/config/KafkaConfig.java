@@ -28,9 +28,8 @@ import org.springframework.kafka.support.serializer.JsonSerializer;
 import org.springframework.util.backoff.FixedBackOff;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import com.titanium.common.json.JacksonMappers;
 import com.titanium.common.messaging.DltMetricsRecoverer;
 import com.titanium.maintenance.common.constant.MaintenanceConstants;
 
@@ -77,11 +76,12 @@ public class KafkaConfig {
      */
     // ✅ m22-03（审查报告 SPR-04）定性：本处**有意独立构造**——Kafka 事件外发需要**确定的序列化配置**（显式注册 JavaTimeModule + 固定 ISO 时间形态），
     // 复用 Spring 全局实例会把消息格式绑到 Web 层的配置演进上，反而不稳。
+    // ✅ m26-06（AXN-05）续：独立构造保留，但**构造点收口到统一工厂** JacksonMappers.crossDomainWireFormat()
+    // ——「JSR-310 感知 + ISO 时间串」这套跨域线格式由工厂的具名方法承载，不再各域手抄一份、各自漂移。
     private ObjectMapper eventObjectMapper() {
-        return new ObjectMapper()
-                .registerModule(new JavaTimeModule())
-                // 🔴 跨域线格式契约，不得移除：移除即令 document / policy 两条消费链路再次全量失败
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        // 🔴 跨域线格式契约（ISO 时间串）由 JacksonMappers.crossDomainWireFormat() 承载，
+        // 该工厂方法内的「禁用时间戳」一旦移除，即令 document / policy 两条消费链路再次全量失败
+        return JacksonMappers.crossDomainWireFormat();
     }
 
     // 创建Kafka主题
