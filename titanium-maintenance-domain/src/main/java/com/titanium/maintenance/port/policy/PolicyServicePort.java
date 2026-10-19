@@ -39,7 +39,6 @@ public interface PolicyServicePort {
      * 获取保单状态快照
      *
      * @param policyId 保单ID
-     * @param tenantId 租户ID
      * @return 保单状态快照
      */
     PolicyStatusSnapshot getPolicyStatus(String policyId);

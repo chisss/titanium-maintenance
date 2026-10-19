@@ -1,0 +1,2 @@
+Class <com.titanium.maintenance.service.impl.PolicyLoanDomainServiceImpl> is annotated with @Service in (PolicyLoanDomainServiceImpl.java:0)
+Class <com.titanium.maintenance.service.impl.SurrenderRefundDomainServiceImpl> is annotated with @Service in (SurrenderRefundDomainServiceImpl.java:0)

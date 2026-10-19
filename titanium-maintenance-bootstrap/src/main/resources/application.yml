@@ -65,7 +65,9 @@ jwt:
 maintenance:
   authentication:
     enabled: true
-    internal-token: ${MAINTENANCE_INTERNAL_TOKEN:change-me-in-production-maintenance-internal-token}
+    # 🔴 SEC-02（m28-08）：无默认值。原默认值是写死的伪装人凭据（固定前缀的公开字符串），
+    #    生产漏配环境变量即以它上线 ⇒ BFF 入口鉴权形同虚设。缺失即启动失败，消息写明环境变量名。
+    internal-token: ${MAINTENANCE_INTERNAL_TOKEN}
 
 # Axon Framework配置
 axon:

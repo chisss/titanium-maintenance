@@ -33,7 +33,6 @@ public interface InvestmentAccountSwitchClient {
      * 按关联保单ID查询投资账户列表
      *
      * @param policyId 保单ID
-     * @param tenantId 租户ID
      * @return 账户列表（无账户时为空列表，非 null）
      */
     @GetMapping("/policy/{policyId}")
@@ -44,7 +43,6 @@ public interface InvestmentAccountSwitchClient {
      *
      * @param accountId 投资账户ID
      * @param request   转换请求（转出单位、目标净值与标的）
-     * @param tenantId  租户ID
      * @return 转换后账户读模型结果
      */
     @PostMapping("/{accountId}/switches")

@@ -56,8 +56,8 @@ titanium-maintenance/
 │   ├── command/                             # 5个命令（非 record，含 builder/of 工厂）
 │   ├── event/                               # 5个领域事件
 │   ├── enums/                               # MaintenanceStatus / MaintenanceType
-│   ├── valueobject/                         # CustomerId/PolicyId/MaintenanceId/
-│   │                                        #   MaintenanceAmount/MaintenanceChange
+│   ├── valueobject/                         # CustomerId/PolicyId/MaintenanceId/MaintenanceChange
+│   │                                        #   + admission/casecreation/change/effect/… 按业务主题分包
 │   ├── repository/MaintenanceExclusionRepository.java  # 互斥配置端口（参考数据；写侧 MaintenanceRepository 已删）
 │   └── service/SurrenderRefundDomainService  # 退保退费领域服务（纯计算，无仓储）
 ├── titanium-maintenance-infrastructure/     # 基础设施层

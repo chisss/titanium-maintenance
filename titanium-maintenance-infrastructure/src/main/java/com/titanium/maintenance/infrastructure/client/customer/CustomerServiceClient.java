@@ -29,7 +29,6 @@ public interface CustomerServiceClient {
      * 获取客户详情
      *
      * @param customerId 客户ID
-     * @param tenantId 租户ID
      * @return 统一信封，{@code data} 为客户详情，客户不存在时为 {@code null}
      */
     @GetMapping("/{customerId}")
@@ -39,7 +38,6 @@ public interface CustomerServiceClient {
      * 判断客户是否存在（专用端点，比 getCustomer + 异常捕获更准确）
      *
      * @param customerId 客户ID
-     * @param tenantId 租户ID
      * @return 统一信封，{@code data} 为存在返回 true
      */
     @GetMapping("/{customerId}/exists")

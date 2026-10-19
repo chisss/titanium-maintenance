@@ -24,7 +24,6 @@ public interface CustomerServicePort {
      * 校验客户是否存在
      *
      * @param customerId 客户ID
-     * @param tenantId 租户ID
      * @return 存在返回 true，否则 false
      */
     boolean customerExists(String customerId);

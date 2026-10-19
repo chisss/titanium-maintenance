@@ -108,7 +108,11 @@ import com.titanium.underwriting.api.MaintenanceUnderwritingApi;
                 "spring.task.scheduling.enabled=false",
                 "axon.axonserver.enabled=false",
                 // jwt.secret 主配置无默认值（SEC-04：密钥一律外部注入），测试须自带一个
-                "jwt.secret=test-only-jwt-secret-for-context-load-must-be-32b"
+                "jwt.secret=test-only-jwt-secret-for-context-load-must-be-32b",
+                // 🔴 SEC-02（m28-08）：internal-token 主配置同样改为无默认值（原为
+                //    change-me-in-production-... 假密钥）。未配置时 MaintenanceLocalAuthenticationFilter
+                //    启动期即失败，故上下文测试必须显式提供。
+                "maintenance.authentication.internal-token=test-only-maintenance-internal-token"
         })
 @MockitoBean(types = {
         // 域内契约（infrastructure.client，@EnableFeignClients basePackages 扫描面）
