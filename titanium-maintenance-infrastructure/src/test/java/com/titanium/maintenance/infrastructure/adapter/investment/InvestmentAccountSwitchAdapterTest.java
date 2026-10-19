@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.titanium.investment.api.InvestmentAccountApi;
-import com.titanium.investment.query.result.InvestmentAccountQueryResult;
+import com.titanium.investment.api.response.InvestmentAccountResponse;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountSwitchClient;
 import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort.InvestmentSwitchFact;
@@ -35,7 +35,7 @@ class InvestmentAccountSwitchAdapterTest {
     @Test
     @DisplayName("唯一账户：转换事实逐字段取对端应答，并透传缺省币种")
     void shouldReturnSwitchedFactAndApplyDefaultCurrency() {
-        InvestmentAccountQueryResult account = account("account-1", "account-1", "1.25000000", "800.00000000",
+        InvestmentAccountResponse account = account("account-1", "account-1", "1.25000000", "800.00000000",
                 "1000.00000000", "CNY");
         RecordingClient recording = new RecordingClient(List.of(account("account-1", null, null, null, null, null)),
                 account);
@@ -87,13 +87,13 @@ class InvestmentAccountSwitchAdapterTest {
     void shouldThrowRemoteErrorWhenQueryUnreachable() {
         InvestmentAccountSwitchAdapter adapter = new InvestmentAccountSwitchAdapter(new InvestmentAccountSwitchClient() {
             @Override
-            public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(
+            public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(
                     String policyId) {
                 throw new RuntimeException(new ConnectException("Connection refused: titanium-investment"));
             }
 
             @Override
-            public ApiResponse<InvestmentAccountQueryResult> switchUnits(
+            public ApiResponse<InvestmentAccountResponse> switchUnits(
                     String accountId, InvestmentAccountApi.SwitchUnitsRequest request) {
                 throw new IllegalStateException("查询已失败，不得再发起转换");
             }
@@ -111,13 +111,13 @@ class InvestmentAccountSwitchAdapterTest {
                 client(null, null, null));
         InvestmentAccountSwitchAdapter emptyData = new InvestmentAccountSwitchAdapter(new InvestmentAccountSwitchClient() {
             @Override
-            public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(
+            public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(
                     String policyId) {
                 return ApiResponse.success(null);
             }
 
             @Override
-            public ApiResponse<InvestmentAccountQueryResult> switchUnits(
+            public ApiResponse<InvestmentAccountResponse> switchUnits(
                     String accountId, InvestmentAccountApi.SwitchUnitsRequest request) {
                 throw new IllegalStateException("查询未返回有效列表，不得再发起转换");
             }
@@ -163,35 +163,31 @@ class InvestmentAccountSwitchAdapterTest {
                 new BigDecimal("1.25000000"), targetCurrency, "FUND-B", "operator-1");
     }
 
-    private InvestmentAccountQueryResult account(String accountId, String receiptAccountId, String unitPrice,
+    private InvestmentAccountResponse account(String accountId, String receiptAccountId, String unitPrice,
             String totalUnits, String accountValue, String currency) {
-        InvestmentAccountQueryResult result = new InvestmentAccountQueryResult();
-        result.setAccountId(receiptAccountId == null ? accountId : receiptAccountId);
-        if (unitPrice != null) {
-            result.setUnitPrice(new BigDecimal(unitPrice));
-        }
-        if (totalUnits != null) {
-            result.setTotalUnits(new BigDecimal(totalUnits));
-        }
-        if (accountValue != null) {
-            result.setAccountValue(new BigDecimal(accountValue));
-        }
-        result.setCurrency(currency);
-        return result;
+        // 组件顺序：accountId, policyId, accountType, unitPrice, currency, totalUnits, accountValue,
+        // managementFeeRate, status, tenantId（本用例只关心账户与金额事实，其余留空）
+        return new InvestmentAccountResponse(receiptAccountId == null ? accountId : receiptAccountId,
+                null, null,
+                unitPrice == null ? null : new BigDecimal(unitPrice),
+                currency,
+                totalUnits == null ? null : new BigDecimal(totalUnits),
+                accountValue == null ? null : new BigDecimal(accountValue),
+                null, null, null);
     }
 
     /** 账户列表应答与转换应答可分别指定的客户端桩 */
-    private InvestmentAccountSwitchClient client(List<InvestmentAccountQueryResult> accounts,
-            InvestmentAccountQueryResult switched, ApiResponse<InvestmentAccountQueryResult> switchResponse) {
+    private InvestmentAccountSwitchClient client(List<InvestmentAccountResponse> accounts,
+            InvestmentAccountResponse switched, ApiResponse<InvestmentAccountResponse> switchResponse) {
         return new InvestmentAccountSwitchClient() {
             @Override
-            public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(
+            public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(
                     String policyId) {
                 return accounts == null ? null : ApiResponse.success(accounts);
             }
 
             @Override
-            public ApiResponse<InvestmentAccountQueryResult> switchUnits(
+            public ApiResponse<InvestmentAccountResponse> switchUnits(
                     String accountId, InvestmentAccountApi.SwitchUnitsRequest request) {
                 return switchResponse != null ? switchResponse
                         : (switched == null ? ApiResponse.error(
@@ -203,26 +199,26 @@ class InvestmentAccountSwitchAdapterTest {
     /** 记录调用的客户端桩，用于断言保单寻址与请求体透传 */
     private static final class RecordingClient implements InvestmentAccountSwitchClient {
 
-        private final List<InvestmentAccountQueryResult>  accounts;
-        private final InvestmentAccountQueryResult        switched;
+        private final List<InvestmentAccountResponse>  accounts;
+        private final InvestmentAccountResponse        switched;
         private       String                              queryPolicyId;
         private       String                              switchAccountId;
         private       InvestmentAccountApi.SwitchUnitsRequest switchBody;
 
-        private RecordingClient(List<InvestmentAccountQueryResult> accounts,
-                InvestmentAccountQueryResult switched) {
+        private RecordingClient(List<InvestmentAccountResponse> accounts,
+                InvestmentAccountResponse switched) {
             this.accounts = accounts;
             this.switched = switched;
         }
 
         @Override
-        public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId) {
+        public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(String policyId) {
             this.queryPolicyId = policyId;
             return ApiResponse.success(accounts);
         }
 
         @Override
-        public ApiResponse<InvestmentAccountQueryResult> switchUnits(String accountId,
+        public ApiResponse<InvestmentAccountResponse> switchUnits(String accountId,
                 InvestmentAccountApi.SwitchUnitsRequest request) {
             this.switchAccountId = accountId;
             this.switchBody = request;

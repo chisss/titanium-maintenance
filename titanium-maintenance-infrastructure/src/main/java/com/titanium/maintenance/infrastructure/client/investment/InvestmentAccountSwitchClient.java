@@ -9,15 +9,16 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import com.titanium.investment.api.InvestmentAccountApi;
-import com.titanium.investment.query.result.InvestmentAccountQueryResult;
+import com.titanium.investment.api.response.InvestmentAccountResponse;
 import com.titanium.metadata.response.ApiResponse;
 
 /**
  * 投资域 Feign 客户端（防腐适配，路径与响应类型严格对齐 investment 域真实契约）
  * <p>
  * 路径 {@code /api/v1/investment-accounts} 与 investment 域 {@code InvestmentAccountApi} 保持一致。响应类型复用
- * {@code titanium-investment-api} 模块公开的 {@code InvestmentAccountQueryResult}，避免本域自维护镜像 record
- * 导致字段漂移；转换请求体复用 {@link InvestmentAccountApi.SwitchUnitsRequest}，与对端契约同源。
+ * {@code titanium-investment-api} 模块公开的契约出参 {@code InvestmentAccountResponse}（PKG-02 起不再暴露读模型
+ * {@code InvestmentAccountQueryResult}），避免本域自维护镜像 record 导致字段漂移；转换请求体复用
+ * {@link InvestmentAccountApi.SwitchUnitsRequest}，与对端契约同源。
  * </p>
  * <p>
  * 两个端点的分工：{@code getAccountsByPolicy} 完成「保单 → 投资账户」的解析（保全案件只持有保单标识），
@@ -36,7 +37,7 @@ public interface InvestmentAccountSwitchClient {
      * @return 账户列表（无账户时为空列表，非 null）
      */
     @GetMapping("/policy/{policyId}")
-    ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(@PathVariable String policyId);
+    ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(@PathVariable String policyId);
 
     /**
      * 账户转换（基金转换）
@@ -47,6 +48,6 @@ public interface InvestmentAccountSwitchClient {
      * @return 转换后账户读模型结果
      */
     @PostMapping("/{accountId}/switches")
-    ApiResponse<InvestmentAccountQueryResult> switchUnits(@PathVariable String accountId,
+    ApiResponse<InvestmentAccountResponse> switchUnits(@PathVariable String accountId,
             @RequestBody InvestmentAccountApi.SwitchUnitsRequest request);
 }

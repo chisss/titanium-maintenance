@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.titanium.investment.api.InvestmentAccountApi;
-import com.titanium.investment.query.result.InvestmentAccountQueryResult;
+import com.titanium.investment.api.response.InvestmentAccountResponse;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountSwitchClient;
 import com.titanium.maintenance.port.investment.InvestmentAccountSwitchPort;
@@ -47,7 +47,7 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
     @Override
     public InvestmentSwitchFact switchByPolicy(InvestmentSwitchRequest request) {
         try {
-            List<InvestmentAccountQueryResult> accounts = requireAccounts(request);
+            List<InvestmentAccountResponse> accounts = requireAccounts(request);
             if (accounts.isEmpty()) {
                 log.info("保单名下无可用投资账户，账户转换无处可施, policyId={}", request.policyId());
                 return null;
@@ -57,9 +57,9 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
                         "保单名下存在多个投资账户，账户转换需明确账户标识, policyId=" + request.policyId(),
                         MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_AMBIGUOUS);
             }
-            InvestmentAccountQueryResult switched = requireSwitched(accounts.getFirst().getAccountId(), request);
-            return new InvestmentSwitchFact(switched.getAccountId(), switched.getUnitPrice(),
-                    switched.getTotalUnits(), switched.getAccountValue(), switched.getCurrency());
+            InvestmentAccountResponse switched = requireSwitched(accounts.getFirst().accountId(), request);
+            return new InvestmentSwitchFact(switched.accountId(), switched.unitPrice(),
+                    switched.totalUnits(), switched.accountValue(), switched.currency());
         } catch (MaintenanceRemoteCallException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -72,8 +72,8 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
     }
 
     /** 按保单解析账户列表；对端未正常应答一律失败关闭，空列表才是「无账户」 */
-    private List<InvestmentAccountQueryResult> requireAccounts(InvestmentSwitchRequest request) {
-        ApiResponse<List<InvestmentAccountQueryResult>> response = investmentAccountSwitchClient
+    private List<InvestmentAccountResponse> requireAccounts(InvestmentSwitchRequest request) {
+        ApiResponse<List<InvestmentAccountResponse>> response = investmentAccountSwitchClient
                 .getAccountsByPolicy(request.policyId());
         if (response == null || !response.isSuccess() || response.getData() == null) {
             throw new MaintenanceRemoteCallException(
@@ -85,13 +85,13 @@ public class InvestmentAccountSwitchAdapter implements InvestmentAccountSwitchPo
     }
 
     /** 执行转换并校验回执完整性；转换后账户事实必须齐备，否则视为契约无效 */
-    private InvestmentAccountQueryResult requireSwitched(String accountId, InvestmentSwitchRequest request) {
-        ApiResponse<InvestmentAccountQueryResult> response = investmentAccountSwitchClient
+    private InvestmentAccountResponse requireSwitched(String accountId, InvestmentSwitchRequest request) {
+        ApiResponse<InvestmentAccountResponse> response = investmentAccountSwitchClient
                 .switchUnits(accountId, toSwitchRequest(request));
-        InvestmentAccountQueryResult switched = response == null ? null : response.getData();
+        InvestmentAccountResponse switched = response == null ? null : response.getData();
         if (response == null || !response.isSuccess() || switched == null
-                || switched.getAccountId() == null || switched.getUnitPrice() == null
-                || switched.getTotalUnits() == null || switched.getAccountValue() == null) {
+                || switched.accountId() == null || switched.unitPrice() == null
+                || switched.totalUnits() == null || switched.accountValue() == null) {
             throw new MaintenanceRemoteCallException(
                     "投资域账户转换未返回有效回执, policyId=" + request.policyId() + ", accountId=" + accountId
                             + ", code=" + (response == null ? "null" : response.getCode()),

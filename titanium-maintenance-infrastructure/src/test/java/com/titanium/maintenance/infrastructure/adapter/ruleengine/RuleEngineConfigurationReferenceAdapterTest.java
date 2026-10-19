@@ -19,13 +19,13 @@ import com.titanium.maintenance.common.exception.MaintenanceConfigurationDepende
 import com.titanium.maintenance.infrastructure.client.ruleengine.RuleEngineClient;
 import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort.ReferenceValidationEvidence;
 import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort.ReferenceValidationRequest;
+import com.titanium.metadata.enums.ruleengine.RuleSetStatus;
+import com.titanium.metadata.enums.ruleengine.RuleSetType;
 import com.titanium.metadata.errorcode.MaintenanceErrorCode;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.ruleengine.api.request.execution.RuleFacts;
 import com.titanium.ruleengine.api.response.execution.ValidationResultResponse;
 import com.titanium.ruleengine.api.response.ruleset.RuleSetResponse;
-import com.titanium.ruleengine.common.enums.RuleSetStatus;
-import com.titanium.ruleengine.common.enums.RuleSetType;
 
 /**
  * 保全配置引用权威适配器测试（AC-03：规则码权威去硬编码）

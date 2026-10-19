@@ -67,6 +67,26 @@
             <artifactId>junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+    
+        <!-- m27-01/PKG-01：显式声明实际使用的内核/starter 模块（原经 titanium-common 传递获得） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-kernel</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <!-- m27-01/PKG-01：显式声明实际使用的内核/starter 模块（原经 titanium-common 传递获得） -->
+        <dependency>
+            <groupId>com.titanium</groupId>
+            <artifactId>titanium-starter-web</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+        <!-- m27-02/PKG-02：api 契约层的 Feign 注解改为 provided、不再向下游传递；
+             本模块测试用 @FeignClient 校验契约声明，故按 test 作用域显式声明 -->
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-openfeign-core</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

@@ -75,6 +75,7 @@ public interface MaintenanceApi {
 
     /** 将既有 Product 生命周期差额生成反向事实并登记 Billing。 */
     @PostMapping("/{id}/reversal-settlements")
+    @Reserved("g16-04: 跨域零消费者（管理面经 web 层）；登记见 docs/技术文档/契约登记表.md")
     ApiResponse<MaintenancePremiumSettlementResponse> settleReversal(
             @PathVariable String id,
             @RequestBody @Valid SettleMaintenanceReversalRequest request);

@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.titanium.investment.api.InvestmentAccountApi;
-import com.titanium.investment.query.result.InvestmentAccountQueryResult;
+import com.titanium.investment.api.response.InvestmentAccountResponse;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountRedeemClient;
 import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort;
@@ -51,7 +51,7 @@ public class InvestmentAccountRedeemAdapter implements InvestmentAccountRedeemPo
     @Override
     public InvestmentRedeemFact redeemByPolicy(InvestmentRedeemRequest request) {
         try {
-            List<InvestmentAccountQueryResult> accounts = requireAccounts(request);
+            List<InvestmentAccountResponse> accounts = requireAccounts(request);
             if (accounts.isEmpty()) {
                 log.info("保单名下无可用投资账户，部分领取的赎回无处可施, policyId={}, maintenanceId={}",
                         request.policyId(), request.maintenanceId());
@@ -62,9 +62,9 @@ public class InvestmentAccountRedeemAdapter implements InvestmentAccountRedeemPo
                         "保单名下存在多个投资账户，部分领取需明确账户标识, policyId=" + request.policyId(),
                         MaintenanceErrorCode.MAINTENANCE_INVESTMENT_ACCOUNT_AMBIGUOUS);
             }
-            InvestmentAccountQueryResult redeemed = requireRedeemed(accounts.getFirst().getAccountId(), request);
-            return new InvestmentRedeemFact(redeemed.getAccountId(), redeemed.getUnitPrice(),
-                    redeemed.getTotalUnits(), redeemed.getAccountValue(), redeemed.getCurrency());
+            InvestmentAccountResponse redeemed = requireRedeemed(accounts.getFirst().accountId(), request);
+            return new InvestmentRedeemFact(redeemed.accountId(), redeemed.unitPrice(),
+                    redeemed.totalUnits(), redeemed.accountValue(), redeemed.currency());
         } catch (MaintenanceRemoteCallException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -77,8 +77,8 @@ public class InvestmentAccountRedeemAdapter implements InvestmentAccountRedeemPo
     }
 
     /** 按保单解析账户列表；对端未正常应答一律失败关闭，空列表才是「无账户」 */
-    private List<InvestmentAccountQueryResult> requireAccounts(InvestmentRedeemRequest request) {
-        ApiResponse<List<InvestmentAccountQueryResult>> response = investmentAccountRedeemClient
+    private List<InvestmentAccountResponse> requireAccounts(InvestmentRedeemRequest request) {
+        ApiResponse<List<InvestmentAccountResponse>> response = investmentAccountRedeemClient
                 .getAccountsByPolicy(request.policyId());
         if (response == null || !response.isSuccess() || response.getData() == null) {
             throw new MaintenanceRemoteCallException(
@@ -90,13 +90,13 @@ public class InvestmentAccountRedeemAdapter implements InvestmentAccountRedeemPo
     }
 
     /** 执行赎回并校验回执完整性；赎回后账户事实必须齐备，否则视为契约无效 */
-    private InvestmentAccountQueryResult requireRedeemed(String accountId, InvestmentRedeemRequest request) {
-        ApiResponse<InvestmentAccountQueryResult> response = investmentAccountRedeemClient
+    private InvestmentAccountResponse requireRedeemed(String accountId, InvestmentRedeemRequest request) {
+        ApiResponse<InvestmentAccountResponse> response = investmentAccountRedeemClient
                 .redeemByAmount(accountId, toRedeemRequest(request));
-        InvestmentAccountQueryResult redeemed = response == null ? null : response.getData();
+        InvestmentAccountResponse redeemed = response == null ? null : response.getData();
         if (response == null || !response.isSuccess() || redeemed == null
-                || redeemed.getAccountId() == null || redeemed.getUnitPrice() == null
-                || redeemed.getTotalUnits() == null || redeemed.getAccountValue() == null) {
+                || redeemed.accountId() == null || redeemed.unitPrice() == null
+                || redeemed.totalUnits() == null || redeemed.accountValue() == null) {
             throw new MaintenanceRemoteCallException(
                     "投资域部分领取赎回未返回有效回执, policyId=" + request.policyId() + ", accountId=" + accountId
                             + ", code=" + (response == null ? "null" : response.getCode()),

@@ -13,7 +13,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.titanium.investment.api.InvestmentAccountApi;
-import com.titanium.investment.query.result.InvestmentAccountQueryResult;
+import com.titanium.investment.api.response.InvestmentAccountResponse;
 import com.titanium.maintenance.common.exception.MaintenanceRemoteCallException;
 import com.titanium.maintenance.infrastructure.client.investment.InvestmentAccountRedeemClient;
 import com.titanium.maintenance.port.investment.InvestmentAccountRedeemPort.InvestmentRedeemFact;
@@ -51,7 +51,7 @@ class InvestmentAccountRedeemAdapterTest {
     @Test
     @DisplayName("唯一账户：赎回事实逐字段取对端应答，请求体递金额而非单位数、币种缺省、原因由案件号派生")
     void shouldReturnRedeemedFactAndSubmitAmountNotUnits() {
-        InvestmentAccountQueryResult redeemed = account("account-1", "1.25000000", "200.00000000",
+        InvestmentAccountResponse redeemed = account("account-1", "1.25000000", "200.00000000",
                 "250.00000000", "CNY");
         RecordingClient recording = new RecordingClient(
                 List.of(account("account-1", null, null, null, null)), redeemed);
@@ -107,12 +107,12 @@ class InvestmentAccountRedeemAdapterTest {
     void shouldThrowRemoteErrorWhenQueryUnreachable() {
         InvestmentAccountRedeemAdapter adapter = new InvestmentAccountRedeemAdapter(new InvestmentAccountRedeemClient() {
             @Override
-            public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId) {
+            public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(String policyId) {
                 throw new RuntimeException(new ConnectException("Connection refused: titanium-investment"));
             }
 
             @Override
-            public ApiResponse<InvestmentAccountQueryResult> redeemByAmount(String accountId,
+            public ApiResponse<InvestmentAccountResponse> redeemByAmount(String accountId,
                     InvestmentAccountApi.RedeemByAmountRequest request) {
                 throw new IllegalStateException("查询已失败，不得再发起赎回");
             }
@@ -132,12 +132,12 @@ class InvestmentAccountRedeemAdapterTest {
         InvestmentAccountRedeemAdapter failed = new InvestmentAccountRedeemAdapter(client(null, null, null));
         InvestmentAccountRedeemAdapter emptyData = new InvestmentAccountRedeemAdapter(new InvestmentAccountRedeemClient() {
             @Override
-            public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId) {
+            public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(String policyId) {
                 return ApiResponse.success(null);
             }
 
             @Override
-            public ApiResponse<InvestmentAccountQueryResult> redeemByAmount(String accountId,
+            public ApiResponse<InvestmentAccountResponse> redeemByAmount(String accountId,
                     InvestmentAccountApi.RedeemByAmountRequest request) {
                 throw new IllegalStateException("查询未返回有效列表，不得再发起赎回");
             }
@@ -183,34 +183,30 @@ class InvestmentAccountRedeemAdapterTest {
                 new BigDecimal("1000.00"), currency, "operator-1");
     }
 
-    private InvestmentAccountQueryResult account(String accountId, String unitPrice, String totalUnits,
+    private InvestmentAccountResponse account(String accountId, String unitPrice, String totalUnits,
             String accountValue, String currency) {
-        InvestmentAccountQueryResult result = new InvestmentAccountQueryResult();
-        result.setAccountId(accountId);
-        if (unitPrice != null) {
-            result.setUnitPrice(new BigDecimal(unitPrice));
-        }
-        if (totalUnits != null) {
-            result.setTotalUnits(new BigDecimal(totalUnits));
-        }
-        if (accountValue != null) {
-            result.setAccountValue(new BigDecimal(accountValue));
-        }
-        result.setCurrency(currency);
-        return result;
+        // 组件顺序：accountId, policyId, accountType, unitPrice, currency, totalUnits, accountValue,
+        // managementFeeRate, status, tenantId（本用例只关心账户与金额事实，其余留空）
+        return new InvestmentAccountResponse(accountId,
+                null, null,
+                unitPrice == null ? null : new BigDecimal(unitPrice),
+                currency,
+                totalUnits == null ? null : new BigDecimal(totalUnits),
+                accountValue == null ? null : new BigDecimal(accountValue),
+                null, null, null);
     }
 
     /** 账户列表应答与赎回应答可分别指定的客户端桩 */
-    private InvestmentAccountRedeemClient client(List<InvestmentAccountQueryResult> accounts,
-            InvestmentAccountQueryResult redeemed, ApiResponse<InvestmentAccountQueryResult> redeemResponse) {
+    private InvestmentAccountRedeemClient client(List<InvestmentAccountResponse> accounts,
+            InvestmentAccountResponse redeemed, ApiResponse<InvestmentAccountResponse> redeemResponse) {
         return new InvestmentAccountRedeemClient() {
             @Override
-            public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId) {
+            public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(String policyId) {
                 return accounts == null ? null : ApiResponse.success(accounts);
             }
 
             @Override
-            public ApiResponse<InvestmentAccountQueryResult> redeemByAmount(String accountId,
+            public ApiResponse<InvestmentAccountResponse> redeemByAmount(String accountId,
                     InvestmentAccountApi.RedeemByAmountRequest request) {
                 return redeemResponse != null ? redeemResponse
                         : (redeemed == null ? ApiResponse.error(
@@ -223,27 +219,27 @@ class InvestmentAccountRedeemAdapterTest {
     /** 记录实际发出的查询与赎回请求，供断言递交内容 */
     private static final class RecordingClient implements InvestmentAccountRedeemClient {
 
-        private final List<InvestmentAccountQueryResult> accounts;
-        private final InvestmentAccountQueryResult       redeemed;
+        private final List<InvestmentAccountResponse> accounts;
+        private final InvestmentAccountResponse       redeemed;
 
         private String                                        queryPolicyId;
         private String                                        redeemAccountId;
         private InvestmentAccountApi.RedeemByAmountRequest     redeemBody;
 
-        private RecordingClient(List<InvestmentAccountQueryResult> accounts,
-                InvestmentAccountQueryResult redeemed) {
+        private RecordingClient(List<InvestmentAccountResponse> accounts,
+                InvestmentAccountResponse redeemed) {
             this.accounts = accounts;
             this.redeemed = redeemed;
         }
 
         @Override
-        public ApiResponse<List<InvestmentAccountQueryResult>> getAccountsByPolicy(String policyId) {
+        public ApiResponse<List<InvestmentAccountResponse>> getAccountsByPolicy(String policyId) {
             this.queryPolicyId = policyId;
             return ApiResponse.success(accounts);
         }
 
         @Override
-        public ApiResponse<InvestmentAccountQueryResult> redeemByAmount(String accountId,
+        public ApiResponse<InvestmentAccountResponse> redeemByAmount(String accountId,
                 InvestmentAccountApi.RedeemByAmountRequest request) {
             this.redeemAccountId = accountId;
             this.redeemBody = request;

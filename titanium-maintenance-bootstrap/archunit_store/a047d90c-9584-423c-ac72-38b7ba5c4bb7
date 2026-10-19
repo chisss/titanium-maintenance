@@ -1,0 +1,6 @@
+Class <com.titanium.maintenance.api.request.ChangeMaintenanceStatusRequest> does reside in a package 'com.titanium.maintenance.api.request' in (ChangeMaintenanceStatusRequest.java:0)
+Class <com.titanium.maintenance.api.request.CreateMaintenanceRequest> does reside in a package 'com.titanium.maintenance.api.request' in (CreateMaintenanceRequest.java:0)
+Class <com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest$UnderwritingAdjustment> does reside in a package 'com.titanium.maintenance.api.request' in (SettleMaintenancePremiumRequest.java:0)
+Class <com.titanium.maintenance.api.request.SettleMaintenancePremiumRequest> does reside in a package 'com.titanium.maintenance.api.request' in (SettleMaintenancePremiumRequest.java:0)
+Class <com.titanium.maintenance.api.request.SettleMaintenanceReversalRequest> does reside in a package 'com.titanium.maintenance.api.request' in (SettleMaintenanceReversalRequest.java:0)
+Class <com.titanium.maintenance.api.request.SettleMaintenanceSurrenderRequest> does reside in a package 'com.titanium.maintenance.api.request' in (SettleMaintenanceSurrenderRequest.java:0)

@@ -10,10 +10,10 @@ import com.titanium.maintenance.common.constant.MaintenanceReferenceCatalog;
 import com.titanium.maintenance.common.exception.MaintenanceConfigurationDependencyException;
 import com.titanium.maintenance.infrastructure.client.ruleengine.RuleEngineClient;
 import com.titanium.maintenance.port.ruleengine.MaintenanceConfigurationReferencePort;
+import com.titanium.metadata.enums.ruleengine.RuleSetStatus;
+import com.titanium.metadata.enums.ruleengine.RuleSetType;
 import com.titanium.metadata.response.ApiResponse;
 import com.titanium.ruleengine.api.response.ruleset.RuleSetResponse;
-import com.titanium.ruleengine.common.enums.RuleSetStatus;
-import com.titanium.ruleengine.common.enums.RuleSetType;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

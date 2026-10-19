@@ -14,28 +14,21 @@
     <description>保全服务API模块</description>
 
     <dependencies>
-        <!-- Common Module（对外 DTO 引用本域枚举 common.enums，api 仅依赖 common，不耦合领域内核） -->
-        <dependency>
-            <groupId>com.titanium</groupId>
-            <artifactId>titanium-maintenance-common</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
-        </dependency>
-        <!--
-          统一响应封装 ApiResponse（m24-01a）：全系统唯一实现在 titanium-metadata，轻量（仅 lombok），
-          被 -api 引入后仍零重依赖，不会把 jpa/security/mysql 传递给 Feign 调用方
-        -->
+        <!-- PKG-02 契约层自包含白名单：仅 metadata（共享内核）+ 契约注解 -->
         <dependency>
             <groupId>com.titanium</groupId>
             <artifactId>titanium-metadata</artifactId>
-            <version>1.0.0-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.cloud</groupId>
-            <artifactId>spring-cloud-starter-openfeign</artifactId>
+            <artifactId>spring-cloud-openfeign-core</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>jakarta.validation</groupId>
@@ -43,8 +36,31 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <artifactId>jackson-annotations</artifactId>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
+
+    <build>
+        <plugins>
+            <!-- PKG-02：契约层依赖白名单门禁（规则见 titanium-parent pluginManagement）。
+                 本模块不是领域层，禁用 ban-frameworks-in-domain（契约本就使用 spring-web/Feign 注解）；
+                 同时按 id 覆盖启用 api-dependency-whitelist（父 POM 默认 phase=none，防非 api 模块误伤） -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>ban-frameworks-in-domain</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
+                        <id>api-dependency-whitelist</id>
+                        <phase>validate</phase>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

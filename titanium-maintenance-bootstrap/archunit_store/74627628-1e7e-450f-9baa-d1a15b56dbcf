@@ -1,0 +1,5 @@
+Class <com.titanium.maintenance.api.response.MaintenancePremiumSettlementResponse> does reside in a package 'com.titanium.maintenance.api.response' in (MaintenancePremiumSettlementResponse.java:0)
+Class <com.titanium.maintenance.api.response.MaintenanceResponse$MaintenanceResponseBuilder> does reside in a package 'com.titanium.maintenance.api.response' in (MaintenanceResponse.java:0)
+Class <com.titanium.maintenance.api.response.MaintenanceResponse> does reside in a package 'com.titanium.maintenance.api.response' in (MaintenanceResponse.java:0)
+Class <com.titanium.maintenance.api.response.MaintenanceStatisticsResponse> does reside in a package 'com.titanium.maintenance.api.response' in (MaintenanceStatisticsResponse.java:0)
+Class <com.titanium.maintenance.api.response.MaintenanceSurrenderSettlementResponse> does reside in a package 'com.titanium.maintenance.api.response' in (MaintenanceSurrenderSettlementResponse.java:0)
